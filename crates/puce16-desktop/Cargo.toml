@@ -1,0 +1,14 @@
+[package]
+name = "puce16-desktop"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+puce16-core = { path = "../puce16-core" }
+eframe = "0.37.0"
+cpal = "0.18.2"
+rfd = "0.17.2"
+zip = "9.0.5"
+gilrs = "0.11.2"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
