@@ -184,5 +184,19 @@ python docs\tools\task.py reset <ID>             (remet une tache a todo)
 | `kanban_import.py` echoue sur la longueur | limite de ligne de commande Windows | garder `--max-body 7500` (defaut), voire le baisser |
 | `check` refuse: "fichier hors scope" | Hermes a modifie un fichier non autorise | `git checkout -- <fichier>` ou colle la sortie a Claude |
 | `check` refuse: test introuvable | nom de test different de celui demande | Claude fournit un prompt de correction |
+| Carte `blocked`, log "Repetition Detected" | le modele local a boucle en ecrivant sa reponse finale (le code est souvent deja fait) | `cargo test` + `task.py check`; si OK: `hermes kanban complete <id> --result "..."` (section 8) |
 | Hermes boucle / derive | tache trop vague pour le modele | Claude decoupe la tache en une `TUNE-nn` plus petite |
 | `cargo build` echoue (link.exe) | Build Tools C++ manquants | installer les Build Tools Visual Studio |
+
+## 8. Cas pratique: carte bloquee par "Repetition Detected" (ou cartes terminees sans avoir fait `check`)
+
+1. `hermes kanban show <id>` puis `hermes kanban log <id> --tail 20000`: le message "Repetition Detected" vient du MODELE (boucle de generation), pas de la spec.
+2. Le code est parfois deja ecrit: lance les tests de la tache (`cargo test -p puce16-core <prefix>`), puis `python docs\tools\task.py check <ID>`.
+3. Si OK: `python docs\tools\task.py done <ID>`, commit, push, puis debloquer la chaine sans relancer le modele:
+   `hermes kanban complete <id> --result "code ecrit par Hermes, check OK"` (la carte suivante passe alors `ready`).
+4. Si KO ou fichiers incoherents: `git restore` / supprimer les fichiers de la tache, `hermes kanban comment <id> "..."`, `hermes kanban unblock <id>`.
+5. Pour limiter les boucles: regler le modele local (penalite de repetition, temperature 0.2-0.5, contexte suffisant) ou changer de modele pour le profil.
+
+Rattrapage par lot (cartes E01-01..E01-08 terminees sans `check`, tout est non commite): le controle de scope git ne peut pas
+separer les taches. Pour chaque tache DANS L'ORDRE: `python docs\tools\task.py check <ID> --no-scope` puis `python docs\tools\task.py done <ID>`;
+a la fin, UN commit groupe `E01-01..E01-08: workspace, consts, hash, framebuf, helpers de test`. Ensuite reprendre la regle normale (un commit par tache).

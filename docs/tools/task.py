@@ -357,7 +357,11 @@ def cmd_check(a):
     prev = previous_unfinished(rows, p, i)
     if prev and not a.force:
         die("%s is not finished yet (strict order D-020). Use --force to override." % prev["id"], 1)
-    ok = check_scope(tid)
+    if getattr(a, "no_scope", False):
+        print("scope: skipped (--no-scope, catch-up mode: several tasks share the same uncommitted changes)")
+        ok = True
+    else:
+        ok = check_scope(tid)
     ok = check_tests_exist(tid) and ok
     ok = check_hygiene(tid) and ok
     if ok:
@@ -428,7 +432,10 @@ def main():
     for name, fn in (("show", cmd_show), ("scope", cmd_scope), ("reset", cmd_reset)):
         s = sub.add_parser(name); s.add_argument("id"); s.set_defaults(fn=fn)
     for name, fn in (("start", cmd_start), ("check", cmd_check), ("done", cmd_done), ("approve", cmd_approve)):
-        s = sub.add_parser(name); s.add_argument("id"); s.add_argument("--force", action="store_true"); s.set_defaults(fn=fn)
+        s = sub.add_parser(name); s.add_argument("id"); s.add_argument("--force", action="store_true")
+        if name == "check":
+            s.add_argument("--no-scope", action="store_true", help="skip the git scope check (batch catch-up only)")
+        s.set_defaults(fn=fn)
     a = ap.parse_args()
     return a.fn(a)
 
