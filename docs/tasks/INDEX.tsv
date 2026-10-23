@@ -1,0 +1,249 @@
+id	title	epic	deps	gate	kind	size	role
+E01-01	Workspace Cargo et squelette de puce16-core	E01		0	code	90	hermes
+E01-02	Crates puce16-cli et puce16-desktop (manifestes + main minimal)	E01	E01-01	0	code	70	hermes
+E01-03	consts.rs et region.rs (constantes d'horloge et de ligne)	E01	E01-01,E01-02	0	code	60	hermes
+E01-04	hash.rs: Fnv64 (hash d'etat deterministe)	E01	E01-01,E01-03	0	code	50	hermes
+E01-05	FrameBuf 512x478 et FrameView compacte	E01	E01-03,E01-04	0	code	90	hermes
+E01-06	Snes de test (motif degrade) pour le desktop minimal D0	E01	E01-04,E01-05	0	code	110	hermes
+E01-07	puce16-cli run: motif de test, --hash, --dump-ppm	E01	E01-02,E01-06	0	code	120	hermes
+E01-08	Helper de test make_rom (ROM synthetiques)	E01	E01-01,E01-07	0	code	110	hermes
+E01-09	Desktop: thread d'emulation (Command / Event) sur le motif de test	E01	E01-02,E01-06,E01-08	0	code	140	hermes
+E01-10	Desktop: video.rs (conversion XRGB -> RGBA et calcul de taille)	E01	E01-02,E01-09	0	code	80	hermes
+E01-11	Desktop: fenetre eframe affichant le motif de test (jalon D0)	E01	E01-09,E01-10	0	ui	130	hermes
+E01-12	joypad.rs: constantes de boutons et filtre des directions opposees	E01	E01-01,E01-11	0	code	50	hermes
+E01-13	Desktop: clavier AZERTY (input.rs) et raccourcis (jalon D1)	E01	E01-11,E01-12	0	code	140	hermes
+E01-14	GATE J0: le desktop affiche le motif et reagit au clavier	E01	E01-07,E01-08,E01-13	1	gate	0	user
+E02-01	T-ORACLE: telecharger l'oracle SingleStepTests 65816	E02	E01-14	0	tooling	0	hermes
+E02-02	T-FORMAT: documenter le format JSON exact de l'oracle	E02	E02-01	0	doc	0	hermes
+E02-03	GATE: Claude relit ssjson_format.md et valide le format	E02	E02-02	1	gate	0	user
+E02-04	gen_tables.py: cpu/table.rs (enums Mn, Am et tables MN, AM)	E02	E01-01,E02-03	0	tooling	130	hermes
+E02-05	Cpu: registres, trait Bus, helpers, step et squelettes de familles	E02	E01-01,E02-04	0	code	150	hermes
+E02-06	testbus.rs: FlatBus (bus plat journalise)	E02	E02-05	0	code	100	hermes
+E02-07	addr.rs: Ea, read_data/write_data, read_operand, rmw et squelettes de modes	E02	E02-06	0	code	120	hermes
+E02-08	addr/absolute.rs: modes Abs, AbsX, AbsY, Long, LongX	E02	E02-07	0	code	70	hermes
+E02-09	addr/direct.rs: modes Dp, DpX, DpY, Sr	E02	E02-08	0	code	80	hermes
+E02-10	addr/indirect.rs: modes (d) [d] (d,x) (d),y [d],y (d,s),y	E02	E02-09	0	code	130	hermes
+E02-11	CLI: enregistrer les sous-commandes cpu-test, spc-test et suite (squelettes)	E02	E01-07,E02-10	0	code	100	hermes
+E02-12	cpu-test: chargeur des fichiers JSON de l'oracle	E02	E02-03,E02-11	0	code	130	hermes
+E02-13	cpu-test: comparaison d'etats et de cycles (fonctions pures)	E02	E02-12	0	code	130	hermes
+E02-14	cpu-test: commande complete (boucle sur les fichiers, rapport, code de sortie)	E02	E02-13,E02-05,E02-06	0	code	120	hermes
+E02-15	mem/load.rs: LDA, LDX, LDY (tous modes)	E02	E02-10,E02-05,E02-14	0	code	60	hermes
+E02-16	mem/store.rs: STA, STX, STY, STZ (tous modes)	E02	E02-15	0	code	70	hermes
+E02-17	VERIF oracle: modes d'adressage via LDA/LDX/LDY/STA/STX/STY/STZ	E02	E02-16,E02-14	0	code	60	hermes
+E02-18	alu/adc.rs: ADC binaire (8 et 16 bits, tous modes)	E02	E02-17	0	code	60	hermes
+E02-19	alu/adc.rs: ADC decimal (BCD 8 et 16 bits)	E02	E02-18	0	code	70	hermes
+E02-20	alu/sbc.rs: SBC binaire (8 et 16 bits, tous modes)	E02	E02-19	0	code	60	hermes
+E02-21	alu/sbc.rs: SBC decimal (BCD 8 et 16 bits)	E02	E02-20	0	code	70	hermes
+E02-22	alu/logic.rs: AND, ORA, EOR, BIT	E02	E02-21	0	code	80	hermes
+E02-23	alu/cmp.rs: CMP, CPX, CPY	E02	E02-22	0	code	60	hermes
+E02-24	alu/incdec.rs: INC, DEC, INX, INY, DEX, DEY	E02	E02-23	0	code	70	hermes
+E02-25	alu/shift.rs: ASL, LSR, ROL, ROR	E02	E02-24	0	code	80	hermes
+E02-26	alu/tsbtrb.rs: TSB, TRB	E02	E02-25	0	code	50	hermes
+E02-27	VERIF oracle: toutes les instructions ALU	E02	E02-26,E02-14	0	code	60	hermes
+E02-28	mem/push.rs: PHA PHX PHY PHP PHD PHB PHK PEA PEI PER	E02	E02-27	0	code	110	hermes
+E02-29	mem/pull.rs: PLA PLX PLY PLP PLD PLB	E02	E02-28	0	code	80	hermes
+E02-30	mem/block.rs: MVN, MVP	E02	E02-29	0	code	60	hermes
+E02-31	VERIF oracle: pile et blocs (PH*/PL*/PEA/PEI/PER/MVN/MVP)	E02	E02-30,E02-14	0	code	50	hermes
+E02-32	flow/branch.rs: Bxx, BRA, BRL	E02	E02-31	0	code	60	hermes
+E02-33	flow/jump.rs: JMP et JML (tous modes)	E02	E02-32	0	code	70	hermes
+E02-34	flow/call.rs: JSR, JSL, RTS, RTL	E02	E02-33	0	code	100	hermes
+E02-35	flow/sys.rs: BRK, COP, RTI, WAI, STP, WDM	E02	E02-34	0	code	110	hermes
+E02-36	VERIF oracle: controle de flux (Bxx, JMP, JSR, RTS, BRK, RTI...)	E02	E02-35,E02-14	0	code	50	hermes
+E02-37	misc/transfer.rs: TAX TAY TXA TYA TSX TXS TXY TYX TCD TDC TCS TSC	E02	E02-36	0	code	90	hermes
+E02-38	misc/flags.rs: CLC SEC CLI SEI CLD SED CLV REP SEP XCE XBA NOP	E02	E02-37	0	code	90	hermes
+E02-39	VERIF oracle: transferts, drapeaux, XCE/XBA/NOP	E02	E02-38,E02-14	0	code	50	hermes
+E02-40	interrupts.rs: poll (NMI/IRQ/WAI/STP), sequence d'interruption et RESET	E02	E02-39	0	code	130	hermes
+E02-41	GATE J1: tous les opcodes 65816 passent l'oracle	E02	E02-40	1	gate	0	user
+E03-01	cart/header.rs: types, en-tete interne, checksum, region, SRAM	E03	E02-41	0	code	140	hermes
+E03-02	cart/mapper.rs: formules LoROM / HiROM / ExHiROM (fonctions pures)	E03	E03-01	0	code	140	hermes
+E03-03	cart/header.rs: score_header et choix de l'en-tete	E03	E03-02	0	code	120	hermes
+E03-04	cart/mod.rs: strip_copier_header et normalize (ROM en puissance de 2)	E03	E03-03	0	code	100	hermes
+E03-05	Cart: from_bytes / from_bytes_forced et accesseurs	E03	E03-04	0	code	130	hermes
+E03-06	Cart: read / write / load_sram	E03	E03-05	0	code	100	hermes
+E03-07	ppu/dot.rs: tables de dots et types de ligne	E03	E03-06	0	code	100	hermes
+E03-08	ppu/mod.rs: Ppu (compteurs v/dot/field, step_dot, evenements)	E03	E03-07	0	code	140	hermes
+E03-09	ppu/mod.rs: registres $2100 et $2133 (minimal), read, hash	E03	E03-08	0	code	100	hermes
+E03-10	bus/wram.rs: WRAM 128 Kio et registres $2180-$2183	E03	E03-09	0	code	90	hermes
+E03-11	joypad.rs: ports $4016/$4017 et valeurs d'auto-read	E03	E01-12,E03-10	0	code	120	hermes
+E03-12	apu/mod.rs: squelette Apu (ports $2140-$2143)	E03	E03-11	0	code	70	hermes
+E03-13	bus/mod.rs: access_clocks (6/8/12 clocks par acces)	E03	E03-12	0	code	70	hermes
+E03-14	bus/mmio.rs: struct Mmio, power-on, ecritures $4200-$420D	E03	E03-13	0	code	130	hermes
+E03-15	bus/mmio.rs: unite math (multiplication 8x8, division 16/8) et lecture $4214-$4217	E03	E03-14	0	code	130	hermes
+E03-16	bus/mmio.rs: lecture RDNMI, TIMEUP, HVBJOY, RDIO, JOYn	E03	E03-15	0	code	110	hermes
+E03-17	dma/mod.rs: Channel, Dma::new et registres $4300-$437F	E03	E03-16	0	code	120	hermes
+E03-18	dma/mod.rs: trait DmaBus et fonctions de pattern	E03	E03-17	0	code	90	hermes
+E03-19	dma/mod.rs: run_general (A -> B), patterns, ajustement A, temps	E03	E03-18	0	code	140	hermes
+E03-20	dma/mod.rs: run_general sens B -> A et cas WRAM <-> $2180	E03	E03-19	0	code	100	hermes
+E03-21	dma/hdma.rs: hdma_init (debut de frame)	E03	E03-20	0	code	130	hermes
+E03-22	dma/hdma.rs: hdma_run_line (un transfert par scanline)	E03	E03-21	0	code	140	hermes
+E03-23	timing/mod.rs: Timing (ligne, refresh, VBlank/NMI) + banc de test Rig	E03	E03-22	0	code	140	hermes
+E03-24	timing/mod.rs: IRQ H/V	E03	E03-23	0	code	100	hermes
+E03-25	timing/mod.rs: auto-read joypad et declencheurs HDMA	E03	E03-24	0	code	110	hermes
+E03-26	bus/mod.rs: struct SysBus (possession des composants), new, reset, hash	E03	E03-25	0	code	120	hermes
+E03-27	bus/route.rs: read_inner (routage des lectures, open bus)	E03	E03-26	0	code	140	hermes
+E03-28	bus/route.rs: write_inner (routage des ecritures et effets)	E03	E03-27	0	code	130	hermes
+E03-29	bus/cycle.rs: avance du temps, catch_up et impl cpu::Bus	E03	E03-28	0	code	140	hermes
+E03-30	bus/cycle.rs: rafraichissement DRAM (40 clocks par ligne)	E03	E03-29	0	code	60	hermes
+E03-31	bus/mod.rs: impl DmaBus pour SysBus	E03	E03-30	0	code	90	hermes
+E03-32	bus/cycle.rs: execution du DMA general (apres le cycle suivant MDMAEN)	E03	E03-31	0	code	70	hermes
+E03-33	bus/cycle.rs: execution HDMA (init et run) en debut de cycle	E03	E03-32	0	code	80	hermes
+E03-34	snes.rs: Snes reel (new_with, reset) a cote du motif de test	E03	E03-33	0	code	140	hermes
+E03-35	snes.rs: run_frame / run_master / step_instruction / hash / SRAM / debug (Snes reel)	E03	E03-34	0	code	140	hermes
+E03-36	tests/common/prog.rs et test de demarrage (boot)	E03	E03-35	0	code	100	hermes
+E03-37	Integration: NMI (compteur par frame, RDNMI, activation en VBlank)	E03	E03-36	0	code	120	hermes
+E03-38	Integration: IRQ H/V (modes 1, 2, 3, masque I, acquittement)	E03	E03-37	0	code	130	hermes
+E03-39	Integration: DMA general ROM -> WRAM par $2180 et relecture	E03	E03-38	0	code	110	hermes
+E03-40	Integration: HDMA vers $2180 (table directe, repetition)	E03	E03-39	0	code	120	hermes
+E03-41	Integration: auto-read des manettes ($4218-$421F)	E03	E03-40	0	code	100	hermes
+E03-42	Integration: unite de multiplication/division et determinisme	E03	E03-41	0	code	110	hermes
+E03-43	Integration: SRAM, open bus et valeurs de power-on des registres	E03	E03-42	0	code	100	hermes
+E03-44	CLI: puce16-cli run <rom> (vraie ROM, --state-hash, --mapper, --debug)	E03	E03-43	0	code	140	hermes
+E03-45	Desktop: files.rs (extensions ROM, extraction d'un .zip, lecture d'un fichier ROM)	E03	E03-44	0	code	110	hermes
+E03-46	Desktop: emu_thread LoadRom, Reset reel, Event::Error	E03	E03-45	0	code	140	hermes
+E03-47	Desktop: ouvrir une ROM (menu, Ctrl+O, glisser-deposer, argument de ligne de commande)	E03	E03-46	0	ui	130	hermes
+E03-48	GATE J2: le systeme assemble demarre une ROM (CLI + desktop)	E03	E03-47	1	gate	0	user
+E04-01	ppu/vram.rs: VRAM, VMAIN, VMADD, prefetch, lecture/ecriture	E04	E03-48	0	code	140	hermes
+E04-02	ppu/cgram.rs: CGRAM (256 mots, ecriture/lecture par paires)	E04	E04-01	0	code	100	hermes
+E04-03	ppu/oam.rs: OAM 544 octets, OAMADD, OAMDATA, rechargement	E04	E04-02	0	code	130	hermes
+E04-04	ppu/regs.rs: registres de scroll BGnHOFS/BGnVOFS et latchs partages	E04	E04-03	0	code	90	hermes
+E04-05	ppu/mode7.rs: registres mode 7 (M7SEL, M7A-D, M7X/Y, scroll) et MPY	E04	E04-04	0	code	120	hermes
+E04-06	ppu/regs.rs: registres de configuration des fonds et des sprites	E04	E04-05	0	code	110	hermes
+E04-07	ppu/regs.rs: fenetres, TM/TS, color math, COLDATA	E04	E04-06	0	code	130	hermes
+E04-08	ppu/mod.rs: aiguillage des ecritures $2100-$2133 vers les memoires et registres	E04	E04-07	0	code	150	hermes
+E04-09	ppu/mod.rs: registres de lecture MPY, OAM, VRAM, CGRAM et open bus PPU	E04	E04-08	0	code	120	hermes
+E04-10	ppu/mod.rs: verrou des compteurs H/V, OPHCT/OPVCT, STAT77, STAT78	E04	E04-09	0	code	140	hermes
+E04-11	ppu/mod.rs: INIDISP/SETINI complets, rechargement OAM et drapeaux au debut de frame	E04	E04-10	0	code	110	hermes
+E04-12	ppu/mod.rs: reset vs power-on, regs_snapshot (debugger) et hash complet	E04	E04-11	0	code	140	hermes
+E04-13	ppu/output.rs: conversion couleur BGR555 -> XRGB8888 et rangee de sortie	E04	E04-12	0	code	70	hermes
+E04-14	ppu/mod.rs: framebuffer, pixel de fond (backdrop) et FrameView	E04	E04-13	0	code	140	hermes
+E04-15	snes.rs: le Snes reel affiche la sortie du PPU (jalon video V1)	E04	E04-14	0	code	100	hermes
+E05-01	ppu/bg.rs: types Pix/Pick, tables BPP et ordres de priorite	E05	E04-15	0	code	120	hermes
+E05-02	ppu/bg.rs: indices de palette et couleur directe	E05	E05-01	0	code	90	hermes
+E05-03	ppu/bg.rs: decode_row (tuiles 2/4/8 bpp)	E05	E05-02	0	code	70	hermes
+E05-04	ppu/bg.rs: entree de tilemap et adresse (map_entry_addr)	E05	E05-03	0	code	80	hermes
+E05-05	ppu/bg.rs: bg_pixel (tuiles 8x8, defilement, palette)	E05	E05-04	0	code	140	hermes
+E05-06	ppu/bg.rs: tuiles 16x16 et retournements (flips)	E05	E05-05	0	code	100	hermes
+E05-07	ppu/bg.rs: mosaique	E05	E05-06	0	code	90	hermes
+E05-08	ppu/bg.rs: offset-per-tile (modes 2 et 4)	E05	E05-07	0	code	130	hermes
+E05-09	ppu/window.rs: fenetres (window_out) et groupes de couche	E05	E05-08	0	code	110	hermes
+E05-10	ppu/obj.rs: tailles, decodage d'un sprite et liste des 32 sprites d'une rangee	E05	E05-09	0	code	140	hermes
+E05-11	ppu/obj.rs: tranches de sprites, tampon de ligne, limites et erratum de flip	E05	E05-10	0	code	150	hermes
+E05-12	ppu/mode7.rs: echantillonnage mode 7 (m7_sample, clip13)	E05	E05-11	0	code	100	hermes
+E05-13	ppu/mode7.rs: pixel mode 7 (BG1) et EXTBG (BG2)	E05	E05-12	0	code	130	hermes
+E05-14	ppu: pick_layers (ordre de priorite), fenetres par ecran, pick_screen	E05	E05-13	0	code	140	hermes
+E05-15	ppu/colormath.rs: color math, regions de la fenetre couleur	E05	E05-14	0	code	140	hermes
+E05-16	ppu/mod.rs: compose_pixel branche dans step_dot (rendu non hi-res complet)	E05	E05-15	0	code	140	hermes
+E05-17	ppu/bg.rs: fonds hi-res des modes 5 et 6 (bg_pixel_hires)	E05	E05-16	0	code	140	hermes
+E05-18	ppu/mod.rs: hi-res et pseudo hi-res dans step_dot, export 512 colonnes	E05	E05-17	0	code	150	hermes
+E05-19	tests: harness de scenes PPU (hash de frame compare a un renderer Python independant)	E05	E05-18	0	code	130	hermes
+E06-01	T-ORACLE: telecharger l'oracle SingleStepTests spc700	E06	E05-19	0	tooling	0	hermes
+E06-02	T-FORMAT: documenter le format JSON exact de l'oracle spc700	E06	E06-01	0	doc	0	hermes
+E06-03	GATE: Claude relit spcjson_format.md et valide le format	E06	E06-02	1	gate	0	user
+E06-04	gen_spc_tables.py: spc700/table.rs (BYTES, CYCLES, BRANCH_EXTRA, NAME)	E06	E06-03	0	tooling	100	hermes
+E06-05	Spc700: registres, trait SmpBus, helpers, step et squelettes de familles	E06	E06-04	0	code	150	hermes
+E06-06	spc700/testbus.rs: FlatSmpBus (bus plat journalise)	E06	E06-05	0	code	90	hermes
+E06-07	spc-test: chargeur des fichiers JSON de l'oracle	E06	E06-06	0	code	130	hermes
+E06-08	spc-test: comparaison d'etats et de cycles (fonctions pures)	E06	E06-07	0	code	120	hermes
+E06-09	spc-test: commande complete (boucle sur les fichiers, rapport, code de sortie)	E06	E06-08	0	code	110	hermes
+E06-10	spc700/addr.rs: recettes d'adressage (dp, dp+X, abs, (X), [dp+X], [dp]+Y...)	E06	E06-09	0	code	110	hermes
+E06-11	spc700/mov.rs: MOV de chargement (A, X, Y depuis la memoire ou un immediat)	E06	E06-10	0	code	100	hermes
+E06-12	spc700/mov.rs: MOV de stockage (avec lecture factice de la destination)	E06	E06-11	0	code	110	hermes
+E06-13	spc700/mov.rs: transferts, MOV dp,#imm, MOV dp,dp, (X)+ et MOVW	E06	E06-12	0	code	130	hermes
+E06-14	VERIF oracle: toutes les instructions MOV / MOVW	E06	E06-13	0	code	60	hermes
+E06-15	spc700/alu.rs: OR, AND, EOR (toutes les formes)	E06	E06-14	0	code	120	hermes
+E06-16	spc700/alu.rs: ADC et SBC (toutes les formes)	E06	E06-15	0	code	120	hermes
+E06-17	spc700/alu.rs: CMP (A, X, Y et formes memoire)	E06	E06-16	0	code	110	hermes
+E06-18	VERIF oracle: OR AND EOR ADC SBC CMP	E06	E06-17	0	code	60	hermes
+E06-19	spc700/incdec.rs: INC, DEC, ASL, LSR, ROL, ROR, XCN	E06	E06-18	0	code	140	hermes
+E06-20	spc700/misc.rs: DAA, DAS, MUL, DIV	E06	E06-19	0	code	110	hermes
+E06-21	spc700/word.rs: ADDW, SUBW, CMPW, INCW, DECW	E06	E06-20	0	code	120	hermes
+E06-22	VERIF oracle: INC DEC ASL LSR ROL ROR XCN DAA DAS MUL DIV et mots 16 bits	E06	E06-21	0	code	60	hermes
+E06-23	spc700/bits.rs: SET1, CLR1, BBS, BBC, TSET1, TCLR1	E06	E06-22	0	code	120	hermes
+E06-24	spc700/bits.rs: OR1, AND1, EOR1, MOV1, NOT1 (bits de la memoire absolue)	E06	E06-23	0	code	110	hermes
+E06-25	VERIF oracle: instructions de bits	E06	E06-24	0	code	50	hermes
+E06-26	spc700/flow.rs: branches (Bxx, BRA, CBNE, DBNZ)	E06	E06-25	0	code	120	hermes
+E06-27	spc700/flow.rs: JMP, CALL, PCALL, TCALL, BRK, RET, RETI	E06	E06-26	0	code	130	hermes
+E06-28	spc700/misc.rs: PUSH, POP, flags, NOP, SLEEP, STOP	E06	E06-27	0	code	110	hermes
+E06-29	VERIF oracle: flux de controle, pile, indicateurs	E06	E06-28	0	code	50	hermes
+E06-30	GATE J4a: tous les opcodes SPC700 passent l'oracle	E06	E06-29	1	gate	0	user
+E06-31	dsp/mod.rs: Dsp (fichier de registres, reset, hash) et Voice (structure)	E06	E06-30	0	code	130	hermes
+E06-32	apu/timer.rs: les trois timers du SMP	E06	E06-31	0	code	90	hermes
+E06-33	apu/ipl.rs: la ROM IPL de 64 octets	E06	E06-32	0	data	50	hermes
+E06-34	apu/io.rs: ApuIo (RAM 64 Kio, registres $F0-$FF, ports, timers, IPL)	E06	E06-33	0	code	150	hermes
+E06-35	apu/mod.rs: Apu complet (SMP + ApuIo), rattrapage step_to, region	E06	E06-34	0	code	150	hermes
+E06-36	Tests d'integration IPL: handshake et envoi d'un programme par les ports	E06	E06-35	0	code	110	hermes
+E06-37	Snes: le S-CPU voit le handshake de l'IPL (jalon audio A1)	E06	E06-36	0	code	100	hermes
+E06-38	DSP-DATA: obtenir la table gaussienne GAUSS[512] (reseau)	E06	E06-37	0	tooling	0	hermes
+E06-39	dsp/gauss.rs (genere) et dsp/tables.rs: PERIOD, OFFSET, poll	E06	E06-38	0	tooling	110	hermes
+E06-40	dsp/brr.rs: decodage d'un groupe de 4 echantillons BRR	E06	E06-39	0	code	90	hermes
+E06-41	dsp/voice.rs: debut de note (repertoire) et flux BRR (decode_group, fin de bloc)	E06	E06-40	0	code	140	hermes
+E06-42	dsp/voice.rs: interpolation gaussienne (avec le bug de debordement)	E06	E06-41	0	code	60	hermes
+E06-43	dsp/envelope.rs: enveloppe ADSR / GAIN	E06	E06-42	0	code	110	hermes
+E06-44	dsp/envelope.rs: compteur de periodes et generateur de bruit	E06	E06-43	0	code	60	hermes
+E06-45	dsp/voice.rs: un echantillon d'une voix (delai de key-on, interpolation, enveloppe, PMON, volumes)	E06	E06-44	0	code	140	hermes
+E06-46	dsp/mod.rs: run_sample (scrutation KON/KOFF, soft reset, 8 voix, sortie sans echo)	E06	E06-45	0	code	140	hermes
+E06-47	dsp/echo.rs: echo (tampon en RAM, FIR a 8 coefficients, feedback, mute)	E06	E06-46	0	code	120	hermes
+E06-48	Snes::take_audio reel et constante de cadence audio	E06	E06-47	0	code	70	hermes
+E06-49	Tests d'integration DSP: une note BRR en boucle de bout en bout	E06	E06-48	0	code	130	hermes
+E06-50	GATE J4: IPL, SPC700 et DSP valides (jalon audio)	E06	E06-49	1	gate	0	user
+E07-01	T-ROMS: telecharger les ROM de test homebrew (reseau)	E07	E06-50	0	tooling	0	hermes
+E07-02	tests/manifest.toml et tests/baseline.json initiaux	E07	E07-01	0	data	0	hermes
+E07-03	GATE: revue du manifeste et des ROM de test (Claude)	E07	E07-02	1	gate	0	user
+E07-04	suite/manifest.rs: lecture et validation du manifeste TOML	E07	E07-03	0	code	130	hermes
+E07-05	suite/baseline.rs: lecture/ecriture de baseline.json	E07	E07-04	0	code	110	hermes
+E07-06	suite/report.rs: verdicts, lignes de rapport et code de sortie	E07	E07-05	0	code	90	hermes
+E07-07	core: Snes::apu_port (ports vus par le S-CPU)	E07	E07-06	0	code	40	hermes
+E07-08	suite/runner.rs: executer une ROM du manifeste et la juger	E07	E07-07	0	code	150	hermes
+E07-09	suite.rs: la commande suite (manifeste, baseline, filtre d'epopee, PPM, mise a jour)	E07	E07-08	0	ui	130	hermes
+E07-10	Tests d'integration de `puce16-cli suite` (ROM synthetiques)	E07	E07-09	0	code	140	hermes
+E07-11	T-SUITE-REPORT: lancer la suite sur les vraies ROM et documenter l'etat	E07	E07-10	0	tooling	0	hermes
+E07-12	GATE J3/J5: captures validees, baseline fige	E07	E07-11	1	gate	0	user
+E07-13	Preparer les jeux: README des ROM commerciales et verification du manifeste	E07	E07-12	0	doc	0	hermes
+E07-14	GATE J6: Super Mario World demarre et se joue	E07	E07-13	1	gate	0	user
+E07-15	GATE J7: ALttP et Super Mario All-Stars jouables	E07	E07-14	1	gate	0	user
+E08-01	savestate.rs: StateWriter, StateReader, StateError et trait State	E08	E07-15	0	code	140	hermes
+E08-02	State pour Cpu (cpu/mod.rs)	E08	E08-01	0	code	110	hermes
+E08-03	State pour Joypads, Cart (SRAM) et Wram	E08	E08-02	0	code	120	hermes
+E08-04	State pour Mmio et Timing	E08	E08-03	0	code	110	hermes
+E08-05	State pour Dma (canaux et etat HDMA)	E08	E08-04	0	code	90	hermes
+E08-06	State pour Vram, Cgram et Oam	E08	E08-05	0	code	110	hermes
+E08-07	State pour Scroll, M7Regs et Regs (registres PPU)	E08	E08-06	0	code	110	hermes
+E08-08	State pour Ppu (position, tampons de ligne, framebuffer)	E08	E08-07	0	code	140	hermes
+E08-09	State pour Spc700 et Timer	E08	E08-08	0	code	80	hermes
+E08-10	State pour Dsp et Voice	E08	E08-09	0	code	110	hermes
+E08-11	State pour ApuIo et Apu	E08	E08-10	0	code	100	hermes
+E08-12	Snes::save_state et load_state (assemblage, en-tete du blob)	E08	E08-11	0	code	130	hermes
+E08-13	Tests d'integration des save states sur des scenarios (NMI, DMA, HDMA, PPU, APU)	E08	E08-12	0	code	140	hermes
+E08-14	CLI: puce16-cli run --save-state / --load-state	E08	E08-13	0	code	90	hermes
+E08-15	Desktop audio.rs: anneau circulaire AudioRing (pur)	E08	E08-14	0	code	90	hermes
+E08-16	Desktop audio.rs: re-echantillonneur sinc fenetre (pur)	E08	E08-15	0	code	110	hermes
+E08-17	Desktop audio.rs: rendu du callback (volume, muet, canaux, sous-alimentation)	E08	E08-16	0	code	110	hermes
+E08-18	Desktop audio.rs: sortie cpal (AudioOut)	E08	E08-17	0	ui	130	hermes
+E08-19	emu_thread: synchro audio (anneau), cadence PAL/NTSC, avance rapide	E08	E08-18	0	code	140	hermes
+E08-20	files.rs: chemins SRAM/save states, ecriture atomique, en-tete .p16s	E08	E08-19	0	code	130	hermes
+E08-21	emu_thread: SRAM (chargement, sauvegarde toutes les 5 s, a la fermeture)	E08	E08-20	0	code	140	hermes
+E08-22	emu_thread: save states (SaveState / LoadState, slots 0..9)	E08	E08-21	0	code	140	hermes
+E08-23	app.rs: raccourcis save states / slots / capture d'ecran / muet / avance rapide	E08	E08-22	0	ui	140	hermes
+E08-24	config.rs: configuration JSON (defauts, aller-retour, ROM recentes)	E08	E08-23	0	code	130	hermes
+E08-25	video.rs: filtres, ratio par nom, scanlines (pur)	E08	E08-24	0	code	100	hermes
+E08-26	app.rs: configuration (chargement, application, ROM recentes, menus Video/Audio)	E08	E08-25	0	ui	140	hermes
+E08-27	app.rs / main.rs: audio reel (anneau, flux cpal, volume, muet)	E08	E08-26	0	ui	120	hermes
+E08-28	app.rs: plein ecran (F11), curseur masque, pause a la perte du focus	E08	E08-27	0	ui	100	hermes
+E08-29	input.rs: tables manette (PadButton), stick, mappings personnalises (pur)	E08	E08-28	0	code	140	hermes
+E08-30	input.rs / app.rs: lecture des manettes avec gilrs (PadPoller)	E08	E08-29	0	ui	130	hermes
+E08-31	GATE D5: desktop jouable (audio, SRAM, save states, manette, filtres, config)	E08	E08-30	1	gate	0	user
+E08-32	snes.rs: accesseurs de debug (VRAM, CGRAM, OAM, registres PPU/SMP/DMA, page WRAM, run_until_pc)	E08	E08-31	0	code	130	hermes
+E08-33	emu_thread: commandes de debug (RequestDebug, SetWramPage, StepInstruction, RunToPc) et Event::Debug	E08	E08-32	0	code	140	hermes
+E08-34	debugger.rs: decodage de tuiles, couleurs, palettes, hexdump, drapeaux (pur)	E08	E08-33	0	code	130	hermes
+E08-35	debugger.rs: rendu des cartes BG, carte mode 7 et decodage OAM (pur)	E08	E08-34	0	code	140	hermes
+E08-36	debugger.rs / app.rs: fenetre du debugger (F10), registres et commandes d'execution	E08	E08-35	0	ui	140	hermes
+E08-37	debugger.rs: onglets Tuiles, Cartes et Palettes	E08	E08-36	0	ui	140	hermes
+E08-38	debugger.rs: onglets OAM et Memoire, parse_pc (+ tests purs)	E08	E08-37	0	code	130	hermes
+E08-39	GATE J8: save states, SRAM et debugger valides (jalon desktop final)	E08	E08-38	1	gate	0	user
+E09-01	Coprocesseur DSP-1 (Super Mario Kart, Pilotwings)	E09	E08-39	0	doc	0	none
+E09-02	Coprocesseur Super FX / GSU (Star Fox, Yoshi's Island)	E09	E09-01	0	doc	0	none
+E09-03	Coprocesseur SA-1 (Super Mario RPG, Kirby Super Star)	E09	E09-02	0	doc	0	none
+E09-04	Decompresseur S-DD1 (Star Ocean, Street Fighter Alpha 2)	E09	E09-03	0	doc	0	none
+E09-05	Decompresseur SPC7110 (Far East of Eden Zero, Momotaro Dentetsu Happy)	E09	E09-04	0	doc	0	none
+E09-06	Coprocesseur Cx4 (Mega Man X2, X3)	E09	E09-05	0	doc	0	none
+E09-07	Autres puces: OBC1, S-RTC, ST010/ST011/ST018, MSU-1, BS-X	E09	E09-06	0	doc	0	none

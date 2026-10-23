@@ -1,0 +1,25 @@
+# Rust
+target/
+**/*.rs.bk
+
+# Test ROMs: never committed (see tests/roms/README.md); homebrew are downloaded by task E07-01
+tests/roms/homebrew/
+tests/roms/games/
+tests/oracle/
+tests/out/
+
+# Local files
+*.srm
+*.p16s
+*.ppm
+config.json
+.env
+*.token
+secrets*
+__pycache__/
+*.pyc
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+docs/kanban/id_map.json
