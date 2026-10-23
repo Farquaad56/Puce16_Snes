@@ -14,6 +14,7 @@ docs/01_ARCHITECTURE.md       decisions, workspace, modele de temps, API publiqu
 docs/02_QA_PROTOCOL.md        questions / reponses (Hermes ne devine jamais)
 docs/03_KANBAN_HERMES.md      import dans le Kanban de Nous Hermes
 docs/04_PROMPT_TEMPLATES.md   prompts prets a coller
+docs/05_TUTORIEL_KANBAN.md   tutoriel pas a pas: installation, import, boucle de travail, push
 docs/specs/                   specifications techniques (source de verite) + donnees (opcodes, IPL, gauss...)
 docs/qa/                      DECISIONS.md, FAQ_SNES.md, QA_LOG.md (+ inbox/ et answered/)
 docs/tasks/                   une tache = un fichier (genere), INDEX.tsv, ORDER.md
