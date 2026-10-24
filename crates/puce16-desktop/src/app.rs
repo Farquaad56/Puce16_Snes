@@ -1,10 +1,13 @@
-//! Desktop UI window (milestone D0): shows the test pattern from the core.
+//! Desktop UI window (milestone D1): test pattern, AZERTY keyboard input and hotkeys.
 
 use std::sync::Arc;
 
 use eframe::egui;
 
+use puce16_core::joypad::filter_opposites;
+
 use crate::emu_thread::{Command, EmuHandle, Event, FrameData};
+use crate::input::{self, Hotkey};
 use crate::video::{self, Ratio};
 
 pub struct App {
@@ -15,6 +18,8 @@ pub struct App {
     ratio: Ratio,
     paused: bool,
     status: String,
+    /// Last joypad bits sent to the emulation thread (port 0).
+    last_joypad: u16,
 }
 
 impl App {
@@ -27,11 +32,54 @@ impl App {
             ratio: Ratio::Square,
             paused: false,
             status: "test pattern (NTSC)".to_string(),
+            last_joypad: 0,
         }
     }
 
     fn send(&self, cmd: Command) {
         let _ = self.handle.tx.send(cmd);
+    }
+
+    /// Poll the keyboard each frame (spec 08 section 2): held keys drive joypad
+    /// port 0 (opposite directions filtered), key presses trigger hotkeys.
+    fn poll_keyboard(&mut self, ui: &egui::Ui) {
+        let ctx = ui.ctx();
+        let (held, presses) = ctx.input(|i| {
+            let mut held = Vec::new();
+            for k in input::MAPPED_KEYS {
+                if i.key_down(k) {
+                    held.push(input::from_egui_key(k));
+                }
+            }
+            let presses: Vec<(egui::Key, bool)> = i.events.iter().filter_map(|e| {
+                match e {
+                    egui::Event::Key { key, pressed, repeat, modifiers, .. } if *pressed && !*repeat => Some((*key, modifiers.ctrl)),
+                    _ => None,
+                }
+            }).collect();
+            (held, presses)
+        });
+
+        let bits = filter_opposites(input::default_buttons(&held));
+        if bits != self.last_joypad {
+            self.last_joypad = bits;
+            self.send(Command::SetJoypad(0, bits));
+        }
+
+        for (key, ctrl) in presses {
+            if let Some(hotkey) = input::hotkey_for(key, ctrl) {
+                match hotkey {
+                    Hotkey::Pause => {
+                        self.paused = !self.paused;
+                        self.send(Command::Pause(self.paused));
+                    }
+                    Hotkey::FrameAdvance => self.send(Command::FrameAdvance),
+                    Hotkey::Reset => self.send(Command::Reset),
+                    Hotkey::Quit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
+                    _ => self.status = "hotkey not implemented".to_string(),
+                }
+            }
+        }
     }
 
     /// Top menu bar: File, Emulation, Video.
@@ -83,6 +131,7 @@ impl eframe::App for App {
             }
         }
         if let Some(frame) = latest { self.last = Some(frame); }
+        self.poll_keyboard(ui);
 
         if let Some(frame) = &self.last {
             let rgba = video::xrgb_to_rgba(&frame.pixels);
