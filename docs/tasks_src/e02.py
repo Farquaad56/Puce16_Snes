@@ -645,7 +645,7 @@ oracle_alu("E02-26b", "VERIF oracle ALU 2/5: BIT, TSB, TRB, CMP, CPX, CPY", "E02
 oracle_alu("E02-26c", "VERIF oracle ALU 3/5: INC, DEC, INX, INY, DEX, DEY, ASL, LSR, ROL, ROR", "E02-26b",
            ("INC", "DEC", "INX", "INY", "DEX", "DEY", "ASL", "LSR", "ROL", "ROR"), ["incdec", "shift"])
 oracle_alu("E02-26d", "VERIF oracle ALU 4/5: ADC (binaire et decimal)", "E02-26c", ("ADC",), ["adc"],
-           extra="\n   Cas decimaux: l'algorithme de la spec est un point de depart; si l'oracle le contredit, ecrire une question `spec` avec le premier test en echec (A, m, C, D attendus/obtenus) AVANT de changer l'algorithme.")
+           extra="\n   ADC DECIMAL 16 BITS: la version actuelle de `adc_decimal_n` est fausse (elle additionne en binaire puis corrige les chiffres). Lire `specs/data/bcd_reference.md` et recopier TELLE QUELLE la fonction `adc_decimal_n` dans `alu/adc.rs` (l'appel 8 bits passe `nibbles = 2`). Ne pas ecrire de variante. Si l'oracle contredit ENCORE cette reference, ecrire une question `spec` avec le premier test en echec (A, m, C, D attendus/obtenus).")
 
 T("E02-27", "VERIF oracle ALU 5/5: SBC puis toute la famille ALU",
   deps=["E02-26d", "E02-14"], size=60, kind="code",
@@ -654,7 +654,7 @@ T("E02-27", "VERIF oracle ALU 5/5: SBC puis toute la famille ALU",
   write=[CPU + "/alu/*.rs", TST + "/e02_27_oracle_regressions.rs"],
   spec="""%s
 1. SBC seul: lancer (avec redirection, regle 0) `%s`. Corriger UN OPCODE A LA FOIS (relancer seulement l'opcode fautif, sortie redirigee). Maximum 6 opcodes corriges, puis question `bug` et blocage.
-2. Cas decimaux: si l'oracle contredit l'algorithme de la spec, question `spec` avec le premier test en echec (A, m, C, D attendus/obtenus) AVANT de changer l'algorithme.
+2. SBC DECIMAL: la version actuelle de `sbc_decimal_n` est fausse (soustraction chiffre par chiffre inventee). Lire `specs/data/bcd_reference.md` et recopier TELLE QUELLE la fonction `sbc_decimal_n` dans `alu/sbc.rs`. Ne pas ecrire de variante. Si l'oracle contredit ENCORE cette reference, question `spec` avec le premier test en echec (A, m, C, D attendus/obtenus).
 3. Quand SBC est a `failed: 0`: lancer toute la famille ALU (regle 0): `%s`. Les fichiers `alu/*.rs` des etapes E02-26a..d sont deja valides; si une regression apparait, corriger seulement ce qui a ete casse.
 4. Le fichier `tests/e02_27_oracle_regressions.rs` contient TOUJOURS la fonction de test `e02_27_oracle_clean_or_regressions` (elle verifie `Cpu::new().p == 0x34`), plus un test par bug corrige (nom `e02_27_<instruction>_<cas>`).
 5. Fin: `failed: 0` pour toute la famille.""" % (ORACLE_RULES % {"cmd": oracle_cmd("SBC")}, oracle_cmd("SBC"),
