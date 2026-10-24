@@ -10,7 +10,10 @@ use clap::{CommandFactory, Parser, Subcommand};
 use puce16_core::hash::Fnv64;
 use puce16_core::{Region, Snes};
 
+mod cpu_test;
 mod ppm;
+mod spc_test;
+mod suite;
 
 /// Puce16 SNES emulator command line interface.
 #[derive(Debug, Parser)]
@@ -25,6 +28,48 @@ struct Cli {
 enum Command {
     /// Run frames of the test pattern (ROM loading is not supported yet).
     Run(RunArgs),
+    /// Run CPU instruction tests from a directory.
+    CpuTest(CpuTestArgs),
+    /// Run SPC700 audio tests from a directory.
+    SpcTest(SpcTestArgs),
+    /// Run the full test suite from a manifest file.
+    Suite(SuiteArgs),
+}
+
+/// Arguments for `cpu-test`.
+#[derive(Debug, Parser)]
+struct CpuTestArgs {
+    /// Directory containing CPU test ROMs.
+    dir: PathBuf,
+    /// Comma-separated list of tests to run (optional).
+    #[arg(long)]
+    filter: Option<String>,
+}
+
+/// Arguments for `spc-test`.
+#[derive(Debug, Parser)]
+struct SpcTestArgs {
+    /// Directory containing SPC700 test ROMs.
+    dir: PathBuf,
+    /// Comma-separated list of tests to run (optional).
+    #[arg(long)]
+    filter: Option<String>,
+}
+
+/// Arguments for `suite`.
+#[derive(Debug, Parser)]
+struct SuiteArgs {
+    /// Path to the test suite manifest file.
+    manifest: PathBuf,
+    /// Maximum epic number to include (e.g., "E02").
+    #[arg(long)]
+    max_epic: Option<String>,
+    /// Update baseline for a specific test by name.
+    #[arg(long)]
+    update_baseline: Option<String>,
+    /// Dump PPM frames to this directory.
+    #[arg(long)]
+    dump_ppm: Option<PathBuf>,
 }
 
 /// Arguments for `run` (E01-07: test pattern only).
@@ -71,6 +116,14 @@ fn main() -> ExitCode {
     let cli = Cli::parse();
     match &cli.command {
         Some(Command::Run(args)) => run_command(args),
+        Some(Command::CpuTest(args)) => cpu_test::run(&args.dir, args.filter.as_deref()),
+        Some(Command::SpcTest(args)) => spc_test::run(&args.dir, args.filter.as_deref()),
+        Some(Command::Suite(args)) => suite::run(
+            &args.manifest,
+            args.max_epic.as_deref(),
+            args.update_baseline.as_deref(),
+            args.dump_ppm.as_ref().map(|p| p as &std::path::Path),
+        ),
         None => {
             // No subcommand given: display the help.
             println!("{}", Cli::command().render_help());
