@@ -427,7 +427,7 @@ exerces, les erreurs de cycles/wrap des modes se corrigent ICI (addr/*.rs). Les 
   spec="""1. Lancer: `%s`
 2. Pour chaque echec: lire le diff (champ fautif, cycle fautif), localiser le bug dans les fichiers autorises, corriger. Ne pas modifier le harnais (cli) ni les specs.
 3. Si le diff semble indiquer que la SPEC est fausse (et non le code): ne PAS adapter le code au hasard; ecrire une question `spec` (docs/02_QA_PROTOCOL.md) avec le test fautif.
-4. Pour chaque bug corrige, ajouter dans `tests/e02_17_oracle_regressions.rs` un test unitaire (FlatBus) qui le reproduit (nom `e02_17_<mode>_<cas>`). Si aucun bug n'est trouve, le fichier contient un test `e02_17_oracle_clean` qui verifie seulement que `Cpu::new()` existe.
+4. Pour chaque bug corrige, ajouter dans `tests/e02_17_oracle_regressions.rs` un test unitaire (FlatBus) qui le reproduit (nom `e02_17_<mode>_<cas>`). Si aucun bug n'est trouve, le fichier contient un test `e02_17_oracle_clean_or_regressions` qui verifie seulement que `Cpu::new()` existe.
 5. Finir quand la commande renvoie `failed: 0` pour tous ces opcodes.""" % oracle_cmd("LDA", "LDX", "LDY", "STA", "STX", "STY", "STZ"),
   tests=[("oracle_clean_or_regressions", "voir spec etape 4")],
   accept=[oracle_cmd("LDA", "LDX", "LDY", "STA", "STX", "STY", "STZ"), "cargo test -p puce16-core e02_"],
@@ -739,7 +739,7 @@ T("E02-31", "VERIF oracle: pile et blocs (PH*/PL*/PEA/PEI/PER/MVN/MVP)",
   write=[CPU + "/mem/push.rs", CPU + "/mem/pull.rs", CPU + "/mem/block.rs", TST + "/e02_31_oracle_regressions.rs"],
   spec="""1. Lancer: `%s`
 2. Corriger chaque echec (fichiers autorises seulement). Si un comportement de pile en emulation (PEA PEI PER PHD PLD) differe du plan de 01b, c'est l'oracle qui a raison: adapter le code ET noter dans `docs/qa/inbox/` une question `spec` pour que Claude mette a jour 01b section 7.
-3. Un test de regression par bug (`e02_31_<instruction>_<cas>`), sinon `e02_31_oracle_clean` (verifie `Cpu::new().s == 0x01FF`).
+3. Un test de regression par bug (`e02_31_<instruction>_<cas>`), sinon `e02_31_oracle_clean_or_regressions` (verifie `Cpu::new().s == 0x01FF`).
 4. Fin: `failed: 0`.""" % oracle_cmd("PHA", "PHX", "PHY", "PHP", "PHD", "PHB", "PHK", "PEA", "PEI", "PER", "PLA", "PLX", "PLY", "PLP", "PLD", "PLB", "MVN", "MVP"),
   tests=[("oracle_clean_or_regressions", "voir spec etape 3")],
   accept=[oracle_cmd("PHA", "PHX", "PHY", "PHP", "PHD", "PHB", "PHK", "PEA", "PEI", "PER", "PLA", "PLX", "PLY", "PLP", "PLD", "PLB", "MVN", "MVP"),
@@ -840,7 +840,7 @@ T("E02-36", "VERIF oracle: controle de flux (Bxx, JMP, JSR, RTS, BRK, RTI...)",
   spec="""1. Lancer: `%s`
 2. Corriger chaque echec dans `cpu/flow/*.rs` uniquement.
 3. WAI et STP: l'oracle ne teste que l'instruction elle-meme (les cycles d'attente ne sont pas observables): si l'oracle les ecarte, ignorer.
-4. Un test de regression par bug (`e02_36_<instruction>_<cas>`), sinon `e02_36_oracle_clean` (verifie `Cpu::new().e`).
+4. Un test de regression par bug (`e02_36_<instruction>_<cas>`), sinon `e02_36_oracle_clean_or_regressions` (verifie `Cpu::new().e`).
 5. Fin: `failed: 0`.""" % oracle_cmd("BCC", "BCS", "BEQ", "BNE", "BMI", "BPL", "BVC", "BVS", "BRA", "BRL", "JMP", "JML", "JSR", "JSL", "RTS", "RTL", "BRK", "COP", "RTI", "WAI", "STP", "WDM"),
   tests=[("oracle_clean_or_regressions", "voir spec etape 4")],
   accept=[oracle_cmd("BCC", "BCS", "BEQ", "BNE", "BMI", "BPL", "BVC", "BVS", "BRA", "BRL", "JMP", "JML", "JSR", "JSL", "RTS", "RTL", "BRK", "COP", "RTI", "WAI", "STP", "WDM"),
@@ -907,7 +907,7 @@ T("E02-39", "VERIF oracle: transferts, drapeaux, XCE/XBA/NOP",
   write=[CPU + "/misc/*.rs", TST + "/e02_39_oracle_regressions.rs"],
   spec="""1. Lancer: `%s`
 2. Corriger les echecs dans `cpu/misc/*.rs` uniquement.
-3. Regressions: `e02_39_<instruction>_<cas>`, sinon `e02_39_oracle_clean` (verifie `Cpu::new().p == 0x34`).
+3. Regressions: `e02_39_<instruction>_<cas>`, sinon `e02_39_oracle_clean_or_regressions` (verifie `Cpu::new().p == 0x34`).
 4. Fin: `failed: 0`.""" % oracle_cmd("TAX", "TAY", "TXA", "TYA", "TSX", "TXS", "TXY", "TYX", "TCD", "TDC", "TCS", "TSC", "CLC", "SEC", "CLI", "SEI", "CLD", "SED", "CLV", "REP", "SEP", "XCE", "XBA", "NOP"),
   tests=[("oracle_clean_or_regressions", "voir spec etape 3")],
   accept=[oracle_cmd("TAX", "TAY", "TXA", "TYA", "TSX", "TXS", "TXY", "TYX", "TCD", "TDC", "TCS", "TSC", "CLC", "SEC", "CLI", "SEI", "CLD", "SED", "CLV", "REP", "SEP", "XCE", "XBA", "NOP"),
