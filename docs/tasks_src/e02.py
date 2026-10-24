@@ -610,16 +610,55 @@ T("E02-26", "alu/tsbtrb.rs: TSB, TRB",
          ("nvc_untouched", "p=0x20|0xC1: apres TSB, N,V,C inchanges.")],
   notes=CHAIN)
 
-T("E02-27", "VERIF oracle: toutes les instructions ALU",
-  deps=["E02-26", "E02-14"], size=60,
-  context="Passage a l'oracle de toutes les instructions de la famille ALU (ADC SBC AND ORA EOR BIT CMP CPX CPY INC DEC INX INY DEX DEY ASL LSR ROL ROR TSB TRB), y compris les cas decimaux.",
+# Oracle ALU: split in small steps (E02-26a..d, E02-27). The oracle prints a lot when many opcodes fail,
+# which overflows a local model's context: one small group per task, output redirected to a file.
+ORACLE_OUT = "target/oracle_out.txt"
+ORACLE_RULES = """0. REGLE DE SORTIE: ne jamais afficher la sortie complete de l'oracle (elle peut faire des milliers de lignes). Toujours rediriger vers un fichier, puis lire seulement le debut:
+   `%(cmd)s > target/oracle_out.txt 2>&1` puis lire les 40 premieres lignes de `target/oracle_out.txt` (outil de lecture de fichier avec limite, ou `python -c "print(''.join(open('target/oracle_out.txt').readlines()[:40]))"`).
+   La derniere ligne du fichier est `files: N ok: K failed: F`."""
+
+
+def oracle_alu(tid, title, dep, mns, files, extra="", n_before=0):
+    pre = tid.lower().replace("-", "_")
+    cmd = oracle_cmd(*mns)
+    one = "cargo run -q -p puce16-cli -- cpu-test " + ORACLE + " --filter <UN_SEUL_OPCODE_HEX>"
+    T(tid, title,
+      deps=[dep, "E02-14"], size=60, kind="code",
+      context="Passage a l'oracle de ce groupe d'instructions ALU: %s. Etape volontairement PETITE: un groupe a la fois." % " ".join(mns),
+      reads=["specs/01_CPU_65816.md sections 5 et 6", "specs/data/ssjson_format.md"],
+      write=[CPU + "/alu/%s.rs" % f for f in files] + [TST + "/%s_oracle_regressions.rs" % pre],
+      spec="""%s
+1. Lancer (avec redirection, regle 0): `%s`
+2. Si `failed: 0`: aller a l'etape 5.
+3. Sinon travailler UN OPCODE A LA FOIS: prendre le premier `FAIL` du fichier, relancer SEULEMENT cet opcode (`%s`, toujours redirige vers le fichier), lire le premier diff (champ ou cycle fautif), corriger dans les fichiers autorises. Ne pas modifier addr/ (modes valides depuis E02-17): si un echec vient clairement d'un mode, poser une question `bug`.
+4. Apres chaque correction, relancer le groupe complet (etape 1) et recommencer. Maximum 6 opcodes corriges dans cette tache: au-dela, ecrire `docs/qa/inbox/%s-Q1.md` (type `bug`, liste des opcodes restants) et bloquer la tache.%s
+5. Le fichier `tests/%s_oracle_regressions.rs` contient TOUJOURS la fonction de test `%s_oracle_clean_or_regressions` (elle verifie `Cpu::new().p == 0x34`), plus un test par bug corrige (nom `%s_<instruction>_<cas>`).
+6. Fin: `failed: 0` pour le groupe.""" % (ORACLE_RULES % {"cmd": cmd}, cmd, one, tid, extra, pre, pre, pre),
+      tests=[("oracle_clean_or_regressions", "voir spec etape 5")],
+      accept=[cmd, "cargo test -p puce16-core %s_" % pre],
+      notes=CHAIN)
+
+
+oracle_alu("E02-26a", "VERIF oracle ALU 1/5: AND, ORA, EOR", "E02-26", ("AND", "ORA", "EOR"), ["logic"])
+oracle_alu("E02-26b", "VERIF oracle ALU 2/5: BIT, TSB, TRB, CMP, CPX, CPY", "E02-26a",
+           ("BIT", "TSB", "TRB", "CMP", "CPX", "CPY"), ["logic", "tsbtrb", "cmp"])
+oracle_alu("E02-26c", "VERIF oracle ALU 3/5: INC, DEC, INX, INY, DEX, DEY, ASL, LSR, ROL, ROR", "E02-26b",
+           ("INC", "DEC", "INX", "INY", "DEX", "DEY", "ASL", "LSR", "ROL", "ROR"), ["incdec", "shift"])
+oracle_alu("E02-26d", "VERIF oracle ALU 4/5: ADC (binaire et decimal)", "E02-26c", ("ADC",), ["adc"],
+           extra="\n   Cas decimaux: l'algorithme de la spec est un point de depart; si l'oracle le contredit, ecrire une question `spec` avec le premier test en echec (A, m, C, D attendus/obtenus) AVANT de changer l'algorithme.")
+
+T("E02-27", "VERIF oracle ALU 5/5: SBC puis toute la famille ALU",
+  deps=["E02-26d", "E02-14"], size=60, kind="code",
+  context="Derniere etape ALU: SBC (binaire et decimal), puis passage de TOUTE la famille ALU a l'oracle (regression des 4 etapes precedentes).",
   reads=["specs/01_CPU_65816.md sections 5 et 6", "specs/data/ssjson_format.md"],
   write=[CPU + "/alu/*.rs", TST + "/e02_27_oracle_regressions.rs"],
-  spec="""1. Lancer: `%s`
-2. Corriger chaque echec dans `cpu/alu/*.rs` uniquement (diff = champ ou cycle fautif). Les modes d'adressage sont valides (E02-17): si un echec vient clairement d'un mode, poser une question `spec`/`bug` au lieu de modifier addr/.
-3. Pour les cas decimaux: l'algorithme de la spec est un point de depart; si l'oracle le contredit, poser une question `spec` avec le premier test en echec (valeurs A, m, C, D attendues/obtenues) AVANT de changer l'algorithme.
-4. Un test de regression par bug dans `tests/e02_27_oracle_regressions.rs` (nom `e02_27_<instruction>_<cas>`), ou le test `e02_27_oracle_clean` si rien a corriger (verifie `Cpu::new().p == 0x34`).
-5. Fin: `failed: 0`.""" % oracle_cmd("ADC", "SBC", "AND", "ORA", "EOR", "BIT", "CMP", "CPX", "CPY", "INC", "DEC", "INX", "INY", "DEX", "DEY", "ASL", "LSR", "ROL", "ROR", "TSB", "TRB"),
+  spec="""%s
+1. SBC seul: lancer (avec redirection, regle 0) `%s`. Corriger UN OPCODE A LA FOIS (relancer seulement l'opcode fautif, sortie redirigee). Maximum 6 opcodes corriges, puis question `bug` et blocage.
+2. Cas decimaux: si l'oracle contredit l'algorithme de la spec, question `spec` avec le premier test en echec (A, m, C, D attendus/obtenus) AVANT de changer l'algorithme.
+3. Quand SBC est a `failed: 0`: lancer toute la famille ALU (regle 0): `%s`. Les fichiers `alu/*.rs` des etapes E02-26a..d sont deja valides; si une regression apparait, corriger seulement ce qui a ete casse.
+4. Le fichier `tests/e02_27_oracle_regressions.rs` contient TOUJOURS la fonction de test `e02_27_oracle_clean_or_regressions` (elle verifie `Cpu::new().p == 0x34`), plus un test par bug corrige (nom `e02_27_<instruction>_<cas>`).
+5. Fin: `failed: 0` pour toute la famille.""" % (ORACLE_RULES % {"cmd": oracle_cmd("SBC")}, oracle_cmd("SBC"),
+      oracle_cmd("ADC", "SBC", "AND", "ORA", "EOR", "BIT", "CMP", "CPX", "CPY", "INC", "DEC", "INX", "INY", "DEX", "DEY", "ASL", "LSR", "ROL", "ROR", "TSB", "TRB")),
   tests=[("oracle_clean_or_regressions", "voir spec etape 4")],
   accept=[oracle_cmd("ADC", "SBC", "AND", "ORA", "EOR", "BIT", "CMP", "CPX", "CPY", "INC", "DEC", "INX", "INY", "DEX", "DEY", "ASL", "LSR", "ROL", "ROR", "TSB", "TRB"),
           "cargo test -p puce16-core e02_"],

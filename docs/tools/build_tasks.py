@@ -145,7 +145,7 @@ def validate(tasks):
         errors.append("duplicate ids: %s" % dup)
     pos = {t["id"]: n for n, t in enumerate(tasks)}
     for t in tasks:
-        if not re.match(r"^E\d\d-\d\d$", t["id"]):
+        if not re.match(r"^E\d\d-\d\d[a-z]?$", t["id"]):
             errors.append("%s: bad id format (E00-00)" % t["id"])
         for d in t["deps"]:
             if d not in pos:
@@ -399,7 +399,7 @@ def main():
         })
     # remove stale generated files
     for d, ext in ((DOCS / "tasks", ".md"), (DOCS / "checks", ".sh")):
-        for f in d.glob("E[0-9][0-9]-[0-9][0-9]" + ext):
+        for f in d.glob("E[0-9][0-9]-[0-9][0-9]*" + ext):
             if f.name not in keep:
                 f.unlink()
     (DOCS / "tasks" / "INDEX.tsv").write_text("\n".join(index_rows) + "\n", encoding="utf-8", newline="\n")

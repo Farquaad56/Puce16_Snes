@@ -39,7 +39,11 @@ E02-23	alu/cmp.rs: CMP, CPX, CPY	E02	E02-22	0	code	60	hermes
 E02-24	alu/incdec.rs: INC, DEC, INX, INY, DEX, DEY	E02	E02-23	0	code	70	hermes
 E02-25	alu/shift.rs: ASL, LSR, ROL, ROR	E02	E02-24	0	code	80	hermes
 E02-26	alu/tsbtrb.rs: TSB, TRB	E02	E02-25	0	code	50	hermes
-E02-27	VERIF oracle: toutes les instructions ALU	E02	E02-26,E02-14	0	code	60	hermes
+E02-26a	VERIF oracle ALU 1/5: AND, ORA, EOR	E02	E02-26,E02-14	0	code	60	hermes
+E02-26b	VERIF oracle ALU 2/5: BIT, TSB, TRB, CMP, CPX, CPY	E02	E02-26a,E02-14	0	code	60	hermes
+E02-26c	VERIF oracle ALU 3/5: INC, DEC, INX, INY, DEX, DEY, ASL, LSR, ROL, ROR	E02	E02-26b,E02-14	0	code	60	hermes
+E02-26d	VERIF oracle ALU 4/5: ADC (binaire et decimal)	E02	E02-26c,E02-14	0	code	60	hermes
+E02-27	VERIF oracle ALU 5/5: SBC puis toute la famille ALU	E02	E02-26d,E02-14	0	code	60	hermes
 E02-28	mem/push.rs: PHA PHX PHY PHP PHD PHB PHK PEA PEI PER	E02	E02-27	0	code	110	hermes
 E02-29	mem/pull.rs: PLA PLX PLY PLP PLD PLB	E02	E02-28	0	code	80	hermes
 E02-30	mem/block.rs: MVN, MVP	E02	E02-29	0	code	60	hermes
