@@ -308,13 +308,14 @@ pub fn opcode_of_file(name: &str) -> Option<u8>;
 ```
 Les noms de champs/cles JSON sont ceux du document de format (si une cle differe de ce qui est ecrit ci-dessus, le document gagne et la struct s'adapte, en gardant les memes noms Rust).
 - `list_files`: tous les `.json` (recursif), tries par nom; `filter` = liste d'opcodes en hexa separes par des virgules (`61,63,E9`); un fichier est garde si `opcode_of_file(nom)` est dans la liste (ou si `filter` est None). Erreur `String` si le dossier ne se lit pas.
-- `opcode_of_file`: convention de nommage du document (ex: les deux premiers chiffres hexa du nom).
+- `opcode_of_file`: convention du document section 7: les deux premiers caracteres du nom (hexa, insensible a la casse) si le nom a la forme `HH.e.json` ou `HH.n.json`, sinon `None` (les vrais noms sont en MINUSCULES: `4c.e.json`). Le `filter` est lui aussi insensible a la casse, espaces tolerees.
+- Dans `CycleRec`, `addr` et `val` sont `Option` car le JSON contient des `null` (cycles internes: `val` null; cycle mort final de WAI/STP: `addr` et `val` null). `kind` = la chaine de 8 caracteres telle quelle.
 - `load_file`: erreurs en `Err(String)` avec le nom du fichier; aucun `unwrap` sur des donnees externes.
 - Utiliser `serde` + `serde_json` (deja dans le Cargo.toml).""",
-  tests=[("load_sample", "Le fichier `tests/data/e02_12_sample.json` contient UN test copie tel quel depuis un vrai fichier de l'oracle (section 5 du document de format). `load_file` renvoie 1 cas ; verifier au moins 3 registres initiaux, 1 valeur de RAM finale et le nombre de cycles, avec les VRAIES valeurs de l'exemple."),
+  tests=[("load_sample", "Le fichier `tests/data/e02_12_sample.json` est un TABLEAU JSON `[ ... ]` contenant UNIQUEMENT le test de la section 5 du document de format (copie tel quel, le bloc ```json```). `load_file` renvoie 1 cas ; verifier: name == \"db n 1\", initial.pc == 34298, initial.s == 753, final.ram == [(3180026, 219)], 4 cycles, cycles[1] == (Some(3180027), None, \"---r-m--\"), cycles[3] == (None, None, \"--------\")."),
          ("load_bad_json", "un fichier contenant `not json` -> Err(message contenant le nom du fichier)."),
-         ("opcode_of_file", "au moins 4 noms de fichiers reels (copies de la liste de `tests/oracle/65816`) -> opcode attendu ; un nom sans rapport (`readme.md`) -> None."),
-         ("list_files_filter", "dossier temporaire avec 3 faux fichiers nommes selon la convention (opcodes 61, 69, E9): `filter=Some(\"61,E9\")` -> 2 fichiers tries ; `filter=None` -> 3 ; dossier absent -> Err.")],
+         ("opcode_of_file", "`4c.e.json` -> Some(0x4C) ; `0a.n.json` -> Some(0x0A) ; `a9.n.json` -> Some(0xA9) ; `FF.e.json` -> Some(0xFF) ; `readme.md` -> None ; `4c.x.json` -> None."),
+         ("list_files_filter", "dossier temporaire avec 3 faux fichiers nommes selon la convention (opcodes 61, 69, e9, noms en minuscules): `filter=Some(\"61,E9\")` (insensible a la casse) -> 2 fichiers tries ; `filter=None` -> 3 ; dossier absent -> Err.")],
   accept=["cargo test -p puce16-cli e02_12_"], crate="puce16-cli", notes=CHAIN)
 
 T("E02-13", "cpu-test: comparaison d'etats et de cycles (fonctions pures)",
@@ -328,17 +329,24 @@ T("E02-13", "cpu-test: comparaison d'etats et de cycles (fonctions pures)",
 pub fn diff_state(expected: &CpuState, cpu: &Cpu, bus: &FlatBus) -> Vec<String>;
 pub fn diff_cycles(expected: &[CycleRec], got: &[Cycle], level: Level) -> Vec<String>;
 pub fn run_case(case: &Case, cpu: &mut Cpu, bus: &mut FlatBus, level: Level) -> Vec<String>;   // liste vide = succes
+pub fn apply_initial(st: &CpuState, cpu: &mut Cpu, bus: &mut FlatBus);   // charge l'etat initial (voir ci-dessous)
+pub fn is_block_move(opcode: u8) -> bool;   // true pour 0x44 (MVP) et 0x54 (MVN)
 ```
 - `diff_state`: pour chaque champ different, une ligne `a: expected 0x1234 got 0x1230` (hexa; `e` en 0/1; `p` sur 2 chiffres). Compare a, x, y, s, d, db(dbr), pb(pbr), pc, p, e puis, pour chaque `(addr, val)` de `expected.ram`, `bus.peek(addr)` (ligne `ram[0x7E1234]: expected 0x41 got 0x42`).
-- `diff_cycles`: `Level::Regs` -> toujours vide; `Level::Count` -> seulement la difference de nombre (`cycles: expected 7 got 6`); `Level::Full` -> nombre, puis pour chaque cycle d'index i: le type (lecture/ecriture/interne) doit correspondre, et pour les cycles NON internes l'adresse et la valeur aussi (les adresses des cycles internes ne sont pas comparees, voir document de format section 4). Ligne `cycle 3: expected W 0x001000=0x42 got R 0x001000=0x41`. Au plus 5 lignes de diff.
-- `run_case`: `bus.reset_mem()`; poke de `initial.ram`; copier l'etat initial dans `cpu` (champs un a un, `halted=false`, `waiting=false`); `bus.clear_log()`; `cpu.step(bus)`; puis concatener `diff_state` et `diff_cycles(.., level)`. Un `std::panic::catch_unwind` autour du `step` convertit une panique en une ligne `panic: <message>`.""",
+- `diff_cycles`: `Level::Regs` -> toujours vide; `Level::Count` -> seulement la difference de nombre (`cycles: expected 7 got 6`); `Level::Full` -> nombre, puis pour chaque cycle d'index i: le type (lecture/ecriture/interne) doit correspondre, et pour les cycles NON internes l'adresse et la valeur aussi (les adresses des cycles internes ne sont pas comparees, voir document de format section 7). Un cycle attendu est INTERNE si sa `val` vaut `None` ; sinon pos. 3 de `kind` = `r` -> lecture, `w` -> ecriture. Les cycles attendus morts (`addr == None && val == None`, type `--------`, produits par WAI/STP) sont IGNORES (retires de la liste attendue avant toute comparaison, nombre compris). Ligne `cycle 3: expected W 0x001000=0x42 got R 0x001000=0x41`. Au plus 5 lignes de diff.
+- `apply_initial`: `bus.reset_mem()`; poke de `st.ram`; copie des registres un a un (`halted=false`, `waiting=false`); **si `st.e` est vrai: `cpu.s = 0x0100 | (st.s & 0xFF)`** (les fichiers d'emulation donnent un poids fort de S aleatoire en entree et toujours 0x01 en sortie, document de format 6.2); sinon `cpu.s = st.s`.
+- `is_block_move(op)`: vrai pour 0x44 et 0x54 uniquement.
+- `run_case`: `apply_initial(&case.initial, ..)`; `bus.clear_log()`; lire l'opcode `op = bus.peek((pbr << 16) | pc)`; si `is_block_move(op)` (un test = le BLOC complet): rejouer `cpu.step(bus)` tant que `(cpu.pb, cpu.pc)` est egal a `(initial.pbr, initial.pc)`, maximum 70 000 iterations (au-dela: ligne `block move did not finish`) ; sinon UN seul `cpu.step(bus)`; puis concatener `diff_state` et `diff_cycles(.., level)`. Un `std::panic::catch_unwind` autour du `step` convertit une panique en une ligne `panic: <message>`.""",
   tests=[("diff_state_equal", "un `CpuState` et un `Cpu` identiques (memes valeurs) + RAM identique -> liste vide."),
          ("diff_state_fields", "Cpu avec a=0x1230 attendu 0x1234 et pc different -> 2 lignes, la premiere commence par `a: expected 0x1234 got 0x1230`."),
          ("diff_state_ram", "RAM attendue (0x7E1234, 0x41) mais bus contient 0x42 -> 1 ligne contenant `ram[0x7E1234]`."),
          ("diff_cycles_count", "attendu 3 cycles, obtenu 2, Level::Count -> 1 ligne contenant `expected 3 got 2` ; Level::Regs -> vide."),
          ("diff_cycles_full_ok", "attendu [R 0x8000=0xEA, interne], obtenu [Read 0x8000=0xEA, Idle] -> vide."),
          ("diff_cycles_full_mismatch", "attendu W 0x1000=0x42, obtenu Read 0x1000=0x41 -> 1 ligne contenant `cycle 0`."),
-         ("diff_cycles_max_5", "10 cycles tous faux -> exactement 5 lignes.")],
+         ("diff_cycles_max_5", "10 cycles tous faux -> exactement 5 lignes."),
+         ("diff_cycles_dead_cycle_ignored", "attendu [R 0x8000=0xDB, interne (val None), interne, (addr None, val None, type `--------`)], obtenu [Read 0x8000=0xDB, Idle, Idle] -> vide en Level::Full ET en Level::Count."),
+         ("apply_initial_emulation_s", "CpuState e=true, s=0x2B3E -> apres apply_initial: cpu.s == 0x013E ; avec e=false, s=0x2B3E -> cpu.s == 0x2B3E."),
+         ("block_move_opcodes", "is_block_move(0x54) et is_block_move(0x44) vrais ; faux pour 0x4C et 0xEA.")],
   accept=["cargo test -p puce16-cli e02_13_"], crate="puce16-cli", notes=CHAIN)
 
 T("E02-14", "cpu-test: commande complete (boucle sur les fichiers, rapport, code de sortie)",
