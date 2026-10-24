@@ -5,7 +5,7 @@
 use puce16_core::cpu::Cpu;
 
 #[test]
-fn e02_17_oracle_clean() {
+fn e02_17_oracle_clean_or_regressions() {
     // Verify Cpu::new() exists and returns a valid CPU instance.
     let _cpu = Cpu::new();
 }

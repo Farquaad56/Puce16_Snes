@@ -1,9 +1,15 @@
 use puce16_core::cpu::{Bus, Cpu, FLAG_C, FLAG_D, FLAG_M, FLAG_V};
 
-fn setup_cpu(a: u16, flags: u8) -> Cpu {
+fn make_cpu() -> Cpu {
     let mut cpu = Cpu::new();
+    cpu.e = false; // native mode by default
+    cpu
+}
+
+fn setup_cpu(a: u16, flags: u8) -> Cpu {
+    let mut cpu = make_cpu();
     cpu.a = a;
-    cpu.set_p(flags);
+    cpu.p = flags;
     cpu
 }
 

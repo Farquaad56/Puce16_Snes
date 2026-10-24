@@ -62,50 +62,38 @@ fn adc_decimal_n(a: u32, m: u32, carry_in: bool, nibbles: usize) -> (u32, bool, 
         // V calculated before final correction
         let v = ((!(a ^ m)) & (a ^ r) & 0x80) != 0;
 
-        if r > 95 {
-            r += 96;
+        if r > 0x9F {
+            r += 0x60;
         }
         let c_final = r > 255;
         let result = r & 0xFF;
         (result, c_final, v)
     } else {
-        // ADC 16 bits: same principle on 4 nibbles
-        let masks = [0x000F, 0x00F0, 0x0F00, 0xF000];
-        let thresholds = [9u32, 95, 995, 9995];
-        let corrections = [6u32, 96, 960, 9600];
+        // ADC 16 bits: add as binary then apply iterative BCD corrections
+        // Same principle as 8-bit but on 4 nibbles with cumulative thresholds
+        let mut result = a + m + if carry_in { 1u32 } else { 0 };
 
-        let mut result: u32 = 0;
-        let mut carry = if carry_in { 1u32 } else { 0 };
-        let mut overflow = false;
-
-        for i in 0..4 {
-            // Extract nibble values and add with carry
-            let a_nibble = (a & masks[i]) >> (i * 4);
-            let m_nibble = (m & masks[i]) >> (i * 4);
-            let sum = a_nibble + m_nibble + carry;
-
-            // BCD correction: if >9, add 6 and set carry to next nibble
-            if sum > 9 {
-                result |= ((sum - 10) << (i * 4));
-                carry = 1;
-            } else {
-                result |= (sum << (i * 4));
-                carry = 0;
-            }
-
-            // Overflow detection at the high nibble of the operation (nibble 3 for 16-bit)
-            if i == 3 {
-                let a_sign = ((a >> 12) & 0x8) != 0;
-                let m_sign = ((m >> 12) & 0x8) != 0;
-                let r_sign = ((result >> 12) & 0x8) != 0;
-                overflow = (a_sign == m_sign) && (a_sign != r_sign);
-            }
+        // Correct units digit (position 0): threshold 9, correction 6
+        if (result & 0x0F) > 9 {
+            result += 0x6;
+        }
+        // Correct tens digit (position 1): check after units correction propagated
+        if ((result >> 4) & 0x0F) > 9 {
+            result += 0x60;
+        }
+        // Correct hundreds digit (position 2)
+        if ((result >> 8) & 0x0F) > 9 {
+            result += 0x600;
+        }
+        // V calculated BEFORE the correction of the last quartet (thousands digit)
+        let v = ((!(a ^ m)) & (a ^ result) & 0x8000) != 0;
+        // Correct thousands digit (position 3)
+        if ((result >> 12) & 0x0F) > 9 {
+            result += 0x6000;
         }
 
-        // Final carry out from the last nibble
-        let final_carry = carry == 1;
-
-        (result, final_carry, overflow)
+        let carry_out = result > 0xFFFF;
+        (result & 0xFFFF, carry_out, v)
     }
 }
 
