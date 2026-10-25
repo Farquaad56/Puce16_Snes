@@ -33,8 +33,9 @@ fn sbc_binary(cpu: &mut Cpu, m: u16, wide: bool) {
     // Carry out (borrow cleared means no borrow needed)
     cpu.set_flag(FLAG_C, r > mask);
 
-    // Overflow: sign of A and ~M differ from result's sign
-    let v = ((a_op ^ r) & (inv ^ r) & signbit) != 0;
+    // Overflow: for subtraction, V is set when A and M have different signs
+    // but the result has a different sign than A
+    let v = ((a_op ^ m_op) & (a_op ^ r) & signbit) != 0;
     cpu.set_flag(FLAG_V, v);
 
     // Truncate and store
@@ -49,42 +50,29 @@ fn sbc_binary(cpu: &mut Cpu, m: u16, wide: bool) {
     cpu.set_nz(result, wide);
 }
 
-/// Internal helper for BCD subtraction using digit-by-digit algorithm.
-/// Operates on u32 values to avoid overflow during intermediate calculations.
+// SBC decimal: same loop with m' = !m, in SIGNED arithmetic (a negative intermediate
+// result after the correction means "no carry"). Returns (result, carry, overflow).
 fn sbc_decimal_n(a: u32, m: u32, carry_in: bool, wide: bool) -> (u32, bool, bool) {
-    // BCD subtraction: digit-by-digit with borrow propagation
-    // C=1 means no previous borrow; C=0 means borrow needed
-    
-    let nibbles = if wide { 4 } else { 2 };
-    let mut result = 0u32;
-    let mut borrow = !carry_in; // invert: true = need to borrow
-    
+    let nibbles: usize = if wide { 4 } else { 2 };
+    let a = a as i32;
+    let mp = (!m) as i32;
+    let mut r: i32 = 0;
+    let mut c: i32 = carry_in as i32;
+    let mut v = false;
     for i in 0..nibbles {
-        let a_digit = ((a >> (i * 4)) & 0x0F) as i8;
-        let m_digit = ((m >> (i * 4)) & 0x0F) as i8;
-        
-        // Compute digit difference with borrow using signed arithmetic
-        let mut diff = a_digit - m_digit - if borrow { 1 } else { 0 };
-        borrow = false;
-        if diff < 0 {
-            diff += 10;
-            borrow = true;
+        let sh = 4 * i as u32;
+        let low = (1i32 << sh) - 1;
+        let mask = 0xFi32 << sh;
+        r = (a & mask) + (mp & mask) + (c << sh) + (r & low);
+        if i == nibbles - 1 {
+            v = (!(a ^ mp) & (a ^ r) & (0x8i32 << sh)) != 0;
         }
-        
-        result |= (diff as u32) << (i * 4);
+        if r <= (1i32 << (sh + 4)) - 1 {
+            r -= 6i32 << sh;
+        }
+        c = (r > (1i32 << (sh + 4)) - 1) as i32;
     }
-    
-    // Carry flag: C=1 means no final borrow (subtraction succeeded without underflow)
-    let carry_out = !borrow;
-    
-    // Overflow for BCD: occurs when sign of result differs from expected
-    // For subtraction, V is set if A and M have different signs but result has same sign as M
-    // Simplified: check bit 7 (or 15) of the raw binary difference vs BCD result
-    let raw_diff = a.wrapping_sub(m).wrapping_sub(if carry_in { 0 } else { 1 });
-    let v_bit = if wide { 0x8000 } else { 0x80 };
-    let overflow = ((raw_diff ^ result) & (raw_diff ^ a) & v_bit) != 0;
-    
-    (result, carry_out, overflow)
+    ((r as u32) & ((1u32 << (4 * nibbles as u32)) - 1), c != 0, v)
 }
 
 fn sbc_decimal(cpu: &mut Cpu, m: u16, wide: bool) {
