@@ -50,51 +50,23 @@ fn adc_binary(cpu: &mut Cpu, m: u16, wide: bool) {
 /// Internal helper for BCD addition following the reference algorithm from the spec.
 /// Operates on u32 values to avoid overflow during intermediate calculations.
 fn adc_decimal_n(a: u32, m: u32, carry_in: bool, nibbles: usize) -> (u32, bool, bool) {
-    if nibbles == 1 {
-        // ADC 8 bits algorithm from spec
-        let mut r = (a & 0x0F) + (m & 0x0F) + if carry_in { 1 } else { 0 };
-        if r > 9 {
-            r += 6;
+    let mut r: u32 = 0;
+    let mut c: u32 = carry_in as u32;
+    let mut v = false;
+    for i in 0..nibbles {
+        let sh = 4 * i as u32;
+        let low = (1u32 << sh) - 1;
+        let mask = 0xFu32 << sh;
+        r = (a & mask) + (m & mask) + (c << sh) + (r & low);
+        if i == nibbles - 1 {
+            v = (!(a ^ m) & (a ^ r) & (0x8u32 << sh)) != 0;
         }
-        let c_low = r > 15;
-        r = (a & 0xF0) + (m & 0xF0) + if c_low { 0x10 } else { 0 } + (r & 0x0F);
-
-        // V calculated before final correction
-        let v = ((!(a ^ m)) & (a ^ r) & 0x80) != 0;
-
-        if r > 0x9F {
-            r += 0x60;
+        if r > ((9u32 << sh) | low) {
+            r += 6u32 << sh;
         }
-        let c_final = r > 255;
-        let result = r & 0xFF;
-        (result, c_final, v)
-    } else {
-        // ADC 16 bits: add as binary then apply iterative BCD corrections
-        // Same principle as 8-bit but on 4 nibbles with cumulative thresholds
-        let mut result = a + m + if carry_in { 1u32 } else { 0 };
-
-        // Correct units digit (position 0): threshold 9, correction 6
-        if (result & 0x0F) > 9 {
-            result += 0x6;
-        }
-        // Correct tens digit (position 1): check after units correction propagated
-        if ((result >> 4) & 0x0F) > 9 {
-            result += 0x60;
-        }
-        // Correct hundreds digit (position 2)
-        if ((result >> 8) & 0x0F) > 9 {
-            result += 0x600;
-        }
-        // V calculated BEFORE the correction of the last quartet (thousands digit)
-        let v = ((!(a ^ m)) & (a ^ result) & 0x8000) != 0;
-        // Correct thousands digit (position 3)
-        if ((result >> 12) & 0x0F) > 9 {
-            result += 0x6000;
-        }
-
-        let carry_out = result > 0xFFFF;
-        (result & 0xFFFF, carry_out, v)
+        c = (r > ((1u32 << (sh + 4)) - 1)) as u32;
     }
+    (r & ((1u32 << (4 * nibbles as u32)) - 1), c != 0, v)
 }
 
 fn adc_decimal(cpu: &mut Cpu, m: u16, wide: bool) {
@@ -102,7 +74,7 @@ fn adc_decimal(cpu: &mut Cpu, m: u16, wide: bool) {
         // 8-bit BCD addition
         let a_low = cpu.a as u32 & 0xFF;
         let m_low = m as u32 & 0xFF;
-        let (result, carry_out, overflow) = adc_decimal_n(a_low, m_low, cpu.flag(FLAG_C), 1);
+        let (result, carry_out, overflow) = adc_decimal_n(a_low, m_low, cpu.flag(FLAG_C), 2);
 
         // Preserve high byte in 8-bit mode
         let result_u16 = ((cpu.a & 0xFF00) | (result as u16)) as u16;
