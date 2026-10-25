@@ -28,3 +28,8 @@ Q-007 Priorite: desktop minimal tres tot -> D-015.
 Q-008 ROMs de test: Hermes les telecharge -> D-016.
 Q-009 Desktop v1: save states+SRAM, gamepad, debugger, filtres/plein ecran -> D-017.
 Note: le Q&R est un processus de cadrage fait MAINTENANT avec l'utilisateur (et reste disponible pendant la construction via 02_QA_PROTOCOL.md).
+
+## 2026-10-25 E02-31-Q1 | tache E02-31 | auteur Claude
+Q: In emulation mode, what should opcode AB (PLB) do? The code currently remaps AB to DA (PHX) based on a comment citing the WDC datasheet. However, the oracle test expects PLB behavior (pull from stack into DB register). Should the remapping be removed so AB always executes PLB in both modes?
+A: (choix A) A: no remap. AB always executes PLB in both modes (oracle authoritative). Fixed by pull8n + fix_stack_e; oracle 512/512 ok.
+Decision: D-022
