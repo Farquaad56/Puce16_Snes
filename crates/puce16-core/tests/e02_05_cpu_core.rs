@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::hash::{Hasher, DefaultHasher};
 
-use puce16_core::cpu::{Bus, Cpu, FLAG_C, FLAG_I, FLAG_M, FLAG_N, FLAG_X, FLAG_Z};
+use puce16_core::cpu::{Bus, Cpu, FLAG_N, FLAG_X, FLAG_Z};
 
 // Simple test bus backed by a HashMap (sparse)
 struct TestBus {

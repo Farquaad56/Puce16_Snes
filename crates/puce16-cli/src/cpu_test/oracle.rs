@@ -164,6 +164,7 @@ pub fn opcode_of_file(name: &str) -> Option<u8> {
 }
 
 // Simple defer macro for cleanup in tests
+#[cfg(test)]
 macro_rules! defer {
     ($expr:expr) => {
         let _guard = ::std::panic::AssertUnwindSafe({

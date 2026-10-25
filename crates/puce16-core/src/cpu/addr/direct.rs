@@ -4,7 +4,7 @@ use super::super::{Bus, Cpu};
 use crate::cpu::table::Am;
 use crate::cpu::addr::Ea;
 
-pub(super) fn ea<B: Bus>(cpu: &mut Cpu, bus: &mut B, am: Am, store: bool) -> Ea {
+pub(super) fn ea<B: Bus>(cpu: &mut Cpu, bus: &mut B, am: Am, _store: bool) -> Ea {
     match am {
         Am::Dp => {
             let dl = cpu.fetch8(bus);

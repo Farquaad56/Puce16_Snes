@@ -1,6 +1,6 @@
 // E02-07: addr.rs core functions - Ea, read_data/write_data, read_operand, rmw
 
-use puce16_core::cpu::{addr, Bus, Cpu};
+use puce16_core::cpu::{addr, Cpu};
 use puce16_core::cpu::table::Am;
 use puce16_core::cpu::testbus::FlatBus;
 

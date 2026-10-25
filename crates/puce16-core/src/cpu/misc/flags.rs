@@ -1,5 +1,5 @@
 use crate::cpu::table::{Am, Mn};
-use crate::cpu::{Bus, Cpu, FLAG_C, FLAG_D, FLAG_I, FLAG_M, FLAG_V, FLAG_X};
+use crate::cpu::{Bus, Cpu, FLAG_C, FLAG_D, FLAG_I, FLAG_V};
 
 pub(super) fn exec<B: Bus>(cpu: &mut Cpu, bus: &mut B, mn: Mn, _am: Am) -> bool {
     match mn {

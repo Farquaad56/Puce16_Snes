@@ -1,4 +1,4 @@
-use puce16_core::cpu::{Cpu, Bus};
+use puce16_core::cpu::Cpu;
 use puce16_core::cpu::testbus::FlatBus;
 
 fn setup_cpu() -> Cpu {

@@ -7,6 +7,7 @@
 
 /// Mapper mode of the synthesized ROM.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[allow(dead_code)]
 pub enum Map { LoRom, HiRom, ExHiRom }
 
 /// 21-byte ASCII title ($20-$7E).

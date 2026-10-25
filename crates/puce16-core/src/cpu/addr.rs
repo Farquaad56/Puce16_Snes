@@ -35,7 +35,7 @@ pub fn ea<B: Bus>(cpu: &mut Cpu, bus: &mut B, am: Am, store: bool) -> Ea {
 }
 
 /// Read data at the effective address. `wide` = true for 16-bit access.
-pub fn read_data<B: Bus>(cpu: &mut Cpu, bus: &mut B, ea: &Ea, wide: bool) -> u16 {
+pub fn read_data<B: Bus>(_cpu: &mut Cpu, bus: &mut B, ea: &Ea, wide: bool) -> u16 {
     let lo = bus.read(ea.lo);
     if wide {
         let hi = bus.read(ea.hi);
@@ -46,7 +46,7 @@ pub fn read_data<B: Bus>(cpu: &mut Cpu, bus: &mut B, ea: &Ea, wide: bool) -> u16
 }
 
 /// Write data at the effective address. `wide` = true for 16-bit access.
-pub fn write_data<B: Bus>(cpu: &mut Cpu, bus: &mut B, ea: &Ea, v: u16, wide: bool) {
+pub fn write_data<B: Bus>(_cpu: &mut Cpu, bus: &mut B, ea: &Ea, v: u16, wide: bool) {
     bus.write(ea.lo, (v & 0xFF) as u8);
     if wide {
         bus.write(ea.hi, ((v >> 8) & 0xFF) as u8);

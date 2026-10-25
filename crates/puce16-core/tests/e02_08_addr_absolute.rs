@@ -1,6 +1,6 @@
 // E02-08: addr/absolute.rs - Abs, AbsX, AbsY, Long, LongX addressing modes
 
-use puce16_core::cpu::{addr, Bus, Cpu};
+use puce16_core::cpu::{addr, Cpu};
 use puce16_core::cpu::table::Am;
 use puce16_core::cpu::testbus::FlatBus;
 
