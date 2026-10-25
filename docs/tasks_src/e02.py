@@ -850,7 +850,7 @@ T("E02-35", "flow/sys.rs: BRK, COP, RTI, WAI, STP, WDM",
 - RTI: `idle; idle; v = pull8(); cpu.set_p(v); lo = pull8; hi = pull8; pc = ..; si !e: pb = pull8`. 7 cycles natif, 6 emulation. PC non incremente.
 - WAI: `idle; idle; cpu.waiting = true`.
 - STP: `idle; idle; cpu.halted = true`.
-- WDM (`Am::Wdm`): `fetch8` (signature ignoree). 2 cycles.""",
+- WDM (`Am::Wdm`): AUCUNE lecture de la signature: `bus.idle()` (cycle interne I) puis `cpu.pc = cpu.pc.wrapping_add(1)`. 2 cycles au total (opcode R + idle I). Verifie sur l oracle 42.e/42.n.""",
   tests=[("brk_native", "e=false, p=0x01, pb=0x03, pc=0x8000, s=0x01FF, poke(0xFFE6,&[0x00,0x90]), `BRK 00` (octets `00 00` en 03:8000): peek(0x01FF)==0x03, peek(0x01FE)==0x80, peek(0x01FD)==0x02, peek(0x01FC)==0x01, s==0x01FB, pc==0x9000, pb==0, I=1, D=0 ; cycles=8."),
          ("brk_emulation", "e=true, p=0x30, s=0x01FF, poke(0xFFFE,&[0x00,0x88]), `00 00`: peek(0x01FF)==0x80, peek(0x01FE)==0x02, peek(0x01FD)==0x30, s==0x01FC, pc==0x8800, pb==0 ; cycles=7."),
          ("cop_native_vector", "e=false, poke(0xFFE4,&[0x00,0xA0]), `02 00`: pc==0xA000 ; cycles=8."),
