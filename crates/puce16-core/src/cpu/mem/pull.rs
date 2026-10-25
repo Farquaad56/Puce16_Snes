@@ -58,13 +58,14 @@ pub(super) fn exec<B: Bus>(cpu: &mut Cpu, bus: &mut B, mn: Mn, _am: Am) -> bool 
             let v = cpu.pull8(bus);
             cpu.set_p(v);
         }
-        // PLB - Pull data bank register
+        // PLB - Pull data bank register (new stack: no page-1 wrap in emulation, S high forced to 1)
         Mn::PLB => {
             bus.idle();
             bus.idle();
-            let v = cpu.pull8(bus);
+            let v = cpu.pull8n(bus);
             cpu.db = v;
             cpu.set_nz8(v);
+            cpu.fix_stack_e();
         }
         // PLD - Pull direct page register (new stack)
         Mn::PLD => {
