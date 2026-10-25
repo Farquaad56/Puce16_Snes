@@ -34,6 +34,11 @@ LIS CE FICHIER EN ENTIER AVANT DE CODER (Write only in, Specification, Tests, Ac
 """
 
 
+def _nid(x):
+    m = re.match(r"^(E\d\d-\d\d)([A-Za-z]?)$", x.strip(), re.I)
+    return (m.group(1).upper() + m.group(2).lower()) if m else x.strip().upper()
+
+
 def die(msg):
     print("ERROR: " + msg)
     sys.exit(2)
@@ -101,11 +106,11 @@ def main():
     def keep(t):
         if t["role"] == "none" and not a.include_deferred:
             return False
-        if a.only and not t["id"].startswith(a.only.upper()):
+        if a.only and not t["id"].startswith(_nid(a.only)):
             return False
-        if a.from_id and ids.index(t["id"]) < ids.index(a.from_id.upper()):
+        if a.from_id and ids.index(t["id"]) < ids.index(_nid(a.from_id)):
             return False
-        if a.to_id and ids.index(t["id"]) > ids.index(a.to_id.upper()):
+        if a.to_id and ids.index(t["id"]) > ids.index(_nid(a.to_id)):
             return False
         return True
 

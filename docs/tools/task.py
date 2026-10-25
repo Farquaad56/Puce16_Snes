@@ -57,8 +57,14 @@ def state_of(p, tid):
     return p.get("tasks", {}).get(tid, "todo")
 
 
+def norm_id(tid):
+    """E02-26D -> E02-26d (prefix upper-case, optional sub-step letter lower-case)"""
+    m = re.match(r"^(E\d\d-\d\d)([A-Za-z]?)$", tid.strip(), re.I)
+    return (m.group(1).upper() + m.group(2).lower()) if m else tid.strip().upper()
+
+
 def find(rows, tid):
-    tid = tid.upper()
+    tid = norm_id(tid)
     for i, r in enumerate(rows):
         if r["id"] == tid:
             return i, r
@@ -323,7 +329,7 @@ def cmd_list(a):
 def cmd_show(a):
     rows = load_index()
     find(rows, a.id)
-    print(task_text(a.id.upper()))
+    print(task_text(norm_id(a.id)))
     return 0
 
 
@@ -342,7 +348,7 @@ def cmd_start(a):
 def cmd_scope(a):
     rows = load_index()
     find(rows, a.id)
-    return 0 if check_scope(a.id.upper()) else 1
+    return 0 if check_scope(norm_id(a.id)) else 1
 
 
 def cmd_check(a):
