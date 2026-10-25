@@ -54,221 +54,224 @@ D-020: UNE seule tache a la fois, dans cet ordre. Une tache n'est prete que quan
  46. E02-28 mem/push.rs: PHA PHX PHY PHP PHD PHB PHK PEA PEI PER
  47. E02-29 mem/pull.rs: PLA PLX PLY PLP PLD PLB
  48. E02-30 mem/block.rs: MVN, MVP
- 49. E02-31 VERIF oracle: pile et blocs (PH*/PL*/PEA/PEI/PER/MVN/MVP)
- 50. E02-32 flow/branch.rs: Bxx, BRA, BRL
- 51. E02-33 flow/jump.rs: JMP et JML (tous modes)
- 52. E02-34 flow/call.rs: JSR, JSL, RTS, RTL
- 53. E02-35 flow/sys.rs: BRK, COP, RTI, WAI, STP, WDM
- 54. E02-36 VERIF oracle: controle de flux (Bxx, JMP, JSR, RTS, BRK, RTI...)
- 55. E02-37 misc/transfer.rs: TAX TAY TXA TYA TSX TXS TXY TYX TCD TDC TCS TSC
- 56. E02-38 misc/flags.rs: CLC SEC CLI SEI CLD SED CLV REP SEP XCE XBA NOP
- 57. E02-39 VERIF oracle: transferts, drapeaux, XCE/XBA/NOP
- 58. E02-40 interrupts.rs: poll (NMI/IRQ/WAI/STP), sequence d'interruption et RESET
- 59. E02-41 GATE J1: tous les opcodes 65816 passent l'oracle  [GATE]
+ 49. E02-30a VERIF oracle pile 1/4: PHA, PHX, PHY, PHP, PHB, PHK
+ 50. E02-30b VERIF oracle pile 2/4: PHD, PLD, PEA, PEI, PER
+ 51. E02-30c VERIF oracle pile 3/4: PLA, PLX, PLY, PLP, PLB, MVN, MVP
+ 52. E02-31 VERIF oracle pile 4/4: toute la famille pile et blocs
+ 53. E02-32 flow/branch.rs: Bxx, BRA, BRL
+ 54. E02-33 flow/jump.rs: JMP et JML (tous modes)
+ 55. E02-34 flow/call.rs: JSR, JSL, RTS, RTL
+ 56. E02-35 flow/sys.rs: BRK, COP, RTI, WAI, STP, WDM
+ 57. E02-36 VERIF oracle: controle de flux (Bxx, JMP, JSR, RTS, BRK, RTI...)
+ 58. E02-37 misc/transfer.rs: TAX TAY TXA TYA TSX TXS TXY TYX TCD TDC TCS TSC
+ 59. E02-38 misc/flags.rs: CLC SEC CLI SEI CLD SED CLV REP SEP XCE XBA NOP
+ 60. E02-39 VERIF oracle: transferts, drapeaux, XCE/XBA/NOP
+ 61. E02-40 interrupts.rs: poll (NMI/IRQ/WAI/STP), sequence d'interruption et RESET
+ 62. E02-41 GATE J1: tous les opcodes 65816 passent l'oracle  [GATE]
 
 ## E03
- 60. E03-01 cart/header.rs: types, en-tete interne, checksum, region, SRAM
- 61. E03-02 cart/mapper.rs: formules LoROM / HiROM / ExHiROM (fonctions pures)
- 62. E03-03 cart/header.rs: score_header et choix de l'en-tete
- 63. E03-04 cart/mod.rs: strip_copier_header et normalize (ROM en puissance de 2)
- 64. E03-05 Cart: from_bytes / from_bytes_forced et accesseurs
- 65. E03-06 Cart: read / write / load_sram
- 66. E03-07 ppu/dot.rs: tables de dots et types de ligne
- 67. E03-08 ppu/mod.rs: Ppu (compteurs v/dot/field, step_dot, evenements)
- 68. E03-09 ppu/mod.rs: registres $2100 et $2133 (minimal), read, hash
- 69. E03-10 bus/wram.rs: WRAM 128 Kio et registres $2180-$2183
- 70. E03-11 joypad.rs: ports $4016/$4017 et valeurs d'auto-read
- 71. E03-12 apu/mod.rs: squelette Apu (ports $2140-$2143)
- 72. E03-13 bus/mod.rs: access_clocks (6/8/12 clocks par acces)
- 73. E03-14 bus/mmio.rs: struct Mmio, power-on, ecritures $4200-$420D
- 74. E03-15 bus/mmio.rs: unite math (multiplication 8x8, division 16/8) et lecture $4214-$4217
- 75. E03-16 bus/mmio.rs: lecture RDNMI, TIMEUP, HVBJOY, RDIO, JOYn
- 76. E03-17 dma/mod.rs: Channel, Dma::new et registres $4300-$437F
- 77. E03-18 dma/mod.rs: trait DmaBus et fonctions de pattern
- 78. E03-19 dma/mod.rs: run_general (A -> B), patterns, ajustement A, temps
- 79. E03-20 dma/mod.rs: run_general sens B -> A et cas WRAM <-> $2180
- 80. E03-21 dma/hdma.rs: hdma_init (debut de frame)
- 81. E03-22 dma/hdma.rs: hdma_run_line (un transfert par scanline)
- 82. E03-23 timing/mod.rs: Timing (ligne, refresh, VBlank/NMI) + banc de test Rig
- 83. E03-24 timing/mod.rs: IRQ H/V
- 84. E03-25 timing/mod.rs: auto-read joypad et declencheurs HDMA
- 85. E03-26 bus/mod.rs: struct SysBus (possession des composants), new, reset, hash
- 86. E03-27 bus/route.rs: read_inner (routage des lectures, open bus)
- 87. E03-28 bus/route.rs: write_inner (routage des ecritures et effets)
- 88. E03-29 bus/cycle.rs: avance du temps, catch_up et impl cpu::Bus
- 89. E03-30 bus/cycle.rs: rafraichissement DRAM (40 clocks par ligne)
- 90. E03-31 bus/mod.rs: impl DmaBus pour SysBus
- 91. E03-32 bus/cycle.rs: execution du DMA general (apres le cycle suivant MDMAEN)
- 92. E03-33 bus/cycle.rs: execution HDMA (init et run) en debut de cycle
- 93. E03-34 snes.rs: Snes reel (new_with, reset) a cote du motif de test
- 94. E03-35 snes.rs: run_frame / run_master / step_instruction / hash / SRAM / debug (Snes reel)
- 95. E03-36 tests/common/prog.rs et test de demarrage (boot)
- 96. E03-37 Integration: NMI (compteur par frame, RDNMI, activation en VBlank)
- 97. E03-38 Integration: IRQ H/V (modes 1, 2, 3, masque I, acquittement)
- 98. E03-39 Integration: DMA general ROM -> WRAM par $2180 et relecture
- 99. E03-40 Integration: HDMA vers $2180 (table directe, repetition)
-100. E03-41 Integration: auto-read des manettes ($4218-$421F)
-101. E03-42 Integration: unite de multiplication/division et determinisme
-102. E03-43 Integration: SRAM, open bus et valeurs de power-on des registres
-103. E03-44 CLI: puce16-cli run <rom> (vraie ROM, --state-hash, --mapper, --debug)
-104. E03-45 Desktop: files.rs (extensions ROM, extraction d'un .zip, lecture d'un fichier ROM)
-105. E03-46 Desktop: emu_thread LoadRom, Reset reel, Event::Error
-106. E03-47 Desktop: ouvrir une ROM (menu, Ctrl+O, glisser-deposer, argument de ligne de commande)
-107. E03-48 GATE J2: le systeme assemble demarre une ROM (CLI + desktop)  [GATE]
+ 63. E03-01 cart/header.rs: types, en-tete interne, checksum, region, SRAM
+ 64. E03-02 cart/mapper.rs: formules LoROM / HiROM / ExHiROM (fonctions pures)
+ 65. E03-03 cart/header.rs: score_header et choix de l'en-tete
+ 66. E03-04 cart/mod.rs: strip_copier_header et normalize (ROM en puissance de 2)
+ 67. E03-05 Cart: from_bytes / from_bytes_forced et accesseurs
+ 68. E03-06 Cart: read / write / load_sram
+ 69. E03-07 ppu/dot.rs: tables de dots et types de ligne
+ 70. E03-08 ppu/mod.rs: Ppu (compteurs v/dot/field, step_dot, evenements)
+ 71. E03-09 ppu/mod.rs: registres $2100 et $2133 (minimal), read, hash
+ 72. E03-10 bus/wram.rs: WRAM 128 Kio et registres $2180-$2183
+ 73. E03-11 joypad.rs: ports $4016/$4017 et valeurs d'auto-read
+ 74. E03-12 apu/mod.rs: squelette Apu (ports $2140-$2143)
+ 75. E03-13 bus/mod.rs: access_clocks (6/8/12 clocks par acces)
+ 76. E03-14 bus/mmio.rs: struct Mmio, power-on, ecritures $4200-$420D
+ 77. E03-15 bus/mmio.rs: unite math (multiplication 8x8, division 16/8) et lecture $4214-$4217
+ 78. E03-16 bus/mmio.rs: lecture RDNMI, TIMEUP, HVBJOY, RDIO, JOYn
+ 79. E03-17 dma/mod.rs: Channel, Dma::new et registres $4300-$437F
+ 80. E03-18 dma/mod.rs: trait DmaBus et fonctions de pattern
+ 81. E03-19 dma/mod.rs: run_general (A -> B), patterns, ajustement A, temps
+ 82. E03-20 dma/mod.rs: run_general sens B -> A et cas WRAM <-> $2180
+ 83. E03-21 dma/hdma.rs: hdma_init (debut de frame)
+ 84. E03-22 dma/hdma.rs: hdma_run_line (un transfert par scanline)
+ 85. E03-23 timing/mod.rs: Timing (ligne, refresh, VBlank/NMI) + banc de test Rig
+ 86. E03-24 timing/mod.rs: IRQ H/V
+ 87. E03-25 timing/mod.rs: auto-read joypad et declencheurs HDMA
+ 88. E03-26 bus/mod.rs: struct SysBus (possession des composants), new, reset, hash
+ 89. E03-27 bus/route.rs: read_inner (routage des lectures, open bus)
+ 90. E03-28 bus/route.rs: write_inner (routage des ecritures et effets)
+ 91. E03-29 bus/cycle.rs: avance du temps, catch_up et impl cpu::Bus
+ 92. E03-30 bus/cycle.rs: rafraichissement DRAM (40 clocks par ligne)
+ 93. E03-31 bus/mod.rs: impl DmaBus pour SysBus
+ 94. E03-32 bus/cycle.rs: execution du DMA general (apres le cycle suivant MDMAEN)
+ 95. E03-33 bus/cycle.rs: execution HDMA (init et run) en debut de cycle
+ 96. E03-34 snes.rs: Snes reel (new_with, reset) a cote du motif de test
+ 97. E03-35 snes.rs: run_frame / run_master / step_instruction / hash / SRAM / debug (Snes reel)
+ 98. E03-36 tests/common/prog.rs et test de demarrage (boot)
+ 99. E03-37 Integration: NMI (compteur par frame, RDNMI, activation en VBlank)
+100. E03-38 Integration: IRQ H/V (modes 1, 2, 3, masque I, acquittement)
+101. E03-39 Integration: DMA general ROM -> WRAM par $2180 et relecture
+102. E03-40 Integration: HDMA vers $2180 (table directe, repetition)
+103. E03-41 Integration: auto-read des manettes ($4218-$421F)
+104. E03-42 Integration: unite de multiplication/division et determinisme
+105. E03-43 Integration: SRAM, open bus et valeurs de power-on des registres
+106. E03-44 CLI: puce16-cli run <rom> (vraie ROM, --state-hash, --mapper, --debug)
+107. E03-45 Desktop: files.rs (extensions ROM, extraction d'un .zip, lecture d'un fichier ROM)
+108. E03-46 Desktop: emu_thread LoadRom, Reset reel, Event::Error
+109. E03-47 Desktop: ouvrir une ROM (menu, Ctrl+O, glisser-deposer, argument de ligne de commande)
+110. E03-48 GATE J2: le systeme assemble demarre une ROM (CLI + desktop)  [GATE]
 
 ## E04
-108. E04-01 ppu/vram.rs: VRAM, VMAIN, VMADD, prefetch, lecture/ecriture
-109. E04-02 ppu/cgram.rs: CGRAM (256 mots, ecriture/lecture par paires)
-110. E04-03 ppu/oam.rs: OAM 544 octets, OAMADD, OAMDATA, rechargement
-111. E04-04 ppu/regs.rs: registres de scroll BGnHOFS/BGnVOFS et latchs partages
-112. E04-05 ppu/mode7.rs: registres mode 7 (M7SEL, M7A-D, M7X/Y, scroll) et MPY
-113. E04-06 ppu/regs.rs: registres de configuration des fonds et des sprites
-114. E04-07 ppu/regs.rs: fenetres, TM/TS, color math, COLDATA
-115. E04-08 ppu/mod.rs: aiguillage des ecritures $2100-$2133 vers les memoires et registres
-116. E04-09 ppu/mod.rs: registres de lecture MPY, OAM, VRAM, CGRAM et open bus PPU
-117. E04-10 ppu/mod.rs: verrou des compteurs H/V, OPHCT/OPVCT, STAT77, STAT78
-118. E04-11 ppu/mod.rs: INIDISP/SETINI complets, rechargement OAM et drapeaux au debut de frame
-119. E04-12 ppu/mod.rs: reset vs power-on, regs_snapshot (debugger) et hash complet
-120. E04-13 ppu/output.rs: conversion couleur BGR555 -> XRGB8888 et rangee de sortie
-121. E04-14 ppu/mod.rs: framebuffer, pixel de fond (backdrop) et FrameView
-122. E04-15 snes.rs: le Snes reel affiche la sortie du PPU (jalon video V1)
+111. E04-01 ppu/vram.rs: VRAM, VMAIN, VMADD, prefetch, lecture/ecriture
+112. E04-02 ppu/cgram.rs: CGRAM (256 mots, ecriture/lecture par paires)
+113. E04-03 ppu/oam.rs: OAM 544 octets, OAMADD, OAMDATA, rechargement
+114. E04-04 ppu/regs.rs: registres de scroll BGnHOFS/BGnVOFS et latchs partages
+115. E04-05 ppu/mode7.rs: registres mode 7 (M7SEL, M7A-D, M7X/Y, scroll) et MPY
+116. E04-06 ppu/regs.rs: registres de configuration des fonds et des sprites
+117. E04-07 ppu/regs.rs: fenetres, TM/TS, color math, COLDATA
+118. E04-08 ppu/mod.rs: aiguillage des ecritures $2100-$2133 vers les memoires et registres
+119. E04-09 ppu/mod.rs: registres de lecture MPY, OAM, VRAM, CGRAM et open bus PPU
+120. E04-10 ppu/mod.rs: verrou des compteurs H/V, OPHCT/OPVCT, STAT77, STAT78
+121. E04-11 ppu/mod.rs: INIDISP/SETINI complets, rechargement OAM et drapeaux au debut de frame
+122. E04-12 ppu/mod.rs: reset vs power-on, regs_snapshot (debugger) et hash complet
+123. E04-13 ppu/output.rs: conversion couleur BGR555 -> XRGB8888 et rangee de sortie
+124. E04-14 ppu/mod.rs: framebuffer, pixel de fond (backdrop) et FrameView
+125. E04-15 snes.rs: le Snes reel affiche la sortie du PPU (jalon video V1)
 
 ## E05
-123. E05-01 ppu/bg.rs: types Pix/Pick, tables BPP et ordres de priorite
-124. E05-02 ppu/bg.rs: indices de palette et couleur directe
-125. E05-03 ppu/bg.rs: decode_row (tuiles 2/4/8 bpp)
-126. E05-04 ppu/bg.rs: entree de tilemap et adresse (map_entry_addr)
-127. E05-05 ppu/bg.rs: bg_pixel (tuiles 8x8, defilement, palette)
-128. E05-06 ppu/bg.rs: tuiles 16x16 et retournements (flips)
-129. E05-07 ppu/bg.rs: mosaique
-130. E05-08 ppu/bg.rs: offset-per-tile (modes 2 et 4)
-131. E05-09 ppu/window.rs: fenetres (window_out) et groupes de couche
-132. E05-10 ppu/obj.rs: tailles, decodage d'un sprite et liste des 32 sprites d'une rangee
-133. E05-11 ppu/obj.rs: tranches de sprites, tampon de ligne, limites et erratum de flip
-134. E05-12 ppu/mode7.rs: echantillonnage mode 7 (m7_sample, clip13)
-135. E05-13 ppu/mode7.rs: pixel mode 7 (BG1) et EXTBG (BG2)
-136. E05-14 ppu: pick_layers (ordre de priorite), fenetres par ecran, pick_screen
-137. E05-15 ppu/colormath.rs: color math, regions de la fenetre couleur
-138. E05-16 ppu/mod.rs: compose_pixel branche dans step_dot (rendu non hi-res complet)
-139. E05-17 ppu/bg.rs: fonds hi-res des modes 5 et 6 (bg_pixel_hires)
-140. E05-18 ppu/mod.rs: hi-res et pseudo hi-res dans step_dot, export 512 colonnes
-141. E05-19 tests: harness de scenes PPU (hash de frame compare a un renderer Python independant)
+126. E05-01 ppu/bg.rs: types Pix/Pick, tables BPP et ordres de priorite
+127. E05-02 ppu/bg.rs: indices de palette et couleur directe
+128. E05-03 ppu/bg.rs: decode_row (tuiles 2/4/8 bpp)
+129. E05-04 ppu/bg.rs: entree de tilemap et adresse (map_entry_addr)
+130. E05-05 ppu/bg.rs: bg_pixel (tuiles 8x8, defilement, palette)
+131. E05-06 ppu/bg.rs: tuiles 16x16 et retournements (flips)
+132. E05-07 ppu/bg.rs: mosaique
+133. E05-08 ppu/bg.rs: offset-per-tile (modes 2 et 4)
+134. E05-09 ppu/window.rs: fenetres (window_out) et groupes de couche
+135. E05-10 ppu/obj.rs: tailles, decodage d'un sprite et liste des 32 sprites d'une rangee
+136. E05-11 ppu/obj.rs: tranches de sprites, tampon de ligne, limites et erratum de flip
+137. E05-12 ppu/mode7.rs: echantillonnage mode 7 (m7_sample, clip13)
+138. E05-13 ppu/mode7.rs: pixel mode 7 (BG1) et EXTBG (BG2)
+139. E05-14 ppu: pick_layers (ordre de priorite), fenetres par ecran, pick_screen
+140. E05-15 ppu/colormath.rs: color math, regions de la fenetre couleur
+141. E05-16 ppu/mod.rs: compose_pixel branche dans step_dot (rendu non hi-res complet)
+142. E05-17 ppu/bg.rs: fonds hi-res des modes 5 et 6 (bg_pixel_hires)
+143. E05-18 ppu/mod.rs: hi-res et pseudo hi-res dans step_dot, export 512 colonnes
+144. E05-19 tests: harness de scenes PPU (hash de frame compare a un renderer Python independant)
 
 ## E06
-142. E06-01 T-ORACLE: telecharger l'oracle SingleStepTests spc700
-143. E06-02 T-FORMAT: documenter le format JSON exact de l'oracle spc700
-144. E06-03 GATE: Claude relit spcjson_format.md et valide le format  [GATE]
-145. E06-04 gen_spc_tables.py: spc700/table.rs (BYTES, CYCLES, BRANCH_EXTRA, NAME)
-146. E06-05 Spc700: registres, trait SmpBus, helpers, step et squelettes de familles
-147. E06-06 spc700/testbus.rs: FlatSmpBus (bus plat journalise)
-148. E06-07 spc-test: chargeur des fichiers JSON de l'oracle
-149. E06-08 spc-test: comparaison d'etats et de cycles (fonctions pures)
-150. E06-09 spc-test: commande complete (boucle sur les fichiers, rapport, code de sortie)
-151. E06-10 spc700/addr.rs: recettes d'adressage (dp, dp+X, abs, (X), [dp+X], [dp]+Y...)
-152. E06-11 spc700/mov.rs: MOV de chargement (A, X, Y depuis la memoire ou un immediat)
-153. E06-12 spc700/mov.rs: MOV de stockage (avec lecture factice de la destination)
-154. E06-13 spc700/mov.rs: transferts, MOV dp,#imm, MOV dp,dp, (X)+ et MOVW
-155. E06-14 VERIF oracle: toutes les instructions MOV / MOVW
-156. E06-15 spc700/alu.rs: OR, AND, EOR (toutes les formes)
-157. E06-16 spc700/alu.rs: ADC et SBC (toutes les formes)
-158. E06-17 spc700/alu.rs: CMP (A, X, Y et formes memoire)
-159. E06-18 VERIF oracle: OR AND EOR ADC SBC CMP
-160. E06-19 spc700/incdec.rs: INC, DEC, ASL, LSR, ROL, ROR, XCN
-161. E06-20 spc700/misc.rs: DAA, DAS, MUL, DIV
-162. E06-21 spc700/word.rs: ADDW, SUBW, CMPW, INCW, DECW
-163. E06-22 VERIF oracle: INC DEC ASL LSR ROL ROR XCN DAA DAS MUL DIV et mots 16 bits
-164. E06-23 spc700/bits.rs: SET1, CLR1, BBS, BBC, TSET1, TCLR1
-165. E06-24 spc700/bits.rs: OR1, AND1, EOR1, MOV1, NOT1 (bits de la memoire absolue)
-166. E06-25 VERIF oracle: instructions de bits
-167. E06-26 spc700/flow.rs: branches (Bxx, BRA, CBNE, DBNZ)
-168. E06-27 spc700/flow.rs: JMP, CALL, PCALL, TCALL, BRK, RET, RETI
-169. E06-28 spc700/misc.rs: PUSH, POP, flags, NOP, SLEEP, STOP
-170. E06-29 VERIF oracle: flux de controle, pile, indicateurs
-171. E06-30 GATE J4a: tous les opcodes SPC700 passent l'oracle  [GATE]
-172. E06-31 dsp/mod.rs: Dsp (fichier de registres, reset, hash) et Voice (structure)
-173. E06-32 apu/timer.rs: les trois timers du SMP
-174. E06-33 apu/ipl.rs: la ROM IPL de 64 octets
-175. E06-34 apu/io.rs: ApuIo (RAM 64 Kio, registres $F0-$FF, ports, timers, IPL)
-176. E06-35 apu/mod.rs: Apu complet (SMP + ApuIo), rattrapage step_to, region
-177. E06-36 Tests d'integration IPL: handshake et envoi d'un programme par les ports
-178. E06-37 Snes: le S-CPU voit le handshake de l'IPL (jalon audio A1)
-179. E06-38 DSP-DATA: obtenir la table gaussienne GAUSS[512] (reseau)
-180. E06-39 dsp/gauss.rs (genere) et dsp/tables.rs: PERIOD, OFFSET, poll
-181. E06-40 dsp/brr.rs: decodage d'un groupe de 4 echantillons BRR
-182. E06-41 dsp/voice.rs: debut de note (repertoire) et flux BRR (decode_group, fin de bloc)
-183. E06-42 dsp/voice.rs: interpolation gaussienne (avec le bug de debordement)
-184. E06-43 dsp/envelope.rs: enveloppe ADSR / GAIN
-185. E06-44 dsp/envelope.rs: compteur de periodes et generateur de bruit
-186. E06-45 dsp/voice.rs: un echantillon d'une voix (delai de key-on, interpolation, enveloppe, PMON, volumes)
-187. E06-46 dsp/mod.rs: run_sample (scrutation KON/KOFF, soft reset, 8 voix, sortie sans echo)
-188. E06-47 dsp/echo.rs: echo (tampon en RAM, FIR a 8 coefficients, feedback, mute)
-189. E06-48 Snes::take_audio reel et constante de cadence audio
-190. E06-49 Tests d'integration DSP: une note BRR en boucle de bout en bout
-191. E06-50 GATE J4: IPL, SPC700 et DSP valides (jalon audio)  [GATE]
+145. E06-01 T-ORACLE: telecharger l'oracle SingleStepTests spc700
+146. E06-02 T-FORMAT: documenter le format JSON exact de l'oracle spc700
+147. E06-03 GATE: Claude relit spcjson_format.md et valide le format  [GATE]
+148. E06-04 gen_spc_tables.py: spc700/table.rs (BYTES, CYCLES, BRANCH_EXTRA, NAME)
+149. E06-05 Spc700: registres, trait SmpBus, helpers, step et squelettes de familles
+150. E06-06 spc700/testbus.rs: FlatSmpBus (bus plat journalise)
+151. E06-07 spc-test: chargeur des fichiers JSON de l'oracle
+152. E06-08 spc-test: comparaison d'etats et de cycles (fonctions pures)
+153. E06-09 spc-test: commande complete (boucle sur les fichiers, rapport, code de sortie)
+154. E06-10 spc700/addr.rs: recettes d'adressage (dp, dp+X, abs, (X), [dp+X], [dp]+Y...)
+155. E06-11 spc700/mov.rs: MOV de chargement (A, X, Y depuis la memoire ou un immediat)
+156. E06-12 spc700/mov.rs: MOV de stockage (avec lecture factice de la destination)
+157. E06-13 spc700/mov.rs: transferts, MOV dp,#imm, MOV dp,dp, (X)+ et MOVW
+158. E06-14 VERIF oracle: toutes les instructions MOV / MOVW
+159. E06-15 spc700/alu.rs: OR, AND, EOR (toutes les formes)
+160. E06-16 spc700/alu.rs: ADC et SBC (toutes les formes)
+161. E06-17 spc700/alu.rs: CMP (A, X, Y et formes memoire)
+162. E06-18 VERIF oracle: OR AND EOR ADC SBC CMP
+163. E06-19 spc700/incdec.rs: INC, DEC, ASL, LSR, ROL, ROR, XCN
+164. E06-20 spc700/misc.rs: DAA, DAS, MUL, DIV
+165. E06-21 spc700/word.rs: ADDW, SUBW, CMPW, INCW, DECW
+166. E06-22 VERIF oracle: INC DEC ASL LSR ROL ROR XCN DAA DAS MUL DIV et mots 16 bits
+167. E06-23 spc700/bits.rs: SET1, CLR1, BBS, BBC, TSET1, TCLR1
+168. E06-24 spc700/bits.rs: OR1, AND1, EOR1, MOV1, NOT1 (bits de la memoire absolue)
+169. E06-25 VERIF oracle: instructions de bits
+170. E06-26 spc700/flow.rs: branches (Bxx, BRA, CBNE, DBNZ)
+171. E06-27 spc700/flow.rs: JMP, CALL, PCALL, TCALL, BRK, RET, RETI
+172. E06-28 spc700/misc.rs: PUSH, POP, flags, NOP, SLEEP, STOP
+173. E06-29 VERIF oracle: flux de controle, pile, indicateurs
+174. E06-30 GATE J4a: tous les opcodes SPC700 passent l'oracle  [GATE]
+175. E06-31 dsp/mod.rs: Dsp (fichier de registres, reset, hash) et Voice (structure)
+176. E06-32 apu/timer.rs: les trois timers du SMP
+177. E06-33 apu/ipl.rs: la ROM IPL de 64 octets
+178. E06-34 apu/io.rs: ApuIo (RAM 64 Kio, registres $F0-$FF, ports, timers, IPL)
+179. E06-35 apu/mod.rs: Apu complet (SMP + ApuIo), rattrapage step_to, region
+180. E06-36 Tests d'integration IPL: handshake et envoi d'un programme par les ports
+181. E06-37 Snes: le S-CPU voit le handshake de l'IPL (jalon audio A1)
+182. E06-38 DSP-DATA: obtenir la table gaussienne GAUSS[512] (reseau)
+183. E06-39 dsp/gauss.rs (genere) et dsp/tables.rs: PERIOD, OFFSET, poll
+184. E06-40 dsp/brr.rs: decodage d'un groupe de 4 echantillons BRR
+185. E06-41 dsp/voice.rs: debut de note (repertoire) et flux BRR (decode_group, fin de bloc)
+186. E06-42 dsp/voice.rs: interpolation gaussienne (avec le bug de debordement)
+187. E06-43 dsp/envelope.rs: enveloppe ADSR / GAIN
+188. E06-44 dsp/envelope.rs: compteur de periodes et generateur de bruit
+189. E06-45 dsp/voice.rs: un echantillon d'une voix (delai de key-on, interpolation, enveloppe, PMON, volumes)
+190. E06-46 dsp/mod.rs: run_sample (scrutation KON/KOFF, soft reset, 8 voix, sortie sans echo)
+191. E06-47 dsp/echo.rs: echo (tampon en RAM, FIR a 8 coefficients, feedback, mute)
+192. E06-48 Snes::take_audio reel et constante de cadence audio
+193. E06-49 Tests d'integration DSP: une note BRR en boucle de bout en bout
+194. E06-50 GATE J4: IPL, SPC700 et DSP valides (jalon audio)  [GATE]
 
 ## E07
-192. E07-01 T-ROMS: telecharger les ROM de test homebrew (reseau)
-193. E07-02 tests/manifest.toml et tests/baseline.json initiaux
-194. E07-03 GATE: revue du manifeste et des ROM de test (Claude)  [GATE]
-195. E07-04 suite/manifest.rs: lecture et validation du manifeste TOML
-196. E07-05 suite/baseline.rs: lecture/ecriture de baseline.json
-197. E07-06 suite/report.rs: verdicts, lignes de rapport et code de sortie
-198. E07-07 core: Snes::apu_port (ports vus par le S-CPU)
-199. E07-08 suite/runner.rs: executer une ROM du manifeste et la juger
-200. E07-09 suite.rs: la commande suite (manifeste, baseline, filtre d'epopee, PPM, mise a jour)
-201. E07-10 Tests d'integration de `puce16-cli suite` (ROM synthetiques)
-202. E07-11 T-SUITE-REPORT: lancer la suite sur les vraies ROM et documenter l'etat
-203. E07-12 GATE J3/J5: captures validees, baseline fige  [GATE]
-204. E07-13 Preparer les jeux: README des ROM commerciales et verification du manifeste
-205. E07-14 GATE J6: Super Mario World demarre et se joue  [GATE]
-206. E07-15 GATE J7: ALttP et Super Mario All-Stars jouables  [GATE]
+195. E07-01 T-ROMS: telecharger les ROM de test homebrew (reseau)
+196. E07-02 tests/manifest.toml et tests/baseline.json initiaux
+197. E07-03 GATE: revue du manifeste et des ROM de test (Claude)  [GATE]
+198. E07-04 suite/manifest.rs: lecture et validation du manifeste TOML
+199. E07-05 suite/baseline.rs: lecture/ecriture de baseline.json
+200. E07-06 suite/report.rs: verdicts, lignes de rapport et code de sortie
+201. E07-07 core: Snes::apu_port (ports vus par le S-CPU)
+202. E07-08 suite/runner.rs: executer une ROM du manifeste et la juger
+203. E07-09 suite.rs: la commande suite (manifeste, baseline, filtre d'epopee, PPM, mise a jour)
+204. E07-10 Tests d'integration de `puce16-cli suite` (ROM synthetiques)
+205. E07-11 T-SUITE-REPORT: lancer la suite sur les vraies ROM et documenter l'etat
+206. E07-12 GATE J3/J5: captures validees, baseline fige  [GATE]
+207. E07-13 Preparer les jeux: README des ROM commerciales et verification du manifeste
+208. E07-14 GATE J6: Super Mario World demarre et se joue  [GATE]
+209. E07-15 GATE J7: ALttP et Super Mario All-Stars jouables  [GATE]
 
 ## E08
-207. E08-01 savestate.rs: StateWriter, StateReader, StateError et trait State
-208. E08-02 State pour Cpu (cpu/mod.rs)
-209. E08-03 State pour Joypads, Cart (SRAM) et Wram
-210. E08-04 State pour Mmio et Timing
-211. E08-05 State pour Dma (canaux et etat HDMA)
-212. E08-06 State pour Vram, Cgram et Oam
-213. E08-07 State pour Scroll, M7Regs et Regs (registres PPU)
-214. E08-08 State pour Ppu (position, tampons de ligne, framebuffer)
-215. E08-09 State pour Spc700 et Timer
-216. E08-10 State pour Dsp et Voice
-217. E08-11 State pour ApuIo et Apu
-218. E08-12 Snes::save_state et load_state (assemblage, en-tete du blob)
-219. E08-13 Tests d'integration des save states sur des scenarios (NMI, DMA, HDMA, PPU, APU)
-220. E08-14 CLI: puce16-cli run --save-state / --load-state
-221. E08-15 Desktop audio.rs: anneau circulaire AudioRing (pur)
-222. E08-16 Desktop audio.rs: re-echantillonneur sinc fenetre (pur)
-223. E08-17 Desktop audio.rs: rendu du callback (volume, muet, canaux, sous-alimentation)
-224. E08-18 Desktop audio.rs: sortie cpal (AudioOut)
-225. E08-19 emu_thread: synchro audio (anneau), cadence PAL/NTSC, avance rapide
-226. E08-20 files.rs: chemins SRAM/save states, ecriture atomique, en-tete .p16s
-227. E08-21 emu_thread: SRAM (chargement, sauvegarde toutes les 5 s, a la fermeture)
-228. E08-22 emu_thread: save states (SaveState / LoadState, slots 0..9)
-229. E08-23 app.rs: raccourcis save states / slots / capture d'ecran / muet / avance rapide
-230. E08-24 config.rs: configuration JSON (defauts, aller-retour, ROM recentes)
-231. E08-25 video.rs: filtres, ratio par nom, scanlines (pur)
-232. E08-26 app.rs: configuration (chargement, application, ROM recentes, menus Video/Audio)
-233. E08-27 app.rs / main.rs: audio reel (anneau, flux cpal, volume, muet)
-234. E08-28 app.rs: plein ecran (F11), curseur masque, pause a la perte du focus
-235. E08-29 input.rs: tables manette (PadButton), stick, mappings personnalises (pur)
-236. E08-30 input.rs / app.rs: lecture des manettes avec gilrs (PadPoller)
-237. E08-31 GATE D5: desktop jouable (audio, SRAM, save states, manette, filtres, config)  [GATE]
-238. E08-32 snes.rs: accesseurs de debug (VRAM, CGRAM, OAM, registres PPU/SMP/DMA, page WRAM, run_until_pc)
-239. E08-33 emu_thread: commandes de debug (RequestDebug, SetWramPage, StepInstruction, RunToPc) et Event::Debug
-240. E08-34 debugger.rs: decodage de tuiles, couleurs, palettes, hexdump, drapeaux (pur)
-241. E08-35 debugger.rs: rendu des cartes BG, carte mode 7 et decodage OAM (pur)
-242. E08-36 debugger.rs / app.rs: fenetre du debugger (F10), registres et commandes d'execution
-243. E08-37 debugger.rs: onglets Tuiles, Cartes et Palettes
-244. E08-38 debugger.rs: onglets OAM et Memoire, parse_pc (+ tests purs)
-245. E08-39 GATE J8: save states, SRAM et debugger valides (jalon desktop final)  [GATE]
+210. E08-01 savestate.rs: StateWriter, StateReader, StateError et trait State
+211. E08-02 State pour Cpu (cpu/mod.rs)
+212. E08-03 State pour Joypads, Cart (SRAM) et Wram
+213. E08-04 State pour Mmio et Timing
+214. E08-05 State pour Dma (canaux et etat HDMA)
+215. E08-06 State pour Vram, Cgram et Oam
+216. E08-07 State pour Scroll, M7Regs et Regs (registres PPU)
+217. E08-08 State pour Ppu (position, tampons de ligne, framebuffer)
+218. E08-09 State pour Spc700 et Timer
+219. E08-10 State pour Dsp et Voice
+220. E08-11 State pour ApuIo et Apu
+221. E08-12 Snes::save_state et load_state (assemblage, en-tete du blob)
+222. E08-13 Tests d'integration des save states sur des scenarios (NMI, DMA, HDMA, PPU, APU)
+223. E08-14 CLI: puce16-cli run --save-state / --load-state
+224. E08-15 Desktop audio.rs: anneau circulaire AudioRing (pur)
+225. E08-16 Desktop audio.rs: re-echantillonneur sinc fenetre (pur)
+226. E08-17 Desktop audio.rs: rendu du callback (volume, muet, canaux, sous-alimentation)
+227. E08-18 Desktop audio.rs: sortie cpal (AudioOut)
+228. E08-19 emu_thread: synchro audio (anneau), cadence PAL/NTSC, avance rapide
+229. E08-20 files.rs: chemins SRAM/save states, ecriture atomique, en-tete .p16s
+230. E08-21 emu_thread: SRAM (chargement, sauvegarde toutes les 5 s, a la fermeture)
+231. E08-22 emu_thread: save states (SaveState / LoadState, slots 0..9)
+232. E08-23 app.rs: raccourcis save states / slots / capture d'ecran / muet / avance rapide
+233. E08-24 config.rs: configuration JSON (defauts, aller-retour, ROM recentes)
+234. E08-25 video.rs: filtres, ratio par nom, scanlines (pur)
+235. E08-26 app.rs: configuration (chargement, application, ROM recentes, menus Video/Audio)
+236. E08-27 app.rs / main.rs: audio reel (anneau, flux cpal, volume, muet)
+237. E08-28 app.rs: plein ecran (F11), curseur masque, pause a la perte du focus
+238. E08-29 input.rs: tables manette (PadButton), stick, mappings personnalises (pur)
+239. E08-30 input.rs / app.rs: lecture des manettes avec gilrs (PadPoller)
+240. E08-31 GATE D5: desktop jouable (audio, SRAM, save states, manette, filtres, config)  [GATE]
+241. E08-32 snes.rs: accesseurs de debug (VRAM, CGRAM, OAM, registres PPU/SMP/DMA, page WRAM, run_until_pc)
+242. E08-33 emu_thread: commandes de debug (RequestDebug, SetWramPage, StepInstruction, RunToPc) et Event::Debug
+243. E08-34 debugger.rs: decodage de tuiles, couleurs, palettes, hexdump, drapeaux (pur)
+244. E08-35 debugger.rs: rendu des cartes BG, carte mode 7 et decodage OAM (pur)
+245. E08-36 debugger.rs / app.rs: fenetre du debugger (F10), registres et commandes d'execution
+246. E08-37 debugger.rs: onglets Tuiles, Cartes et Palettes
+247. E08-38 debugger.rs: onglets OAM et Memoire, parse_pc (+ tests purs)
+248. E08-39 GATE J8: save states, SRAM et debugger valides (jalon desktop final)  [GATE]
 
 ## E09
-246. E09-01 Coprocesseur DSP-1 (Super Mario Kart, Pilotwings)
-247. E09-02 Coprocesseur Super FX / GSU (Star Fox, Yoshi's Island)
-248. E09-03 Coprocesseur SA-1 (Super Mario RPG, Kirby Super Star)
-249. E09-04 Decompresseur S-DD1 (Star Ocean, Street Fighter Alpha 2)
-250. E09-05 Decompresseur SPC7110 (Far East of Eden Zero, Momotaro Dentetsu Happy)
-251. E09-06 Coprocesseur Cx4 (Mega Man X2, X3)
-252. E09-07 Autres puces: OBC1, S-RTC, ST010/ST011/ST018, MSU-1, BS-X
+249. E09-01 Coprocesseur DSP-1 (Super Mario Kart, Pilotwings)
+250. E09-02 Coprocesseur Super FX / GSU (Star Fox, Yoshi's Island)
+251. E09-03 Coprocesseur SA-1 (Super Mario RPG, Kirby Super Star)
+252. E09-04 Decompresseur S-DD1 (Star Ocean, Street Fighter Alpha 2)
+253. E09-05 Decompresseur SPC7110 (Far East of Eden Zero, Momotaro Dentetsu Happy)
+254. E09-06 Coprocesseur Cx4 (Mega Man X2, X3)
+255. E09-07 Autres puces: OBC1, S-RTC, ST010/ST011/ST018, MSU-1, BS-X

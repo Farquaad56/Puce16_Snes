@@ -732,15 +732,45 @@ T("E02-30", "mem/block.rs: MVN, MVP",
          ("mvn_a_wrap", "a=0x0000: un seul octet copie puis a==0xFFFF et pc==0x8003.")],
   notes=CHAIN)
 
-T("E02-31", "VERIF oracle: pile et blocs (PH*/PL*/PEA/PEI/PER/MVN/MVP)",
-  deps=["E02-30", "E02-14"], size=50,
-  context="Passage a l'oracle des instructions de pile et de copie de blocs. Les cas de pile 'nouvelle' en mode emulation se tranchent ici.",
+def oracle_stack(tid, title, dep, mns, files, extra=""):
+    pre = tid.lower().replace("-", "_")
+    cmd = oracle_cmd(*mns)
+    one = "cargo run -q -p puce16-cli -- cpu-test " + ORACLE + " --filter <UN_SEUL_OPCODE_HEX>"
+    T(tid, title,
+      deps=[dep, "E02-14"], size=60, kind="code",
+      context="Passage a l'oracle de ce groupe d'instructions de pile / blocs: %s. Etape volontairement PETITE: un groupe a la fois. Les cas de pile 'nouvelle' en mode emulation se tranchent ICI: l'oracle a raison." % " ".join(mns),
+      reads=["specs/01b_CPU_DESIGN.md section 7", "specs/data/ssjson_format.md"],
+      write=[CPU + "/mem/%s.rs" % f for f in files] + [TST + "/%s_oracle_regressions.rs" % pre],
+      spec="""%s
+1. Lancer (avec redirection, regle 0): `%s`
+2. Si `failed: 0`: aller a l'etape 5.
+3. Sinon travailler UN OPCODE A LA FOIS: prendre le premier `FAIL` du fichier, relancer SEULEMENT cet opcode (`%s`, toujours redirige vers le fichier), lire le premier diff (champ ou cycle fautif), corriger dans les fichiers autorises. Ne pas modifier addr/ ni le harnais.
+4. Apres chaque correction, relancer le groupe complet (etape 1) et recommencer. Maximum 6 opcodes corriges dans cette tache: au-dela, ecrire `docs/qa/inbox/%s-Q1.md` (type `bug`, liste des opcodes restants) et bloquer la tache. Si un comportement de pile en emulation differe du plan de 01b, adapter le code ET noter dans `docs/qa/inbox/` une question `spec` pour que Claude mette a jour 01b section 7.%s
+5. Le fichier `tests/%s_oracle_regressions.rs` contient TOUJOURS la fonction de test `%s_oracle_clean_or_regressions` (elle verifie `Cpu::new().s == 0x01FF`), plus un test par bug corrige (nom `%s_<instruction>_<cas>`).
+6. Fin: `failed: 0` pour le groupe.""" % (ORACLE_RULES % {"cmd": cmd}, cmd, one, tid, extra, pre, pre, pre),
+      tests=[("oracle_clean_or_regressions", "voir spec etape 5")],
+      accept=[cmd, "cargo test -p puce16-core %s_" % pre],
+      notes=CHAIN)
+
+
+oracle_stack("E02-30a", "VERIF oracle pile 1/4: PHA, PHX, PHY, PHP, PHB, PHK", "E02-30",
+             ("PHA", "PHX", "PHY", "PHP", "PHB", "PHK"), ["push"])
+oracle_stack("E02-30b", "VERIF oracle pile 2/4: PHD, PLD, PEA, PEI, PER", "E02-30a",
+             ("PHD", "PLD", "PEA", "PEI", "PER"), ["push", "pull"])
+oracle_stack("E02-30c", "VERIF oracle pile 3/4: PLA, PLX, PLY, PLP, PLB, MVN, MVP", "E02-30b",
+             ("PLA", "PLX", "PLY", "PLP", "PLB", "MVN", "MVP"), ["pull", "block"])
+
+T("E02-31", "VERIF oracle pile 4/4: toute la famille pile et blocs",
+  deps=["E02-30c", "E02-14"], size=50,
+  context="Derniere etape pile/blocs: passage de TOUTE la famille (PH*/PL*/PEA/PEI/PER/MVN/MVP) a l'oracle (regression des 3 etapes precedentes).",
   reads=["specs/01b_CPU_DESIGN.md section 7", "specs/data/ssjson_format.md"],
   write=[CPU + "/mem/push.rs", CPU + "/mem/pull.rs", CPU + "/mem/block.rs", TST + "/e02_31_oracle_regressions.rs"],
-  spec="""1. Lancer: `%s`
-2. Corriger chaque echec (fichiers autorises seulement). Si un comportement de pile en emulation (PEA PEI PER PHD PLD) differe du plan de 01b, c'est l'oracle qui a raison: adapter le code ET noter dans `docs/qa/inbox/` une question `spec` pour que Claude mette a jour 01b section 7.
-3. Un test de regression par bug (`e02_31_<instruction>_<cas>`), sinon `e02_31_oracle_clean_or_regressions` (verifie `Cpu::new().s == 0x01FF`).
-4. Fin: `failed: 0`.""" % oracle_cmd("PHA", "PHX", "PHY", "PHP", "PHD", "PHB", "PHK", "PEA", "PEI", "PER", "PLA", "PLX", "PLY", "PLP", "PLD", "PLB", "MVN", "MVP"),
+  spec="""%s
+1. Lancer (avec redirection, regle 0): `%s`
+2. Les fichiers des etapes E02-30a..c sont deja valides: si une regression apparait, la corriger UN OPCODE A LA FOIS (relancer seulement l'opcode fautif, sortie redirigee). Maximum 6 opcodes corriges, puis question `bug` et blocage.
+3. Le fichier `tests/e02_31_oracle_regressions.rs` contient TOUJOURS la fonction de test `e02_31_oracle_clean_or_regressions` (elle verifie `Cpu::new().s == 0x01FF`), plus un test par bug corrige (nom `e02_31_<instruction>_<cas>`).
+4. Fin: `failed: 0` pour toute la famille.""" % (ORACLE_RULES % {"cmd": oracle_cmd("PHA", "PHX", "PHY", "PHP", "PHD", "PHB", "PHK", "PEA", "PEI", "PER", "PLA", "PLX", "PLY", "PLP", "PLD", "PLB", "MVN", "MVP")},
+      oracle_cmd("PHA", "PHX", "PHY", "PHP", "PHD", "PHB", "PHK", "PEA", "PEI", "PER", "PLA", "PLX", "PLY", "PLP", "PLD", "PLB", "MVN", "MVP")),
   tests=[("oracle_clean_or_regressions", "voir spec etape 3")],
   accept=[oracle_cmd("PHA", "PHX", "PHY", "PHP", "PHD", "PHB", "PHK", "PEA", "PEI", "PER", "PLA", "PLX", "PLY", "PLP", "PLD", "PLB", "MVN", "MVP"),
           "cargo test -p puce16-core e02_"],

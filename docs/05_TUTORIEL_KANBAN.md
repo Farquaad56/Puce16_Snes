@@ -5,7 +5,7 @@ Reference Hermes: https://github.com/nousresearch/hermes-agent/blob/main/website
 
 ## 0. Comment ca marche (resume en 6 lignes)
 
-1. Le depot contient 252 taches ecrites (`docs/tasks/E01-01.md` ... `E09-07.md`), chacune de 50 a 150 lignes de code.
+1. Le depot contient 255 taches ecrites (`docs/tasks/E01-01.md` ... `E09-07.md`), chacune de 50 a 150 lignes de code.
 2. Chaque tache devient UNE carte Kanban. Les cartes forment UNE chaine: chaque carte a la precedente pour parent => une seule carte `ready` a la fois (D-020).
 3. Hermes (LLM local) prend la carte `ready`, code seulement dans les fichiers autorises ("Write only in"), lance les tests de la tache, puis la complete.
 4. TOI (ou Claude, avec ta sortie collee) lances `task.py check <ID>`: c'est la verification officielle. Hermes ne la lance jamais.
@@ -36,7 +36,7 @@ git config user.email "legarrec.s56@gmail.com"
 python docs\tools\build_tasks.py --check
 ```
 
-Attendu: `OK (validation only)` et `252 tasks`.
+Attendu: `OK (validation only)` et `255 tasks`.
 
 Authentification du push: le plus simple est le **Git Credential Manager** livre avec Git for Windows
 (une fenetre de connexion GitHub s'ouvre au premier `git push`). Sinon cree un NOUVEAU token (le precedent doit etre revoque)
@@ -137,7 +137,7 @@ Regles:
 
 ### Quand pousser sur GitHub ?
 
-- **Apres CHAQUE tache validee** (check OK + done): un commit + un push. C'est le rythme normal (252 petits commits propres, retour arriere facile).
+- **Apres CHAQUE tache validee** (check OK + done): un commit + un push. C'est le rythme normal (255 petits commits propres, retour arriere facile).
 - Les **GATE** (fin de jalon, ex. E08-39) sont les etapes cles: apres ton `approve`, commit + push, puis mets un tag:
   `git tag J1` ... `git push --tags` (un tag par jalon).
 - Hermes ne fait jamais `git commit` ni `git push`.

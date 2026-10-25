@@ -47,7 +47,10 @@ E02-27	VERIF oracle ALU 5/5: SBC puis toute la famille ALU	E02	E02-26d,E02-14	0	
 E02-28	mem/push.rs: PHA PHX PHY PHP PHD PHB PHK PEA PEI PER	E02	E02-27	0	code	110	hermes
 E02-29	mem/pull.rs: PLA PLX PLY PLP PLD PLB	E02	E02-28	0	code	80	hermes
 E02-30	mem/block.rs: MVN, MVP	E02	E02-29	0	code	60	hermes
-E02-31	VERIF oracle: pile et blocs (PH*/PL*/PEA/PEI/PER/MVN/MVP)	E02	E02-30,E02-14	0	code	50	hermes
+E02-30a	VERIF oracle pile 1/4: PHA, PHX, PHY, PHP, PHB, PHK	E02	E02-30,E02-14	0	code	60	hermes
+E02-30b	VERIF oracle pile 2/4: PHD, PLD, PEA, PEI, PER	E02	E02-30a,E02-14	0	code	60	hermes
+E02-30c	VERIF oracle pile 3/4: PLA, PLX, PLY, PLP, PLB, MVN, MVP	E02	E02-30b,E02-14	0	code	60	hermes
+E02-31	VERIF oracle pile 4/4: toute la famille pile et blocs	E02	E02-30c,E02-14	0	code	50	hermes
 E02-32	flow/branch.rs: Bxx, BRA, BRL	E02	E02-31	0	code	60	hermes
 E02-33	flow/jump.rs: JMP et JML (tous modes)	E02	E02-32	0	code	70	hermes
 E02-34	flow/call.rs: JSR, JSL, RTS, RTL	E02	E02-33	0	code	100	hermes

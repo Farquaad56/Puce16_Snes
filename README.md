@@ -4,7 +4,7 @@ Puce16 est un emulateur SNES (65816, PPU dot par dot, SPC700 + S-DSP, DMA/HDMA, 
 construit avec la meme methode que Puce8 (Game Boy): **toute la reflexion est dans la documentation et dans des
 taches tres petites; le LLM local (Hermes) ne fait que coder a partir de ces taches.**
 
-Etat: documentation et taches pretes (252 entrees: 245 taches v1 + 7 coprocesseurs differes). Le code n'est pas encore ecrit.
+Etat: documentation et taches pretes (255 entrees: 248 taches v1 + 7 coprocesseurs differes). Le code n'est pas encore ecrit.
 
 ## Contenu du depot
 
