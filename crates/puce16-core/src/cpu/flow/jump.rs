@@ -41,7 +41,7 @@ pub(super) fn exec<B: Bus>(cpu: &mut Cpu, bus: &mut B, mn: Mn, am: Am) -> bool {
             let p = (a.wrapping_add(cpu.x)) & 0xFFFF;
             let addr_lo = ((cpu.pb as u32) << 16) | (p as u32);
             let lo = bus.read(addr_lo);
-            let hi_addr = ((cpu.pb as u32) << 16) | (((p + 1) & 0xFFFF) as u32);
+            let hi_addr = ((cpu.pb as u32) << 16) | (p.wrapping_add(1) as u32);
             let hi = bus.read(hi_addr);
             cpu.pc = ((hi as u16) << 8) | (lo as u16);
             true
