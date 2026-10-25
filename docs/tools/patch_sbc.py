@@ -41,11 +41,11 @@ fn e02_27_sbc_decimal_16bit_borrow_chain() {
 
 def main():
     ref = REF.read_text(encoding="utf-8")
-    m = re.search(r"(// SBC decimal.*?\n)(fn sbc_decimal_n.*?\n\}\n)", ref, re.S)
+    m = re.search(r"(// SBC decimal.*?\nfn sbc_decimal_n.*?\n\}\n)", ref, re.S)
     if not m:
         print("ERROR: reference function not found in bcd_reference.md")
         return 2
-    new_fn = m.group(1) + m.group(2)
+    new_fn = m.group(1)
     raw = SBC.read_bytes().decode("utf-8")
     crlf = "\r\n" in raw
     src = raw.replace("\r\n", "\n")
