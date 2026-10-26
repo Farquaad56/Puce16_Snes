@@ -23,3 +23,10 @@ __pycache__/
 Thumbs.db
 .DS_Store
 docs/kanban/id_map.json
+
+# ROMs must never be committed
+*.sfc
+*.smc
+*.swc
+*.fig
+*.zip

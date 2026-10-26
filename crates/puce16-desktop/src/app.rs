@@ -7,8 +7,14 @@ use eframe::egui;
 use puce16_core::joypad::filter_opposites;
 
 use crate::emu_thread::{Command, EmuHandle, Event, FrameData};
+use crate::files;
 use crate::input::{self, Hotkey};
 use crate::video::{self, Ratio};
+
+/// Return the first command-line argument that is not a flag (does not start with '-').
+pub fn rom_arg(args: &[String]) -> Option<&str> {
+    args.iter().skip(1).find(|a| !a.starts_with('-')).map(|s| s.as_str())
+}
 
 pub struct App {
     pub handle: EmuHandle,
@@ -38,6 +44,28 @@ impl App {
 
     fn send(&self, cmd: Command) {
         let _ = self.handle.tx.send(cmd);
+    }
+
+    /// Load a ROM from a file path. On success sends Command::LoadRom; on error sets status.
+    pub fn open_path(&mut self, path: &std::path::Path) {
+        match files::load_rom_file(path) {
+            Ok((name, bytes)) => {
+                self.send(Command::LoadRom(bytes, name));
+            }
+            Err(e) => {
+                self.status = format!("ERROR: {}", e);
+            }
+        }
+    }
+
+    /// Show the ROM file picker dialog and open the selected file.
+    fn pick_and_open(&mut self) {
+        if let Some(path) = rfd::FileDialog::new()
+            .add_filter("ROM SNES", &["sfc", "smc", "swc", "fig", "zip"])
+            .pick_file()
+        {
+            self.open_path(&path);
+        }
     }
 
     /// Poll the keyboard each frame (spec 08 section 2): held keys drive joypad
@@ -76,6 +104,7 @@ impl App {
                     Hotkey::FrameAdvance => self.send(Command::FrameAdvance),
                     Hotkey::Reset => self.send(Command::Reset),
                     Hotkey::Quit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
+                    Hotkey::OpenRom => self.pick_and_open(),
                     _ => self.status = "hotkey not implemented".to_string(),
                 }
             }
@@ -86,6 +115,9 @@ impl App {
     fn menu_bar(&mut self, ui: &mut egui::Ui) {
         egui::MenuBar::new().ui(ui, |ui| {
             ui.menu_button("Fichier", |ui| {
+                if ui.button("Ouvrir une ROM... (Ctrl+O)").clicked() {
+                    self.pick_and_open();
+                }
                 if ui.button("Quitter").clicked() {
                     ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
                 }
@@ -128,9 +160,19 @@ impl eframe::App for App {
             match event {
                 Event::Frame(frame) => latest = Some(frame),
                 Event::Status(text) => self.status = text,
+                Event::Error(e) => self.status = format!("ERROR: {}", e),
             }
         }
         if let Some(frame) = latest { self.last = Some(frame); }
+
+        // Handle drag-and-drop (spec 08 section 6): open the first dropped file.
+        ui.ctx().input(|i| {
+            for dropped in &i.raw.dropped_files {
+                self.open_path(dropped.path());
+                break;
+            }
+        });
+
         self.poll_keyboard(ui);
 
         if let Some(frame) = &self.last {

@@ -20,6 +20,8 @@ pub enum Command {
     FrameAdvance,
     /// Set the buttons of a joypad port (0 or 1; other ports ignored).
     SetJoypad(usize, u16),
+    /// Load a ROM from bytes; name is for display only.
+    LoadRom(Vec<u8>, String),
     /// Recreate the emulator state; the next frame is number 1.
     Reset,
     /// Run frames without waiting for cadence (`true` = fast forward on).
@@ -42,6 +44,8 @@ pub enum Event {
     Frame(Arc<FrameData>),
     /// Human-readable status line.
     Status(String),
+    /// Error message (ROM load failure, emulator panic).
+    Error(String),
 }
 
 /// Handle to a running emulation thread.
@@ -86,6 +90,8 @@ fn emu_loop(
     let mut snes = Snes::new_test_pattern(region);
     let mut paused = start_paused;
     let mut fast_forward = false;
+    let mut joy = [0u16; 2];
+    let mut frame_no: u64 = 0;
 
     loop {
         // Drain every pending command before doing any work.
@@ -94,12 +100,47 @@ fn emu_loop(
                 Command::Pause(pause) => paused = pause,
                 Command::FrameAdvance => {
                     if paused {
-                        snes.run_frame();
-                        publish_frame(&snes, &tx_event);
+                        run_one_frame(&mut snes, &mut frame_no, &tx_event);
                     }
                 }
-                Command::SetJoypad(port, buttons) => snes.set_joypad(port, buttons),
-                Command::Reset => snes = Snes::new_test_pattern(region),
+                Command::SetJoypad(port, buttons) => {
+                    if port < 2 { joy[port] = buttons; }
+                    snes.set_joypad(port, buttons);
+                }
+                Command::LoadRom(bytes, name) => {
+                    match Snes::new(&bytes, None) {
+                        Ok(new_snes) => {
+                            snes = new_snes;
+                            // Re-apply last joypad settings.
+                            for (port, buttons) in joy.iter().enumerate() {
+                                snes.set_joypad(port, *buttons);
+                            }
+                            frame_no = 0;
+                            paused = false;
+                            if let Some(info) = snes.cart_info() {
+                                let _ = tx_event.send(Event::Status(format!(
+                                    "Loaded {} ({:?}, {:?})", name, info.map, info.region)));
+                            } else {
+                                let _ = tx_event.send(Event::Status(format!("Loaded {}", name)));
+                            }
+                        }
+                        Err(puce16_core::snes::LoadError::Cart(e)) => {
+                            let msg = match e {
+                                puce16_core::cart::CartError::TooSmall => "ROM too small".to_string(),
+                                puce16_core::cart::CartError::NoHeader => "no valid ROM header found".to_string(),
+                                puce16_core::cart::CartError::UnsupportedCoprocessor(n) => {
+                                    format!("unsupported coprocessor: {}", n)
+                                }
+                            };
+                            let _ = tx_event.send(Event::Error(format!(
+                                "cannot load {}: {}", name, msg)));
+                        }
+                    }
+                }
+                Command::Reset => {
+                    snes.reset();
+                    frame_no = 0;
+                }
                 Command::SetFastForward(on) => fast_forward = on,
                 Command::Quit => return,
             }
@@ -108,8 +149,7 @@ fn emu_loop(
         if paused {
             thread::sleep(Duration::from_millis(5));
         } else {
-            snes.run_frame();
-            publish_frame(&snes, &tx_event);
+            run_one_frame(&mut snes, &mut frame_no, &tx_event);
             // Cadence is not exact in this milestone; fast forward skips the wait.
             if !fast_forward {
                 thread::sleep(Duration::from_millis(16));
@@ -118,14 +158,35 @@ fn emu_loop(
     }
 }
 
+/// Run one emulated frame with panic protection.
+fn run_one_frame(snes: &mut Snes, frame_no: &mut u64, tx_event: &Sender<Event>) {
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| snes.run_frame()));
+    match result {
+        Ok(()) => {
+            *frame_no += 1;
+            publish_frame(snes, *frame_no, tx_event);
+        }
+        Err(payload) => {
+            let msg = if let Some(s) = payload.downcast_ref::<String>() {
+                s.clone()
+            } else if let Some(s) = payload.downcast_ref::<&str>() {
+                s.to_string()
+            } else {
+                "unknown panic".to_string()
+            };
+            let _ = tx_event.send(Event::Error(format!("emulator panic: {}", msg)));
+        }
+    }
+}
+
 /// Copy the current frame into a `FrameData` and send it as an event.
-fn publish_frame(snes: &Snes, tx_event: &Sender<Event>) {
+fn publish_frame(snes: &Snes, frame_no: u64, tx_event: &Sender<Event>) {
     let view = snes.frame();
     let data = FrameData {
         width: view.width,
         height: view.height,
         pixels: view.pixels.to_vec(),
-        frame_no: snes.frame_count(),
+        frame_no,
     };
     // The channel is unbounded and the UI consumes it; at most one event per
     // emulated frame. If the receiver was dropped there is nothing to do.

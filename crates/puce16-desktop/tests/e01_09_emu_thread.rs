@@ -15,6 +15,7 @@ fn recv_frame(rx: &Receiver<Event>, timeout: Duration) -> Arc<FrameData> {
         match rx.recv_timeout(wait) {
             Ok(Event::Frame(frame)) => return frame,
             Ok(Event::Status(msg)) => panic!("unexpected status event: {msg}"),
+            Ok(Event::Error(msg)) => panic!("unexpected error event: {msg}"),
             Err(RecvTimeoutError::Timeout) => panic!("timed out waiting for a frame after {timeout:?}"),
             Err(RecvTimeoutError::Disconnected) => panic!("event channel closed before a frame arrived"),
         }
@@ -66,6 +67,7 @@ fn e01_09_run_free() {
                 last = Some(frame.frame_no);
             }
             Ok(Event::Status(msg)) => panic!("unexpected status event: {msg}"),
+            Ok(Event::Error(msg)) => panic!("unexpected error event: {msg}"),
             Err(RecvTimeoutError::Timeout) => panic!("fewer than 3 frames in 2 s"),
             Err(RecvTimeoutError::Disconnected) => panic!("event channel closed early"),
         }
