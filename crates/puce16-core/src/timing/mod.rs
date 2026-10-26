@@ -142,7 +142,7 @@ impl Timing {
 
     /// Horizontal clock count since line start.
     pub fn hclock(&self, master: u64) -> u32 {
-        (master - self.line_start) as u32
+        (master.saturating_sub(self.line_start)) as u32
     }
 
     /// Whether DRAM refresh is due this scanline.

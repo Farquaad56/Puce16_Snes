@@ -37,6 +37,18 @@ impl SysBus {
             self.timing.mark_refreshed();
             self.advance(DRAM_REFRESH_CLOCKS);
         }
+
+        // HDMA execution: init and/or run, triggered by Timing flags.
+        if self.pending_hdma_init || self.pending_hdma_run {
+            let (init, run) = (self.pending_hdma_init, self.pending_hdma_run);
+            self.pending_hdma_init = false;
+            self.pending_hdma_run = false;
+            let m = self.mmio.hdmaen;
+            let mut d = std::mem::take(&mut self.dma);
+            if init { d.hdma_init(self, m); }
+            if run  { d.hdma_run_line(self, m); }
+            self.dma = d;
+        }
     }
 
     /// End of CPU cycle: general DMA (E03-32).
