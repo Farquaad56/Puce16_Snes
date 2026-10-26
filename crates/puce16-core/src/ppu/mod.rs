@@ -1,6 +1,7 @@
 pub mod vram;
 pub mod cgram;
 pub mod oam;
+pub mod regs;
 pub mod bg;
 pub mod mode7;
 pub mod obj;
@@ -12,6 +13,11 @@ pub mod dot;
 use crate::region::Region;
 use crate::hash::Fnv64;
 use self::dot::{line_type, line_dots as dot_line_dots, dot_clocks};
+use self::vram::Vram;
+use self::cgram::Cgram;
+use self::oam::Oam;
+use self::regs::{Scroll, Regs};
+use self::mode7::M7Regs;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub struct DotEvents(pub u8);
@@ -36,6 +42,13 @@ pub struct Ppu {
     interlace: bool,
     overscan: bool,
     forced_blank: bool,
+    brightness: u8,
+    vram: Vram,
+    cgram: Cgram,
+    oam: Oam,
+    scroll: Scroll,
+    m7: M7Regs,
+    regs: Regs,
 }
 
 impl Ppu {
@@ -48,6 +61,13 @@ impl Ppu {
             interlace: false,
             overscan: false,
             forced_blank: true,
+            brightness: 0,
+            vram: Vram::new(),
+            cgram: Cgram::new(),
+            oam: Oam::new(),
+            scroll: Scroll::new(),
+            m7: M7Regs::new(),
+            regs: Regs::new(),
         }
     }
 
@@ -124,12 +144,124 @@ impl Ppu {
         DotEvents(events)
     }
 
+    pub fn brightness(&self) -> u8 {
+        self.brightness
+    }
+
+    pub fn vram_ok(&self) -> bool {
+        self.forced_blank || self.v >= self.vblank_start()
+    }
+
+    pub fn oam_ok(&self) -> bool {
+        self.forced_blank || self.v >= self.vblank_start()
+    }
+
+    pub fn vram(&self) -> &[u16] {
+        self.vram.mem()
+    }
+
+    pub fn cgram(&self) -> &[u16; 256] {
+        self.cgram.mem()
+    }
+
+    pub fn oam(&self) -> &[u8; 544] {
+        self.oam.mem()
+    }
+
+    pub fn vram_unit(&self) -> &Vram {
+        &self.vram
+    }
+
+    pub fn cgram_unit(&self) -> &Cgram {
+        &self.cgram
+    }
+
+    pub fn oam_unit(&self) -> &Oam {
+        &self.oam
+    }
+
+    pub fn regs(&self) -> &Regs {
+        &self.regs
+    }
+
+    pub fn scroll(&self) -> &Scroll {
+        &self.scroll
+    }
+
+    pub fn m7(&self) -> &M7Regs {
+        &self.m7
+    }
+
     pub fn write(&mut self, reg: u8, v: u8) {
         match reg {
             0x00 => {
                 self.forced_blank = (v & 0x80) != 0;
+                self.brightness = v & 0x0F;
+            }
+            0x01 | 0x05..=0x0C | 0x23..=0x32 => {
+                self.regs.write(reg, v);
+            }
+            0x02 => {
+                self.oam.set_addr_l(v);
+            }
+            0x03 => {
+                self.oam.set_addr_h(v);
+            }
+            0x04 => {
+                self.oam.write(v, self.oam_ok());
+            }
+            0x0D..=0x14 => {
+                let n = ((reg - 0x0D) / 2) as usize;
+                if reg & 1 != 0 {
+                    // Odd: HOFS
+                    self.scroll.write_hofs(n, v);
+                } else {
+                    // Even: VOFS
+                    self.scroll.write_vofs(n, v);
+                }
+                // Mode 7 scroll for BG1 registers only
+                if reg == 0x0D {
+                    self.m7.write_scroll(0, v);
+                } else if reg == 0x0E {
+                    self.m7.write_scroll(1, v);
+                }
+            }
+            0x15 => {
+                self.vram.set_vmain(v);
+            }
+            0x16 => {
+                self.vram.set_addr_l(v);
+            }
+            0x17 => {
+                self.vram.set_addr_h(v);
+            }
+            0x18 => {
+                self.vram.write_low(v, self.vram_ok());
+            }
+            0x19 => {
+                self.vram.write_high(v, self.vram_ok());
+            }
+            0x1A => {
+                self.m7.write_sel(v);
+            }
+            0x1B..=0x1E => {
+                let i = (reg - 0x1B) as usize;
+                self.m7.write_matrix(i, v);
+            }
+            0x1F => {
+                self.m7.write_center(0, v);
+            }
+            0x20 => {
+                self.m7.write_center(1, v);
+            }
+            0x21 => {
+                self.cgram.set_addr(v);
+            }
+            0x22 => {
+                self.cgram.write(v);
             }
             0x33 => {
+                // interlace bit0, overscan bit2; rest in E04-11
                 self.interlace = (v & 1) != 0;
                 self.overscan = (v & 4) != 0;
             }
@@ -166,5 +298,12 @@ impl Ppu {
         h.write_u8(if self.interlace { 1 } else { 0 });
         h.write_u8(if self.overscan { 1 } else { 0 });
         h.write_u8(if self.forced_blank { 1 } else { 0 });
+        h.write_u8(self.brightness);
+        self.vram.hash_into(h);
+        self.cgram.hash_into(h);
+        self.oam.hash_into(h);
+        self.scroll.hash_into(h);
+        self.m7.hash_into(h);
+        self.regs.hash_into(h);
     }
 }
