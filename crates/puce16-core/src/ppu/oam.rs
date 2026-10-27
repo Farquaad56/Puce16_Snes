@@ -4,6 +4,7 @@
 
 use crate::hash::Fnv64;
 
+#[derive(Clone)]
 pub struct Oam {
     mem: [u8; 544],
     oamadd_reg: u16, // 9 bits (bits 0-7 from OAMADDL, bit 8 from OAMADDH bit 0)

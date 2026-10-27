@@ -15,6 +15,7 @@ pub struct FrameView<'a> { pub width: usize, pub height: usize, pub pixels: &'a 
 ///
 /// The buffer is always `FB_WIDTH` (512) columns wide; the useful area is
 /// `view_w x view_h` starting at the top-left corner.
+#[derive(Clone)]
 pub struct FrameBuf {
     /// Full buffer, stride `FB_WIDTH`.
     pub pixels: Vec<u32>,
@@ -116,4 +117,30 @@ pub fn make_view(w: usize, h: usize, pixels: &[u32]) -> FrameView<'_> {
         panic!("make_view: expected {} pixels ({}x{}), got {}", w * h, w, h, pixels.len());
     }
     FrameView { width: w, height: h, pixels }
+}
+
+/// Convert a 5-bit color channel with brightness scaling to an 8-bit value.
+/// `c5` must be in range 0..=31; `brightness` is clamped to 0..=15.
+pub fn channel8(c5: u8, brightness: u8) -> u8 {
+    let b = if brightness > 15 { 15 } else { brightness };
+    let c5b = (c5 as u32 * b as u32 / 15) as u8;
+    ((c5b << 3) | (c5b >> 2))
+}
+
+/// Convert a BGR555 color with brightness scaling to XRGB8888.
+/// Bit 15 of `rgb` is ignored; `brightness` is clamped to 0..=15.
+pub fn bgr555_to_xrgb(rgb: u16, brightness: u8) -> u32 {
+    let r5 = (rgb & 0x1F) as u8;
+    let g5 = ((rgb >> 5) & 0x1F) as u8;
+    let b5 = ((rgb >> 10) & 0x1F) as u8;
+    let r8 = channel8(r5, brightness);
+    let g8 = channel8(g5, brightness);
+    let b8 = channel8(b5, brightness);
+    0xFF00_0000 | (r8 as u32) << 16 | (g8 as u32) << 8 | (b8 as u32)
+}
+
+/// Compute the output framebuffer row for a given scanline.
+/// For interlaced frames, odd fields write to even rows and vice versa.
+pub fn output_row(r: usize, field: bool, interlaced: bool) -> usize {
+    if interlaced { 2 * r + (if field { 1 } else { 0 }) } else { r }
 }

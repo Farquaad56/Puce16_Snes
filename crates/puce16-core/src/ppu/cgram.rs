@@ -6,6 +6,7 @@
 
 use crate::hash::Fnv64;
 
+#[derive(Clone)]
 pub struct Cgram {
     mem: [u16; 256],
     addr: u8,

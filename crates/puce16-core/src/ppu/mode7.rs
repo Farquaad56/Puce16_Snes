@@ -8,6 +8,7 @@ pub fn sign_extend_13(x: u16) -> i16 {
     ((x as i16) << 3) >> 3
 }
 
+#[derive(Clone)]
 pub struct M7Regs {
     pub flip_x: bool,
     pub flip_y: bool,

@@ -2,6 +2,7 @@
 
 use crate::hash::Fnv64;
 
+#[derive(Clone)]
 pub struct Scroll {
     hofs: [u16; 4],
     vofs: [u16; 4],
@@ -56,6 +57,7 @@ impl Scroll {
     }
 }
 
+#[derive(Clone)]
 pub struct Regs {
     pub obj_size: u8,
     pub obj_name_gap: u16,

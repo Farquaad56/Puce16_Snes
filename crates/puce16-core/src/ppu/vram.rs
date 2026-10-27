@@ -16,6 +16,7 @@ pub fn remap(mode: u8, a: u16) -> u16 {
     }
 }
 
+#[derive(Clone)]
 pub struct Vram {
     mem: Vec<u16>,
     vmain: u8,
