@@ -1,5 +1,6 @@
+#![allow(dead_code)]
 use puce16_core::region::Region;
-use puce16_core::ppu::{Ppu, DotEvents};
+use puce16_core::ppu::Ppu;
 use puce16_core::hash::Fnv64;
 
 fn at(p: &mut Ppu, v: u32, dot: u32) {

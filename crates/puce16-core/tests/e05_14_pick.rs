@@ -1,6 +1,7 @@
+#![allow(dead_code)]
 // E05-14 - ppu: pick_layers (priority order), windows per screen, pick_screen
 
-use puce16_core::ppu::{Ppu, Pix, Pick};
+use puce16_core::ppu::{Ppu, Pix};
 use puce16_core::region::Region;
 use puce16_core::ppu::bg::{pick_layers, priority_order, LAYER_BACKDROP};
 

@@ -7,6 +7,7 @@ use puce16_core::region::Region;
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Mutex;
 
 enum Load {
     Vram(u16, Vec<u16>),
@@ -219,6 +220,8 @@ fn ppm_path(name: &str) -> PathBuf {
         .join(format!("{}.ppm", name))
 }
 
+static PPM_LOCK: Mutex<()> = Mutex::new(());
+
 fn write_ppm(name: &str, w: usize, h: usize, pixels: &[u32]) {
     let path = ppm_path(name);
     if let Some(dir) = path.parent() {
@@ -230,6 +233,7 @@ fn write_ppm(name: &str, w: usize, h: usize, pixels: &[u32]) {
         data.push(((px >> 8) & 0xFF) as u8);
         data.push((px & 0xFF) as u8);
     }
+    let _g = PPM_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     fs::write(&path, data).expect("cannot write ppm");
 }
 
@@ -283,7 +287,10 @@ fn e05_19_ppm_written() {
     let scenes = load_scenes();
     let first = &scenes[0];
     let (w, h, _) = run_scene(first);
-    let data = fs::read(ppm_path(&first.name)).expect("ppm not written");
+    let data = {
+        let _g = PPM_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        fs::read(ppm_path(&first.name)).expect("ppm not written")
+    };
     assert!(data.starts_with(b"P6\n"));
     let header = format!("P6\n{} {}\n255\n", w, h).len();
     assert_eq!(data.len(), header + w * h * 3);

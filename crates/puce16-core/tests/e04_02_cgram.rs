@@ -119,7 +119,7 @@ fn e04_02_shared_toggle() {
 #[test]
 fn e04_02_hash() {
     let mut c1 = Cgram::new();
-    let mut c2 = Cgram::new();
+    let c2 = Cgram::new();
     
     // Identical CGRAMs hash the same
     let mut h1 = Fnv64::new();

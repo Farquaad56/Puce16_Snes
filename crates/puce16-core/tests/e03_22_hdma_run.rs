@@ -1,7 +1,7 @@
 #[path = "common/fake_dma_bus.rs"]
 mod fake_dma_bus;
 
-use puce16_core::dma::{Dma, DmaBus};
+use puce16_core::dma::Dma;
 use fake_dma_bus::*;
 
 fn make_hdma_channel(dmap: u8, bbad: u8, a1b: u8, a1t: u16) -> Dma {

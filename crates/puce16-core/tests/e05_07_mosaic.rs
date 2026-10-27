@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 // E05-07 - ppu/bg.rs: mosaique (mosaic)
 use puce16_core::ppu::{bg, bg::Pix, Ppu};
 use puce16_core::region::Region;

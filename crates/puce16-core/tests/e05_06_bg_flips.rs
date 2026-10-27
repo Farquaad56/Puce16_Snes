@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 // E05-06 - ppu/bg.rs: tuiles 16x16 et retournements (flips)
 use puce16_core::ppu::{bg::Pix, Ppu};
 use puce16_core::region::Region;

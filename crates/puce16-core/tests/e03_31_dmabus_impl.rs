@@ -2,7 +2,7 @@ mod common;
 use common::*;
 use puce16_core::bus::SysBus;
 use puce16_core::cart::Cart;
-use puce16_core::dma::{Dma, DmaBus};
+use puce16_core::dma::DmaBus;
 use puce16_core::Region;
 
 fn mk(code: &[u8]) -> SysBus {

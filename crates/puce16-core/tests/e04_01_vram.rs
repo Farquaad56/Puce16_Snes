@@ -287,7 +287,7 @@ fn e04_01_read_blocked() {
 #[test]
 fn e04_01_hash() {
     let mut v1 = Vram::new();
-    let mut v2 = Vram::new();
+    let v2 = Vram::new();
     
     // Identical VRAMs hash the same
     let mut h1 = Fnv64::new();

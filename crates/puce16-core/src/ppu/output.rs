@@ -124,7 +124,7 @@ pub fn make_view(w: usize, h: usize, pixels: &[u32]) -> FrameView<'_> {
 pub fn channel8(c5: u8, brightness: u8) -> u8 {
     let b = if brightness > 15 { 15 } else { brightness };
     let c5b = (c5 as u32 * b as u32 / 15) as u8;
-    ((c5b << 3) | (c5b >> 2))
+    (c5b << 3) | (c5b >> 2)
 }
 
 /// Convert a BGR555 color with brightness scaling to XRGB8888.

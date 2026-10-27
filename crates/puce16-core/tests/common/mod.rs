@@ -77,6 +77,7 @@ fn apply_checksum(rom: &mut [u8], header: usize) {
 /// Build a valid ROM. `code` is placed at the file offset that CPU address
 /// $00:8000 maps to: LoRom file offset 0x0000 ; HiRom file offset 0x8000 ;
 /// ExHiRom file offset 0x408000.
+#[allow(dead_code)]
 pub fn make_rom(code: &[u8], map: Map) -> Vec<u8> {
     let rom_log2 = match map {
         Map::LoRom => 15, // 32 KiB
@@ -136,6 +137,7 @@ pub fn make_rom_with(
 }
 
 /// Vector table: name -> offsets relative to the start of the header.
+#[allow(dead_code)]
 fn vector_offsets(name: &str) -> &'static [u16] {
     match name {
         "cop" => &[0x24, 0x34], // native $FFE4, emulation $FFF4
@@ -149,6 +151,7 @@ fn vector_offsets(name: &str) -> &'static [u16] {
 
 /// Overwrite a vector (all of its slots) with `addr` and recalculate the
 /// checksum. Panics on an unknown name.
+#[allow(dead_code)]
 pub fn set_vector(rom: &mut Vec<u8>, map: Map, name: &str, addr: u16) {
     let header = header_offset(map);
     for off in vector_offsets(name) {

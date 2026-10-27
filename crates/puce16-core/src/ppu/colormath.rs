@@ -36,7 +36,7 @@ pub fn blend(base: u16, add: u16, sub: bool, half: bool) -> u16 {
         };
         let shifted = if half { t >> 1 } else { t };
         let clamped = if shifted < 0 { 0 } else if shifted > 31 { 31 } else { shifted };
-        result |= ((clamped as u16) << shift);
+        result |= (clamped as u16) << shift;
     }
     result
 }

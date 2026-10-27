@@ -1,6 +1,6 @@
 //! E03-35: snes.rs run_frame / run_master / step_instruction / hash / SRAM / debug
 
-use puce16_core::snes::{Snes, LoadError};
+use puce16_core::snes::Snes;
 use puce16_core::cart::MapMode;
 use puce16_core::region::Region;
 

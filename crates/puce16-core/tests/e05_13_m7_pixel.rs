@@ -1,4 +1,5 @@
-use puce16_core::ppu::{Pix, Ppu};
+#![allow(dead_code)]
+use puce16_core::ppu::Ppu;
 use puce16_core::region::Region;
 
 fn put_vram(p: &mut Ppu, addr: u16, w: u16) {

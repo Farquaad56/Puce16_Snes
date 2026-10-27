@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 mod common;
 use common::*;
 use puce16_core::bus::SysBus;

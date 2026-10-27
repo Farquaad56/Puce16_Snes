@@ -3,7 +3,7 @@ use puce16_core::region::Region;
 
 #[test]
 fn e03_08_power_on() {
-    let mut p = Ppu::new(Region::Ntsc);
+    let p = Ppu::new(Region::Ntsc);
     assert_eq!(p.v(), 0);
     assert_eq!(p.dot(), 0);
     assert!(!p.field());

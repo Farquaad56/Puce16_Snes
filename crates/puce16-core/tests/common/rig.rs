@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Test harness: reproduces the catch_up loop for one dot at a time.
 
 use puce16_core::bus::mmio::Mmio;

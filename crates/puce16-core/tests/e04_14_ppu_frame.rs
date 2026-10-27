@@ -16,7 +16,7 @@ fn set_backdrop(p: &mut Ppu, w: u16) {
 
 #[test]
 fn e04_14_initial_frame() {
-    let mut p = Ppu::new(Region::Ntsc);
+    let p = Ppu::new(Region::Ntsc);
     let f = p.frame();
     assert_eq!(f.width, 256);
     assert_eq!(f.height, 224);

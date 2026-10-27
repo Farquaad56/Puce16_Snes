@@ -173,7 +173,7 @@ impl crate::ppu::Ppu {
         let (px, py) = m7_sample(&self.m7, xm as i32, vm as i32);
 
         // Determine tile and pixel coordinates based on outside/fill settings
-        let mut tile: u16;
+        let tile: u16;
         let fx: u8;
         let fy: u8;
 

@@ -51,7 +51,7 @@ impl Ppu {
         let bit_shift = (i % 4) * 2;
         let high_byte = oam[high_byte_idx];
         let x8 = ((high_byte >> bit_shift) & 1) as u16;
-        let large_bit = ((high_byte >> (bit_shift + 1)) & 1);
+        let large_bit = (high_byte >> (bit_shift + 1)) & 1;
 
         // Sign-extend X from 9 bits: -256..255
         let x9 = x_lo | (x8 << 8);
@@ -130,7 +130,7 @@ impl Ppu {
         // Process sprites in reverse order (highest index first) so lowest wins
         for &i in list.iter().rev() {
             let s = self.sprite(i as usize);
-            let (w, h) = obj_dims(self.regs.obj_size, s.large);
+            let (w, _h) = obj_dims(self.regs.obj_size, s.large);
             let row = ((r as i32) - (s.y as i32) - 1) & 0xFF;
 
             // Process columns left to right

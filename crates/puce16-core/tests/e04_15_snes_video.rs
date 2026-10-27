@@ -1,7 +1,7 @@
 //! E04-15: snes.rs frame() returns PPU output for Real variant.
 //! Tests that real 65816 code writing PPU registers produces visible color changes.
 
-use puce16_core::snes::{Snes, LoadError};
+use puce16_core::snes::Snes;
 use puce16_core::region::Region;
 
 mod common;

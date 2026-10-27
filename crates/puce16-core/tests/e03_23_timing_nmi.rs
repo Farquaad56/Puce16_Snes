@@ -123,7 +123,7 @@ fn e03_23_nmi_edge_disabled() {
 
     // Enable NMI now - RDNMI flag is still true from vblank
     r.mmio.nmitimen = 0x80;
-    let out = r.step();
+    let _out = r.step();
     // Edge should be detected because nmi_line_prev was false, now line=true
     assert!(r.timing.take_nmi_edge());
 }

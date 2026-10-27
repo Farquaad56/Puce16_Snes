@@ -47,7 +47,7 @@ fn scene_a() -> Ppu {
 
 #[test]
 fn e05_05_scene_mode1_basic() {
-    let mut p = scene_a();
+    let p = scene_a();
     // Pixel at (0,0) should be index 1 -> color 0x1234, prio 0
     assert_eq!(p.bg_pixel(0, 0, 0), Some(Pix { rgb: 0x1234, prio: 0, obj_pal: 0 }));
     // Pixel at (1,0) should be transparent (index 0)
@@ -125,7 +125,7 @@ fn scene_b() -> Ppu {
 
 #[test]
 fn e05_05_mode0_bg3_palette() {
-    let mut p = scene_b();
+    let p = scene_b();
     // BG3 pixel at (0,0) should be index 1 -> color from CGRAM[73]
     assert_eq!(p.bg_pixel(2, 0, 0), Some(Pix { rgb: 0x7FFF, prio: 0, obj_pal: 0 }));
 }
@@ -156,7 +156,7 @@ fn scene_c() -> Ppu {
 
 #[test]
 fn e05_05_mode3_bg1_8bpp() {
-    let mut p = scene_c();
+    let p = scene_c();
     // BG1 pixel at (0,0) should be index 71 -> color from CGRAM[71]
     assert_eq!(p.bg_pixel(0, 0, 0), Some(Pix { rgb: 0x4321, prio: 0, obj_pal: 0 }));
 }

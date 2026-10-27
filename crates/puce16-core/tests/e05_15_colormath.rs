@@ -68,7 +68,7 @@ fn e05_15_math_layer_ok_rules() {
 
 #[test]
 fn e05_15_math_off_by_default() {
-    let mut ppu = Ppu::new(Region::Ntsc);
+    let ppu = Ppu::new(Region::Ntsc);
     let main = Pick { rgb: 0x0001, layer: 0, obj_pal: 0 };
     let sub = Pick { rgb: 0, layer: 5, obj_pal: 0 };
     assert_eq!(color_math(&main, &sub, false, false, ppu.regs()), 0x0001);

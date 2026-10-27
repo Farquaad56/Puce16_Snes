@@ -179,7 +179,7 @@ fn e04_11_hash() {
     use puce16_core::hash::Fnv64;
 
     let mut h1 = Fnv64::new();
-    let mut p1 = Ppu::new(Region::Ntsc);
+    let p1 = Ppu::new(Region::Ntsc);
     p1.hash_into(&mut h1);
     let base = h1.finish();
 

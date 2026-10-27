@@ -18,7 +18,7 @@ fn e03_24_mode1() {
     assert!(!rig.mmio.irq_line, "irq_line should not be set at dot 100");
 
     // The step that arrives at (0, 101) triggers the IRQ.
-    let out = rig.step();
+    let _out = rig.step();
     assert!(rig.mmio.timeup_flag, "timeup should be set after stepping to dot 101");
     assert!(rig.mmio.irq_line, "irq_line should be set after stepping to dot 101");
 }
@@ -40,7 +40,7 @@ fn e03_24_mode1_every_line() {
     assert!(!rig.mmio.timeup_flag, "should not trigger at (1,100)");
 
     // Trigger again on line 1.
-    let out = rig.step();
+    let _out = rig.step();
     assert!(rig.mmio.timeup_flag, "should trigger again at (1,101)");
 }
 
@@ -58,7 +58,7 @@ fn e03_24_mode2() {
 
     // Trigger at (10, 1).
     rig.run_until(10, 0);
-    let out = rig.step();
+    let _out = rig.step();
     assert!(rig.mmio.timeup_flag, "should trigger at (10,1)");
     assert!(rig.mmio.irq_line, "irq_line should be set");
 
@@ -86,7 +86,7 @@ fn e03_24_mode3() {
     rig.run_until(10, 50);
     assert!(!rig.mmio.timeup_flag, "should not trigger at (10,50)");
 
-    let out = rig.step();
+    let _out = rig.step();
     assert!(rig.mmio.timeup_flag, "should trigger at (10,51)");
 
     // No re-trigger on line 11.
@@ -127,7 +127,7 @@ fn e03_24_htime_too_big() {
     rig2.mmio.htime = 338;
     rig2.run_until(0, 338);
     assert!(!rig2.mmio.timeup_flag, "should not trigger at dot 338");
-    let out = rig2.step();
+    let _out = rig2.step();
     assert!(rig2.mmio.timeup_flag, "htime=338 should trigger at dot 339");
 }
 
@@ -155,7 +155,7 @@ fn e03_24_vtime_too_big() {
 
     // Trigger at (262, 1).
     rig_pal.run_until(262, 0);
-    let out = rig_pal.step();
+    let _out = rig_pal.step();
     assert!(rig_pal.mmio.timeup_flag, "PAL vtime=262 should trigger at line 262");
 }
 
@@ -208,6 +208,6 @@ fn e03_24_vtime_zero_mode3() {
     rig.mmio.vtime = 0;
 
     // Should trigger at (0, 1).
-    let out = rig.step();
+    let _out = rig.step();
     assert!(rig.mmio.timeup_flag, "mode 3 with vtime=0, htime=0 should trigger at (0,1)");
 }

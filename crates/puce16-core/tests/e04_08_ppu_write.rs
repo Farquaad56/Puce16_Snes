@@ -1,5 +1,5 @@
 use puce16_core::region::Region;
-use puce16_core::ppu::{Ppu, DotEvents};
+use puce16_core::ppu::Ppu;
 use puce16_core::hash::Fnv64;
 
 fn at(p: &mut Ppu, v: u32, dot: u32) {
@@ -240,7 +240,7 @@ fn e04_08_ignored_regs() {
 
 #[test]
 fn e04_08_hash() {
-    let mut p = Ppu::new(Region::Ntsc);
+    let p = Ppu::new(Region::Ntsc);
     let base = hash(&p);
 
     // brightness change

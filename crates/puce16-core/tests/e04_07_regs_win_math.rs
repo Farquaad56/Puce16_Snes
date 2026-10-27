@@ -131,7 +131,7 @@ fn e04_07_returns() {
 
 #[test]
 fn e04_07_hash() {
-    let mut r = Regs::new();
+    let r = Regs::new();
     let base = hash(&r);
 
     let mut r1 = Regs::new();

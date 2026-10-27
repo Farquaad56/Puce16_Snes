@@ -21,8 +21,8 @@ pub fn sram_offset(map: MapMode, bank: u8, addr: u16, sram_len: usize) -> Option
 }
 
 fn lorom_rom(bank: u8, addr: u16) -> Option<usize> {
-    let high = (bank >= 0x00 && bank <= 0x7D) || (bank >= 0x80 && bank <= 0xFF);
-    let low_mirror = (bank >= 0x40 && bank <= 0x7D) || (bank >= 0xC0 && bank <= 0xFF);
+    let high = (bank <= 0x7D) || (bank >= 0x80);
+    let low_mirror = (bank >= 0x40 && bank <= 0x7D) || (bank >= 0xC0);
 
     if addr >= 0x8000 && high {
         Some((((bank & 0x7F) as usize) << 15) | (addr & 0x7FFF) as usize)
@@ -35,8 +35,8 @@ fn lorom_rom(bank: u8, addr: u16) -> Option<usize> {
 }
 
 fn hirom_rom(bank: u8, addr: u16) -> Option<usize> {
-    let full_bank = (bank >= 0xC0 && bank <= 0xFF) || (bank >= 0x40 && bank <= 0x7D);
-    let high_half_only = (bank >= 0x00 && bank <= 0x3F) || (bank >= 0x80 && bank <= 0xBF);
+    let full_bank = (bank >= 0xC0) || (bank >= 0x40 && bank <= 0x7D);
+    let high_half_only = (bank <= 0x3F) || (bank >= 0x80 && bank <= 0xBF);
 
     if full_bank {
         Some((((bank & 0x3F) as usize) << 16) | addr as usize)
@@ -48,8 +48,8 @@ fn hirom_rom(bank: u8, addr: u16) -> Option<usize> {
 }
 
 fn exhirom_rom(bank: u8, addr: u16) -> Option<usize> {
-    let full_bank = (bank >= 0xC0 && bank <= 0xFF) || (bank >= 0x40 && bank <= 0x7D);
-    let high_half_only = (bank >= 0x00 && bank <= 0x3F) || (bank >= 0x80 && bank <= 0xBF);
+    let full_bank = (bank >= 0xC0) || (bank >= 0x40 && bank <= 0x7D);
+    let high_half_only = (bank <= 0x3F) || (bank >= 0x80 && bank <= 0xBF);
 
     if full_bank || (high_half_only && addr >= 0x8000) {
         let upper = if bank & 0x80 == 0 { 0x40_0000 } else { 0 };
@@ -60,7 +60,7 @@ fn exhirom_rom(bank: u8, addr: u16) -> Option<usize> {
 }
 
 fn lorom_sram(bank: u8, addr: u16, sram_len: usize) -> Option<usize> {
-    let in_bank = (bank >= 0x70 && bank <= 0x7D) || (bank >= 0xF0 && bank <= 0xFF);
+    let in_bank = (bank >= 0x70 && bank <= 0x7D) || (bank >= 0xF0);
     if in_bank && addr < 0x8000 {
         Some(((((bank & 0x0F) as usize) << 15) | addr as usize) % sram_len)
     } else {

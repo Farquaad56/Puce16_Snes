@@ -1,4 +1,4 @@
-use puce16_core::ppu::{Ppu, PpuRegsSnapshot};
+use puce16_core::ppu::Ppu;
 use puce16_core::region::Region;
 use puce16_core::hash::Fnv64;
 

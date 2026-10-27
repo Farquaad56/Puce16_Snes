@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! E05-10: Sprite dimensions, decoding, and per-row sprite list evaluation.
 
 use puce16_core::ppu::obj::obj_dims;
@@ -27,7 +28,7 @@ fn load_oam(p: &mut Ppu, img: &[u8; 544]) {
 }
 
 fn spr(img: &mut [u8; 544], i: usize, x: i16, y: u8, tile: u8, attr: u8, large: bool) {
-    img[i * 4] = (x as u8);
+    img[i * 4] = x as u8;
     img[i * 4 + 1] = y;
     img[i * 4 + 2] = tile;
     img[i * 4 + 3] = attr;
