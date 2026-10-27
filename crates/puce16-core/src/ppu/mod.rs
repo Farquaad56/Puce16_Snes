@@ -18,6 +18,7 @@ use self::vram::Vram;
 use self::cgram::Cgram;
 use self::oam::Oam;
 use self::regs::{Scroll, Regs};
+pub use self::bg::{Pix, LAYER_OBJ, Pick};
 use self::mode7::M7Regs;
 use self::output::{FrameBuf, FrameView, bgr555_to_xrgb, output_row, make_view};
 
@@ -58,6 +59,7 @@ pub struct Ppu {
     opvct_byte: bool,
     range_over: bool,
     time_over: bool,
+    line_obj: [Option<Pix>; 256],
     vram: Vram,
     cgram: Cgram,
     oam: Oam,
@@ -134,6 +136,7 @@ impl Ppu {
             opvct_byte: false,
             range_over: false,
             time_over: false,
+            line_obj: [None; 256],
             vram: Vram::new(),
             cgram: Cgram::new(),
             oam: Oam::new(),
@@ -614,6 +617,14 @@ impl Ppu {
 
     pub fn time_over(&self) -> bool {
         self.time_over
+    }
+
+    /// Determine if a layer is hidden by windows at pixel x.
+    /// Does NOT consult TMW/TSW (that's done in pick, E05-14).
+    pub fn window_hides(&self, layer: u8, x: usize) -> bool {
+        let g = self::window::layer_group(&self.regs, layer);
+        let logic = self::window::layer_logic(&self.regs, layer);
+        self::window::window_out(g, logic, x as u8, self.regs.wh)
     }
 
     pub fn hash_into(&self, h: &mut Fnv64) {
