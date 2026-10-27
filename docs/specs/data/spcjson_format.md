@@ -75,7 +75,16 @@ Rust loader note: the JSON key `final` is a Rust keyword; use `#[serde(rename = 
 
 The second cycle is a dummy read (value `null`), not an operand.
 
-## 4. Convention des registres (verifiee)
+## 4. Questions ouvertes
+
+All five open questions of the first draft are now answered (checked on the 256 files):
+
+1. RAM flat? Yes, including `$F0-$FF` (see 2).
+2. `final` always has all 7 keys? Yes.
+3. Cycle count vs TSV? Matches, except DA, EF, FF (TSV corrected, see 6).
+4. PSW bits and 5. stack pointer: see below.
+
+### Convention des registres (verifiee)
 
 - PSW bits: `N=0x80 V=0x40 P=0x20 B=0x10 H=0x08 I=0x04 Z=0x02 C=0x01`.
 - `P` (0x20) selects the direct page: dp address = `(P ? 0x100 : 0x000) + dp`. Verified (`E4 0000`: psw=235 has P=1, dp operand 0x74 reads address 372 = 0x174).
@@ -100,7 +109,7 @@ Complete real test (opcode `00` = NOP, file `00.json`, first test):
 ## 6. Decisions de la gate E06-03
 
 1. **Comparison level**: `Level::Count` (final state + number of cycles) is the default for the whole epic. `Level::Full` is NOT used: the journal is consistent (checked: first cycle = fetch, reads match RAM, `final.ram` = initial + writes) but it contains `wait` cycles and dummy reads with `null` value, which have no equivalent in the `Idle`/`Read` log of `FlatSmpBus`, so an index-by-index comparison would give false failures. A later task may add `Full` restricted to non-null `read`/`write` cycles.
-2. **TSV vs oracle**: all 228 non-branch opcodes match the oracle, except three that were wrong in the TSV and are now corrected to the oracle: `DA MOVW dp,YA` 4 -> 5 cycles; `EF SLEEP` 3 -> 7; `FF STOP` 2 -> 7. For SLEEP and STOP the oracle does not halt: it executes 7 cycles, leaves all registers and `psw` unchanged and sets `final.pc = pc + 1`. The emulator must reproduce that when run against the oracle. The 28 conditional opcodes (`BPL BMI BVC BVS BCC BCS BNE BEQ`, the 16 `BBS/BBC`, `CBNE dp`, `CBNE dp+X`, `DBNZ dp`, `DBNZ Y`) have `branch_taken_extra = 2` and the oracle shows exactly base and base+2 (both occur in the files). `BRA` is fixed 4 cycles, `DBNZ`/`CBNE` not-taken cases are rare (3-4 per 1000).
+2. **TSV vs oracle**: the 225 other non-branch opcodes match the oracle; three were wrong in the TSV and are now corrected to the oracle: `DA MOVW dp,YA` 4 -> 5 cycles; `EF SLEEP` 3 -> 7; `FF STOP` 2 -> 7. For SLEEP and STOP the oracle does not halt: it executes 7 cycles, leaves all registers and `psw` unchanged and sets `final.pc = pc + 1`. The emulator must reproduce that when run against the oracle. The 28 conditional opcodes (`BPL BMI BVC BVS BCC BCS BNE BEQ`, the 16 `BBS/BBC`, `CBNE dp`, `CBNE dp+X`, `DBNZ dp`, `DBNZ Y`) have `branch_taken_extra = 2` and the oracle shows exactly base and base+2 (both occur in the files). `BRA` is fixed 4 cycles, `DBNZ`/`CBNE` not-taken cases are rare (2-4 per 1000).
 3. **Filter convention** (`--filter`): comma-separated list of opcodes in hex, 1 or 2 digits, case-insensitive, no `0x` prefix, no spaces required (`E4,F4`, `e4,0f,0`). A file is kept when its opcode is in the list.
 4. **`opcode_of_file(name)`**: takes a file name or a path, uses the last path component; it must be exactly 2 hex digits (either case) followed by `.json`; returns `Some(u8)`, otherwise `None` (`readme.md`, `LICENSE`, `100.json`, `zz.json` -> `None`).
 
