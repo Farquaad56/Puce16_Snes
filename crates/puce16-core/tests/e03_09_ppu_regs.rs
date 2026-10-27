@@ -35,9 +35,11 @@ fn e03_09_ignored_regs() {
     p.hash_into(&mut h1);
     let hash_before = h1.finish();
 
-    p.write(0x01, 0xFF);
-    p.write(0x2F, 0xFF);
+    // Read-only / unused registers: writes are ignored (E04 made $2101 and
+    // $212F real registers, so they are no longer part of this test).
     p.write(0x34, 0xFF);
+    p.write(0x3E, 0xFF);
+    p.write(0x3F, 0xFF);
 
     let mut h2 = Fnv64::new();
     p.hash_into(&mut h2);
@@ -50,7 +52,8 @@ fn e03_09_ignored_regs() {
 fn e03_09_read_open_bus() {
     let mut p = Ppu::new(Region::Ntsc);
     assert_eq!(p.read(0x37, 0xAB, true), 0xAB);
-    assert_eq!(p.read(0x3F, 0x12, false), 0x12);
+    // $2100 is write-only: reads return the CPU open bus (E04 made $213F a real register).
+    assert_eq!(p.read(0x00, 0x12, false), 0x12);
 }
 
 #[test]

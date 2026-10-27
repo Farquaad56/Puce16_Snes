@@ -12,7 +12,7 @@ pub mod dot;
 
 use crate::region::Region;
 use crate::hash::Fnv64;
-use crate::consts::HV_LATCH_DOT_OFFSET;
+use crate::consts::{HV_LATCH_DOT_OFFSET, FB_WIDTH, FB_HEIGHT};
 use self::dot::{line_type, line_dots as dot_line_dots, dot_clocks};
 use self::vram::Vram;
 use self::cgram::Cgram;
@@ -21,8 +21,8 @@ use self::regs::{Scroll, Regs};
 pub use self::bg::{Pix, LAYER_OBJ, Pick, LAYER_BACKDROP};
 use self::bg::{priority_order, pick_layers};
 use self::mode7::M7Regs;
-use self::output::{FrameBuf, FrameView, bgr555_to_xrgb, output_row, make_view};
-use self::colormath::{fixed_color, color_math};
+use self::output::{FrameBuf, FrameView, bgr555_to_xrgb, output_row, make_view, pixel_double};
+use self::colormath::{fixed_color, color_math, blend, math_layer_ok};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub struct DotEvents(pub u8);
@@ -72,6 +72,9 @@ pub struct Ppu {
     view: Vec<u32>,
     view_w: usize,
     view_h: usize,
+    // Image-derived state (NOT hashed, cleared by reset): E05-18.
+    line_hires: bool,
+    row_hires: Vec<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -149,6 +152,8 @@ impl Ppu {
             view: vec![0xFF00_0000; 256 * 224],
             view_w: 256,
             view_h: 224,
+            line_hires: false,
+            row_hires: vec![false; FB_HEIGHT],
         }
     }
 
@@ -190,6 +195,8 @@ impl Ppu {
         self.view = vec![0xFF00_0000; 256 * 224];
         self.view_w = 256;
         self.view_h = 224;
+        self.line_hires = false;
+        self.row_hires = vec![false; FB_HEIGHT];
 
         // Restore region (it was captured but not reset)
         self.region = r;
@@ -292,11 +299,27 @@ impl Ppu {
                 }
                 // Capture frame into view after OAM reload
                 let vis_last = self.vblank_start() - 1;
-                let w = 256;
                 let h = (vis_last as usize) * (if self.interlace { 2 } else { 1 });
-                self.fb.set_view(w, h);
-                self.view = self.fb.compact();
-                self.view_w = w;
+                let frame_hires = self.row_hires[0..h].iter().any(|b| *b);
+                if frame_hires {
+                    self.fb.set_view(512, h);
+                    let mut view: Vec<u32> = Vec::with_capacity(512 * h);
+                    for r in 0..h {
+                        let start = r * FB_WIDTH;
+                        if self.row_hires[r] {
+                            view.extend_from_slice(&self.fb.pixels[start..start + 512]);
+                        } else {
+                            let d = pixel_double(&self.fb.pixels[start..start + 256], 256, 1);
+                            view.extend_from_slice(&d);
+                        }
+                    }
+                    self.view = view;
+                    self.view_w = 512;
+                } else {
+                    self.fb.set_view(256, h);
+                    self.view = self.fb.compact();
+                    self.view_w = 256;
+                }
                 self.view_h = h;
             }
             events |= DotEvents::LINE_START;
@@ -315,7 +338,22 @@ impl Ppu {
         if self.v >= 1 && self.v <= vis_last && self.dot >= 22 && self.dot <= 277 {
             let x = (self.dot - 22) as usize;
             let row = output_row((self.v - 1) as usize, self.field, self.interlace);
-            if self.forced_blank {
+            if self.dot == 22 {
+                self.line_hires = self.hires_line();
+                if row < self.row_hires.len() {
+                    self.row_hires[row] = self.line_hires;
+                }
+            }
+            if self.line_hires {
+                let (e, o) = if self.forced_blank {
+                    (0xFF00_0000, 0xFF00_0000)
+                } else {
+                    let (ce, co) = self.compose_hires(x, self.v as usize);
+                    (bgr555_to_xrgb(ce, self.brightness), bgr555_to_xrgb(co, self.brightness))
+                };
+                self.fb.set(2 * x, row, e);
+                self.fb.set(2 * x + 1, row, o);
+            } else if self.forced_blank {
                 self.fb.set(x, row, 0xFF00_0000);
             } else {
                 let argb = bgr555_to_xrgb(self.compose_pixel(x, self.v as usize), self.brightness);
@@ -378,6 +416,42 @@ impl Ppu {
         // Color window flags and color math
         let (black, prevent) = self.color_window_flags(x);
         color_math(&main, &sub, black, prevent, &self.regs)
+    }
+
+    /// True when the current line is rendered with 512 columns.
+    pub fn hires_line(&self) -> bool {
+        self.regs.bg_mode == 5 || self.regs.bg_mode == 6 || self.pseudo_hires
+    }
+
+    /// E05-18: hi-res composition at (x, v): (column 2x, column 2x+1), BGR555.
+    pub fn compose_hires(&self, x: usize, v: usize) -> (u16, u16) {
+        let order = priority_order(self.regs.bg_mode, self.regs.bg3_priority, self.extbg);
+        let lm = self.sample_layers_hx(x, 2 * x + 1, v);
+        let ls = self.sample_layers_hx(x, 2 * x, v);
+        let fixed = fixed_color(self.regs.fixed_r, self.regs.fixed_g, self.regs.fixed_b);
+
+        let mut main_hidden = [false; 5];
+        let mut sub_hidden = [false; 5];
+        for l in 0..5 {
+            main_hidden[l] = self.layer_hidden(true, l as u8, x);
+            sub_hidden[l] = self.layer_hidden(false, l as u8, x);
+        }
+        let main = pick_layers(order, &lm, self.regs.tm, main_hidden, self.cgram.word(0));
+        let sub = pick_layers(order, &ls, self.regs.ts, sub_hidden, fixed);
+        let (black, prevent) = self.color_window_flags(x);
+
+        let odd = color_math(&main, &sub, black, prevent, &self.regs);
+
+        let base = if black { 0 } else { sub.rgb };
+        let even = if !self.regs.addend_subscreen
+            && !prevent
+            && math_layer_ok(sub.layer, sub.obj_pal, self.regs.math_mask)
+        {
+            blend(base, fixed, self.regs.math_sub, self.regs.math_half)
+        } else {
+            base
+        };
+        (even, odd)
     }
 
     pub fn ppu1_mdr(&self) -> u8 {

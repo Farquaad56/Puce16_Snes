@@ -125,7 +125,8 @@ fn e03_27_ppu_open_bus() {
     // PPU read in E03 returns mdr (open bus)
     bus.mdr = 0x5A;
     assert_eq!(bus.read_inner(0x002137), 0x5A);
-    assert_eq!(bus.read_inner(0x00213F), 0x5A);
+    // $2100 is write-only: reads return the open bus ($213F is a real register since E04).
+    assert_eq!(bus.read_inner(0x002100), 0x5A);
 }
 
 #[test]
