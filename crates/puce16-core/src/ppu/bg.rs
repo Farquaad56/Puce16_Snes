@@ -318,14 +318,15 @@ impl super::Ppu {
 
         // Read BG3 map entry at (ex, ey)
         let addr_eh = map_entry_addr(self.regs.map_base[2], self.regs.map_x2[2], self.regs.map_y2[2], ex, ey);
-        let eh = self.vram.word(addr_eh);
+        let e0 = self.vram.word(addr_eh);
 
-        // Mode 4: bit15 selects horizontal vs vertical; mode 2 uses two entries
-        let ev = if mode == 4 {
-            if (eh & 0x8000) != 0 { eh } else { 0 }
+        // Mode 4: bit15 of the single entry selects vertical (set) or horizontal
+        // (clear), the other offset is 0. Mode 2 uses two entries (spec 05b 7.1).
+        let (eh, ev) = if mode == 4 {
+            if (e0 & 0x8000) == 0 { (e0, 0) } else { (0, e0) }
         } else {
             let addr_ev = map_entry_addr(self.regs.map_base[2], self.regs.map_x2[2], self.regs.map_y2[2], ex, ey + 1);
-            self.vram.word(addr_ev)
+            (e0, self.vram.word(addr_ev))
         };
 
         // Enable bits: bit13 for BG1 (n=0), bit14 for BG2 (n=1)
