@@ -24,7 +24,7 @@ impl From<CartError> for LoadError {
 
 enum Inner {
     Pattern { fb: FrameBuf, compact: Vec<u32> },
-    Real { cpu: Cpu, sys: Box<SysBus>, fb: FrameBuf, compact: Vec<u32> },
+    Real { cpu: Cpu, sys: Box<SysBus> },
 }
 
 pub struct Snes {
@@ -91,12 +91,11 @@ impl Snes {
         let mut sys = Box::new(SysBus::new(cart, region));
         let mut cpu = Cpu::new();
         cpu.reset(&mut *sys);
-        let fb = FrameBuf::new();
         Ok(Self {
             region,
             frame: 0,
             joy: [0; 2],
-            inner: Inner::Real { cpu, sys, compact: fb.compact(), fb },
+            inner: Inner::Real { cpu, sys },
         })
     }
 
@@ -108,10 +107,9 @@ impl Snes {
                 *fb = FrameBuf::new();
                 self.frame = 0;
             }
-            Inner::Real { cpu, sys, fb, .. } => {
+            Inner::Real { cpu, sys } => {
                 sys.reset();
                 cpu.reset(&mut **sys);
-                *fb = FrameBuf::new();
                 self.frame = 0;
             }
         }
@@ -159,7 +157,7 @@ impl Snes {
     pub fn frame(&self) -> FrameView<'_> {
         match &self.inner {
             Inner::Pattern { fb, compact } => make_view(fb.view_w, fb.view_h, compact),
-            Inner::Real { fb, compact, .. } => make_view(fb.view_w, fb.view_h, compact),
+            Inner::Real { sys, .. } => sys.ppu.frame(),
         }
     }
 

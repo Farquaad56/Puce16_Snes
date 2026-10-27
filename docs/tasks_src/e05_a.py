@@ -104,7 +104,7 @@ pub fn map_entry_addr(map_base: u16, x2: bool, y2: bool, tx: u16, ty: u16) -> u1
          ("map64x32", "x2=true, y2=false : `(35,5) -> 0x14A3` ; `(64,5) -> 0x10A0` (wrap a 64) ; `(31,5) -> 0x10BF` ; `(32,5) -> 0x14A0`."),
          ("map32x64", "x2=false, y2=true : `(3,37) -> 0x14A3` (ecran 1 sous l'ecran 0) ; `(3,5) -> 0x10A3` ; `(35,37) -> 0x14A3` (tx masque a 31)."),
          ("map64x64", "x2=true, y2=true : `(35,37) -> 0x1CA3` (ecran 3) ; `(35,5) -> 0x14A3` (ecran 1) ; `(3,37) -> 0x18A3` (ecran 2) ; `(63,63) -> 0x1FFF`."),
-         ("addr_wraps_15_bits", "base 0x7C00, x2=y2=true, `(63,63)` -> `0x09FF` (masque 0x7FFF)."),
+         ("addr_wraps_15_bits", "base 0x7C00, x2=y2=true, `(63,63)` -> `0x0BFF` (masque 0x7FFF)."),
          ("tx_beyond_127", "tx est deja en unites de tuile mais peut depasser 63 (position en pixels / 8 jusqu'a 127) : base 0, x2=false : `(127,0) -> 31` ; x2=true : `(100,0) -> (100 & 63 = 36) -> 0x400 + 4 = 0x404`.")])
 
 T("E05-05", "ppu/bg.rs: bg_pixel (tuiles 8x8, defilement, palette)",
