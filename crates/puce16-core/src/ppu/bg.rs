@@ -346,7 +346,7 @@ impl super::Ppu {
 
         // Step 1: Check bpp and mode
         let b = bpp(mode, n);
-        if b == 0 || mode == 7 {
+        if b == 0 || mode >= 5 {
             return None;
         }
 
@@ -413,8 +413,89 @@ impl super::Ppu {
         Some(Pix { rgb, prio: entry.prio, obj_pal: 0 })
     }
 
-    /// Sample all layers at screen position (x, v). Returns [Option<Pix>; 5].
-    pub fn sample_layers(&self, x: usize, v: usize) -> [Option<Pix>; 5] {
+    /// Hi-res background pixel for modes 5 and 6.
+    /// hx is the hi-res column (0..=511), v is the scanline.
+    pub fn bg_pixel_hires(&self, n: usize, hx: usize, v: usize) -> Option<Pix> {
+        let mode = self.regs.bg_mode;
+
+        // Step 1: Check mode and bpp
+        if mode != 5 && mode != 6 {
+            return None;
+        }
+        let b = bpp(mode, n);
+        if b == 0 {
+            return None;
+        }
+
+        // Step 2: Mosaic - operate on x = hx >> 1, then reconstruct
+        let x = hx >> 1;
+        let (xm, vm) = mosaic_xy(
+            self.regs.mosaic_size(),
+            (self.regs.mosaic_en >> n) & 1 != 0,
+            x, v,
+        );
+        let hxm = (xm << 1) | (hx & 1);
+
+        // Step 3: Interlace - double vertical coordinate if interlaced
+        let vm_il = if self.interlace {
+            (vm << 1) | (self.field as usize)
+        } else {
+            vm
+        };
+
+        // Step 4: Compute scrolled coordinates (horizontal offset doubled)
+        let px = (hxm + ((self.scroll.hofs(n) as usize) << 1)) & 0x3FF;
+        let py = (vm_il + self.scroll.vofs(n) as usize) & 0x3FF;
+
+        // Step 5: Get tilemap entry - tiles are 16px wide in map space
+        let tall = self.regs.tile16[n];
+        let tx = px >> 4;
+        let ty = if tall { py >> 4 } else { py >> 3 };
+        let addr = map_entry_addr(
+            self.regs.map_base[n],
+            self.regs.map_x2[n],
+            self.regs.map_y2[n],
+            tx as u16,
+            ty as u16,
+        );
+        let entry_word = self.vram.word(addr);
+        let entry = decode_entry(entry_word);
+
+        // Step 6: Compute tile number with half-tile selection and flips
+        let xs = (((px >> 3) & 1) as u16) ^ (entry.hflip as u16);
+        let ys = if tall {
+            (((py >> 3) & 1) as u16) ^ (entry.vflip as u16)
+        } else {
+            0
+        };
+        let number = (entry.tile + xs + ys * 16) & 0x3FF;
+
+        // Step 7: Decode pixel from tile data with flips
+        let fx = (px & 7) ^ (if entry.hflip { 7 } else { 0 });
+        let fy = (py & 7) ^ (if entry.vflip { 7 } else { 0 });
+        let words = match b {
+            2 => 8,
+            4 => 16,
+            _ => panic!("bg_pixel_hires: invalid bpp"),
+        };
+        let tile_word = (self.regs.chr_base[n] + number * words) & 0x7FFF;
+        let row = (tile_word + fy as u16) & 0x7FFF;
+        let row_data = decode_row(self.vram.mem(), row, b);
+        let i = row_data[fx];
+        if i == 0 {
+            return None;
+        }
+
+        // Step 8: Get color from CGRAM (no direct color in modes 5/6)
+        let pal_idx = bg_palette_index(mode, n, b, entry.pal, i);
+        let rgb = self.cgram.word(pal_idx);
+
+        Some(Pix { rgb, prio: entry.prio, obj_pal: 0 })
+    }
+
+    /// Sample all layers at screen position (x, v) with hi-res column hx.
+    /// For modes 5/6, BG layers use bg_pixel_hires; otherwise bg_pixel.
+    pub fn sample_layers_hx(&self, x: usize, hx: usize, v: usize) -> [Option<Pix>; 5] {
         let mut layers = [None; 5];
         let mask = self.regs.tm | self.regs.ts;
 
@@ -426,8 +507,15 @@ impl super::Ppu {
             if (mask >> 1) & 1 != 0 && self.extbg {
                 layers[1] = self.m7_pixel(1, x, v);
             }
+        } else if self.regs.bg_mode == 5 || self.regs.bg_mode == 6 {
+            // Modes 5/6: hi-res background rendering
+            for n in 0..4 {
+                if (mask >> n) & 1 != 0 {
+                    layers[n] = self.bg_pixel_hires(n, hx, v);
+                }
+            }
         } else {
-            // Modes 0-6: standard bg_pixel for each BG layer
+            // Modes 0-4: standard bg_pixel
             for n in 0..4 {
                 if (mask >> n) & 1 != 0 {
                     layers[n] = self.bg_pixel(n, x, v);
@@ -441,6 +529,11 @@ impl super::Ppu {
         }
 
         layers
+    }
+
+    /// Sample all layers at screen position (x, v). Returns [Option<Pix>; 5].
+    pub fn sample_layers(&self, x: usize, v: usize) -> [Option<Pix>; 5] {
+        self.sample_layers_hx(x, 2 * x + 1, v)
     }
 
     /// Pick the visible pixel for a screen at position (x, v).
@@ -459,10 +552,10 @@ impl super::Ppu {
         let backdrop = if main {
             self.cgram.word(0)
         } else {
-            let r5 = (self.regs.fixed_r & 7) << 2;
-            let g5 = (self.regs.fixed_g & 7) << 2;
-            let b5 = (self.regs.fixed_b & 3) << 3;
-            r5 as u16 | ((g5 as u16) << 5) | ((b5 as u16) << 10)
+            let r5 = (self.regs.fixed_r & 0x1F) as u16;
+            let g5 = ((self.regs.fixed_g & 0x1F) as u16) << 5;
+            let b5 = ((self.regs.fixed_b & 0x1F) as u16) << 10;
+            r5 | g5 | b5
         };
 
         pick_layers(order, &layers, en, hidden, backdrop)

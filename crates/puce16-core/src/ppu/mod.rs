@@ -18,9 +18,11 @@ use self::vram::Vram;
 use self::cgram::Cgram;
 use self::oam::Oam;
 use self::regs::{Scroll, Regs};
-pub use self::bg::{Pix, LAYER_OBJ, Pick};
+pub use self::bg::{Pix, LAYER_OBJ, Pick, LAYER_BACKDROP};
+use self::bg::{priority_order, pick_layers};
 use self::mode7::M7Regs;
 use self::output::{FrameBuf, FrameView, bgr555_to_xrgb, output_row, make_view};
+use self::colormath::{fixed_color, color_math};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub struct DotEvents(pub u8);
@@ -277,6 +279,11 @@ impl Ppu {
                 self.range_over = false;
                 events |= DotEvents::VBLANK_END;
             }
+            let vis_last = self.vblank_start() - 1;
+            if self.v >= 1 && self.v <= vis_last {
+                // Evaluate sprites for this line (before LINE_START event)
+                self.render_obj_line((self.v - 1) as u16);
+            }
             if self.v == self.vblank_start() {
                 events |= DotEvents::VBLANK_START;
                 // Reload OAM address at VBlank start (if not forced blank)
@@ -311,7 +318,7 @@ impl Ppu {
             if self.forced_blank {
                 self.fb.set(x, row, 0xFF00_0000);
             } else {
-                let argb = bgr555_to_xrgb(self.pixel_bgr555(x), self.brightness);
+                let argb = bgr555_to_xrgb(self.compose_pixel(x, self.v as usize), self.brightness);
                 self.fb.set(x, row, argb);
             }
         }
@@ -340,10 +347,37 @@ impl Ppu {
         make_view(self.view_w, self.view_h, &self.view)
     }
 
-    /// E04: return backdrop color from CGRAM word 0.
-    /// E05 will replace this with full composition.
-    fn pixel_bgr555(&self, _x: usize) -> u16 {
-        self.cgram.word(0)
+    /// E05: full non-hi-res composition at screen position (x, v).
+    /// Returns BGR555 final color before brightness conversion.
+    pub fn compose_pixel(&self, x: usize, v: usize) -> u16 {
+        let layers = self.sample_layers(x, v);
+        let order = priority_order(self.regs.bg_mode, self.regs.bg3_priority, self.extbg);
+
+        // Main screen pick
+        let mut main_hidden = [false; 5];
+        for l in 0..5 {
+            main_hidden[l] = self.layer_hidden(true, l as u8, x);
+        }
+        let backdrop_main = self.cgram.word(0);
+        let main = pick_layers(order, &layers, self.regs.tm, main_hidden, backdrop_main);
+
+        // Fixed color for sub screen / addend
+        let fixed = fixed_color(self.regs.fixed_r, self.regs.fixed_g, self.regs.fixed_b);
+
+        // Sub screen pick (only if addend_subscreen)
+        let sub = if self.regs.addend_subscreen {
+            let mut sub_hidden = [false; 5];
+            for l in 0..5 {
+                sub_hidden[l] = self.layer_hidden(false, l as u8, x);
+            }
+            pick_layers(order, &layers, self.regs.ts, sub_hidden, fixed)
+        } else {
+            Pick { rgb: fixed, layer: LAYER_BACKDROP, obj_pal: 0 }
+        };
+
+        // Color window flags and color math
+        let (black, prevent) = self.color_window_flags(x);
+        color_math(&main, &sub, black, prevent, &self.regs)
     }
 
     pub fn ppu1_mdr(&self) -> u8 {
