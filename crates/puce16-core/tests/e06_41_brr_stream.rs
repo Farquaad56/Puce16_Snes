@@ -29,7 +29,7 @@ fn e06_41_directory_wraps() {
     let mut r = ram();
     dsp.write(reg::DIR, 0xFF);
     dsp.write(0x04, 255);
-    let entry = ((0xFF as u16) << 8).wrapping_add((255u16 * 4));
+    let entry = ((0xFF as u16) << 8).wrapping_add(255u16 * 4);
     assert_eq!(entry, 0x02FC);
     r[0x02FC] = 0x34;
     r[0x02FD] = 0x12;

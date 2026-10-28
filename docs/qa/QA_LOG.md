@@ -33,3 +33,17 @@ Note: le Q&R est un processus de cadrage fait MAINTENANT avec l'utilisateur (et 
 Q: In emulation mode, what should opcode AB (PLB) do? The code currently remaps AB to DA (PHX) based on a comment citing the WDC datasheet. However, the oracle test expects PLB behavior (pull from stack into DB register). Should the remapping be removed so AB always executes PLB in both modes?
 A: (choix A) A: no remap. AB always executes PLB in both modes (oracle authoritative). Fixed by pull8n + fix_stack_e; oracle 512/512 ok.
 Decision: D-022
+
+## 2026-10-28 E06-50-Q1 | tache E06-50 (gate J4) | auteur Claude
+Q: Quels `UNKNOWN - to confirm` du DSP restent ouverts a la fin de E06 ?
+A: Liste (reference: docs/specs/07b_DSP.md et apu/io.rs), a calibrer avec une reference materiel/SPC en E07:
+1. Ordre tick/acces: le DSP est avance d'un echantillon tous les 32 cycles SMP dans `ApuIo::tick`, sans modele de partage de bus ni d'ordre exact des acces voix (07b, intro).
+2. Ecriture de ENDX ($7C): toute ecriture met `endx = 0` (07b section 1).
+3. Reset des registres: seul `FLG = $E0` est remis; les autres registres sont conserves (07b section 1, power-on/reset).
+4. p1/p2 (historique BRR) non remis a zero au key-on (07b section 3).
+5. Fin de bloc BRR: avance du decodeur de 8 echantillons avant la fin audible (07b section 3, `voice.rs::voice_advance_block`).
+6. EDL / echo: longueur recalculee seulement quand `echo_offset == 0`; EDL = 0 ecrit toujours 4 octets a ESA*256 (07b section 7).
+7. FIR: FIR0 = echantillon le plus ancien, FIR7 = le plus recent (07b section 7, UNKNOWN).
+8. Valeur de la RAM SPC700 a la mise sous tension supposee 0x00 (`apu/io.rs`).
+Mosaic: non concerne par le DSP SNES.
+Decision: aucune (ouverts, a calibrer en E07)
