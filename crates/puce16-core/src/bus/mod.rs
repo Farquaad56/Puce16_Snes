@@ -59,6 +59,8 @@ pub struct SysBus {
 impl SysBus {
     /// Create a new system bus in power-on state.
     pub fn new(cart: Cart, region: Region) -> SysBus {
+        let mut apu = Apu::new();
+        apu.set_region(region);
         SysBus {
             master: 0,
             region,
@@ -67,7 +69,7 @@ impl SysBus {
             mmio: Mmio::new(),
             dma: Dma::new(),
             ppu: Ppu::new(region),
-            apu: Apu::new(),
+            apu,
             joy: Joypads::new(),
             timing: Timing::new(),
             mdr: 0,

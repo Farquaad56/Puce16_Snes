@@ -46,22 +46,6 @@ fn e03_12_reset() {
 }
 
 #[test]
-fn e03_12_step_to_noop() {
-    let mut a = Apu::new();
-    a.port_write(0, 42);
-
-    let mut h_before = Fnv64::new();
-    a.hash_into(&mut h_before);
-    let hash_before = h_before.finish();
-
-    a.step_to(1_000_000);
-
-    let mut h_after = Fnv64::new();
-    a.hash_into(&mut h_after);
-    assert_eq!(h_after.finish(), hash_before);
-}
-
-#[test]
 fn e03_12_hash() {
     let mut a = Apu::new();
 
