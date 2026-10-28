@@ -11,7 +11,7 @@ fn run(setup: impl FnOnce(&mut Spc700, &mut FlatSmpBus), prog: &[u8]) -> (Spc700
 }
 
 #[test]
-fn e06_29_oracle_clean() {
+fn e06_29_oracle_clean_or_regressions() {
     // All 55 oracle flow/stack/flag test files pass with no regressions.
     // This test verifies key behaviors that the oracle suite covers:
     // branches, calls, returns, push/pop, flags, NOP/SLEEP/STOP.

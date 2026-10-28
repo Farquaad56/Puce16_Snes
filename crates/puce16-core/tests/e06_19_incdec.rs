@@ -1,4 +1,4 @@
-use puce16_core::apu::spc700::{Spc700, SmpBus, testbus::FlatSmpBus, F_C, F_Z, F_I, F_H, F_B, F_P, F_V, F_N};
+use puce16_core::apu::spc700::{Spc700, testbus::FlatSmpBus, F_C, F_Z, F_N};
 
 fn run(setup: impl FnOnce(&mut Spc700, &mut FlatSmpBus), prog: &[u8]) -> (Spc700, FlatSmpBus, u32) {
     let mut cpu = Spc700::new();
@@ -80,7 +80,7 @@ fn e06_19_inc_dec_x_y() {
 #[test]
 fn e06_19_inc_dp() {
     // INC dp: 0x7F -> 0x80, N=1
-    let (cpu, bus, cyc) = run(|cpu, bus| {
+    let (cpu, bus, cyc) = run(|_cpu, bus| {
         bus.poke(0x0010, &[0x7F]);
     }, &[0xAB, 0x10]);
     assert_eq!(bus.peek(0x0010), 0x80);
@@ -105,7 +105,7 @@ fn e06_19_inc_dpx_zero() {
 #[test]
 fn e06_19_inc_abs() {
     // INC !abs: 1 -> 2
-    let (cpu, bus, cyc) = run(|cpu, bus| {
+    let (cpu, bus, cyc) = run(|_cpu, bus| {
         bus.poke(0x3000, &[1]);
     }, &[0xAC, 0x00, 0x30]);
     assert_eq!(bus.peek(0x3000), 2);
@@ -117,7 +117,7 @@ fn e06_19_inc_abs() {
 #[test]
 fn e06_19_dec_memory() {
     // DEC dp: 0 -> 0xFF, N=1
-    let (cpu, bus, cyc) = run(|cpu, bus| {
+    let (cpu, bus, cyc) = run(|_cpu, bus| {
         bus.poke(0x0010, &[0]);
     }, &[0x8B, 0x10]);
     assert_eq!(bus.peek(0x0010), 0xFF);
@@ -136,7 +136,7 @@ fn e06_19_dec_memory() {
     assert_eq!(cyc, 5);
 
     // DEC !abs: 5 -> 4
-    let (cpu, bus, cyc) = run(|cpu, bus| {
+    let (cpu, bus, cyc) = run(|_cpu, bus| {
         bus.poke(0x3000, &[5]);
     }, &[0x8C, 0x00, 0x30]);
     assert_eq!(bus.peek(0x3000), 4);
@@ -158,7 +158,7 @@ fn e06_19_asl() {
     assert_eq!(cyc, 2);
 
     // ASL dp: 0x40 -> 0x80, N=1, C=0
-    let (cpu, bus, cyc) = run(|cpu, bus| {
+    let (cpu, bus, cyc) = run(|_cpu, bus| {
         bus.poke(0x0010, &[0x40]);
     }, &[0x0B, 0x10]);
     assert_eq!(bus.peek(0x0010), 0x80);
@@ -179,7 +179,7 @@ fn e06_19_asl() {
     assert_eq!(cyc, 5);
 
     // ASL !abs: 1 -> 2
-    let (cpu, bus, cyc) = run(|cpu, bus| {
+    let (cpu, bus, cyc) = run(|_cpu, bus| {
         bus.poke(0x3000, &[1]);
     }, &[0x0C, 0x00, 0x30]);
     assert_eq!(bus.peek(0x3000), 2);
@@ -212,7 +212,7 @@ fn e06_19_lsr() {
     assert_eq!(cyc, 2);
 
     // LSR dp: 0x03 -> 1, C=1
-    let (cpu, bus, cyc) = run(|cpu, bus| {
+    let (cpu, bus, cyc) = run(|_cpu, bus| {
         bus.poke(0x0010, &[0x03]);
     }, &[0x4B, 0x10]);
     assert_eq!(bus.peek(0x0010), 1);
@@ -233,7 +233,7 @@ fn e06_19_lsr() {
     assert_eq!(cyc, 5);
 
     // LSR !abs: 0x10 -> 0x08
-    let (cpu, bus, cyc) = run(|cpu, bus| {
+    let (cpu, bus, cyc) = run(|_cpu, bus| {
         bus.poke(0x3000, &[0x10]);
     }, &[0x4C, 0x00, 0x30]);
     assert_eq!(bus.peek(0x3000), 0x08);
@@ -397,13 +397,13 @@ fn e06_19_shift_cycles() {
     let (_, _, cyc) = run(|cpu, _| { cpu.a = 1; }, &[0x1C]); // ASL A
     assert_eq!(cyc, 2);
 
-    let (_, bus, cyc) = run(|cpu, bus| { bus.poke(0x0010, &[1]); }, &[0x0B, 0x10]); // ASL dp
+    let (_, _bus, cyc) = run(|_cpu, bus| { bus.poke(0x0010, &[1]); }, &[0x0B, 0x10]); // ASL dp
     assert_eq!(cyc, 4);
 
-    let (_, bus, cyc) = run(|cpu, bus| { cpu.x = 1; bus.poke(0x0011, &[1]); }, &[0x1B, 0x10]); // ASL dp+X
+    let (_, _bus, cyc) = run(|cpu, bus| { cpu.x = 1; bus.poke(0x0011, &[1]); }, &[0x1B, 0x10]); // ASL dp+X
     assert_eq!(cyc, 5);
 
-    let (_, bus, cyc) = run(|cpu, bus| { bus.poke(0x3000, &[1]); }, &[0x0C, 0x00, 0x30]); // ASL !abs
+    let (_, _bus, cyc) = run(|_cpu, bus| { bus.poke(0x3000, &[1]); }, &[0x0C, 0x00, 0x30]); // ASL !abs
     assert_eq!(cyc, 5);
 
     let (_, _, cyc) = run(|cpu, _| { cpu.a = 1; }, &[0x7C]); // ROR A

@@ -238,3 +238,74 @@ fn e06_17_cmp_xy() {
     assert!(cpu.flag(F_N));
     assert_eq!(cyc, 5);
 }
+
+#[test]
+fn e06_17_cmp_a_abs_x_forms() {
+    // (bytes, x, y, pokes, cycles): the value 0x05 sits at the effective address.
+    let forms: Vec<(Vec<u8>, u8, u8, Vec<(u16, Vec<u8>)>, u32)> = vec![
+        (vec![0x65, 0x00, 0x30], 0, 0, vec![(0x3000, vec![0x05])], 4),
+        (vec![0x66], 0x10, 0, vec![(0x0010, vec![0x05])], 3),
+        (vec![0x67, 0x10], 2, 0, vec![(0x0012, vec![0x00, 0x30]), (0x3000, vec![0x05])], 6),
+        (vec![0x74, 0x10], 1, 0, vec![(0x0011, vec![0x05])], 4),
+        (vec![0x75, 0xFF, 0x2F], 1, 0, vec![(0x3000, vec![0x05])], 5),
+        (vec![0x76, 0x00, 0x30], 0, 2, vec![(0x3002, vec![0x05])], 5),
+        (vec![0x77, 0x20], 0, 1, vec![(0x0020, vec![0xFF, 0x2F]), (0x3000, vec![0x05])], 6),
+    ];
+    for (bytes, x, y, pokes, cycles) in forms {
+        let (cpu, _, cyc) = run(|c, b| {
+            c.psw = 0;
+            c.a = 0x05;
+            c.x = x;
+            c.y = y;
+            for (addr, data) in &pokes {
+                b.poke(*addr, data);
+            }
+        }, &bytes);
+        assert!(cpu.flag(F_Z), "CMP form {:02X}: Z", bytes[0]);
+        assert!(cpu.flag(F_C), "CMP form {:02X}: C", bytes[0]);
+        assert_eq!(cyc, cycles, "CMP form {:02X} cycles", bytes[0]);
+    }
+}
+
+#[test]
+fn e06_17_cmp_x_dp_abs() {
+    // CMP X,dp: 0x80 - 0x01 = 0x7F -> C=1, N=0, Z=0
+    let (cpu, _, _) = run(|c, b| {
+        c.psw = 0;
+        c.x = 0x80;
+        b.poke(0x10, &[0x01]);
+    }, &[0x3E, 0x10]);
+    assert!(cpu.flag(F_C));
+    assert!(!cpu.flag(F_N));
+    assert!(!cpu.flag(F_Z));
+    // CMP X,!abs: 0x00 - 0x01 = 0xFF -> C=0, N=1
+    let (cpu, _, cyc) = run(|c, b| {
+        c.psw = 0;
+        c.x = 0x00;
+        b.poke(0x3000, &[0x01]);
+    }, &[0x1E, 0x00, 0x30]);
+    assert!(!cpu.flag(F_C));
+    assert!(cpu.flag(F_N));
+    assert_eq!(cyc, 4);
+}
+
+#[test]
+fn e06_17_cmp_y_dp_abs() {
+    // CMP Y,dp: 2 - 2 -> Z=1, C=1, 3 cycles
+    let (cpu, _, cyc) = run(|c, b| {
+        c.psw = 0;
+        c.y = 0x02;
+        b.poke(0x10, &[0x02]);
+    }, &[0x7E, 0x10]);
+    assert!(cpu.flag(F_Z));
+    assert!(cpu.flag(F_C));
+    assert_eq!(cyc, 3);
+    // CMP Y,!abs: 2 - 3 = 0xFF -> C=0, N=1
+    let (cpu, _, _) = run(|c, b| {
+        c.psw = 0;
+        c.y = 0x02;
+        b.poke(0x3000, &[0x03]);
+    }, &[0x5E, 0x00, 0x30]);
+    assert!(!cpu.flag(F_C));
+    assert!(cpu.flag(F_N));
+}

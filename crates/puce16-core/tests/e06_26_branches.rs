@@ -1,4 +1,4 @@
-use puce16_core::apu::spc700::{Spc700, SmpBus, testbus::FlatSmpBus, F_C, F_Z, F_I, F_H, F_B, F_P, F_V, F_N};
+use puce16_core::apu::spc700::{Spc700, testbus::FlatSmpBus, F_C, F_Z, F_V, F_N};
 
 fn run(setup: impl FnOnce(&mut Spc700, &mut FlatSmpBus), prog: &[u8]) -> (Spc700, FlatSmpBus, u32) {
     let mut cpu = Spc700::new();
@@ -94,12 +94,12 @@ fn e06_26_bcc_bcs() {
 #[test]
 fn e06_26_bra() {
     // BRA rel: unconditional branch forward
-    let (cpu1, _, cyc1) = run(|c, _| {}, &[0x2F, 0x7F]);
+    let (cpu1, _, cyc1) = run(|_c, _| {}, &[0x2F, 0x7F]);
     assert_eq!(cpu1.pc, 0x0281, "BRA should jump forward");
     assert_eq!(cyc1, 4, "BRA: 4 base cycles (no branch extra)");
 
     // BRA rel: unconditional branch backward (-128 = 0x80)
-    let (cpu2, _, cyc2) = run(|c, _| {}, &[0x2F, 0x80]);
+    let (cpu2, _, cyc2) = run(|_c, _| {}, &[0x2F, 0x80]);
     assert_eq!(cpu2.pc, 0x0182, "BRA should jump backward");
     assert_eq!(cyc2, 4, "BRA: 4 base cycles (no branch extra)");
 }
@@ -181,7 +181,7 @@ fn e06_26_dbnz_y() {
 fn e06_26_dbnz_dp() {
     // DBNZ dp,rel: decrement memory at dp and branch if not zero
     // M[dp]=2 -> M[dp]=1 (not zero), branch taken
-    let (cpu1, bus1, cyc1) = run(|c, b| {
+    let (cpu1, bus1, cyc1) = run(|_c, b| {
         b.poke(0x0010, &[2]);
     }, &[0x6E, 0x10, 0x05]);
     assert_eq!(bus1.peek(0x0010), 1, "DBNZ dp should decrement memory");
@@ -189,7 +189,7 @@ fn e06_26_dbnz_dp() {
     assert_eq!(cyc1, 7, "DBNZ dp taken: 5 base + 2 branch extra");
 
     // M[dp]=1 -> M[dp]=0 (zero), no branch
-    let (cpu2, bus2, cyc2) = run(|c, b| {
+    let (cpu2, bus2, cyc2) = run(|_c, b| {
         b.poke(0x0010, &[1]);
     }, &[0x6E, 0x10, 0x05]);
     assert_eq!(bus2.peek(0x0010), 0, "DBNZ dp should decrement to zero");

@@ -1,4 +1,4 @@
-use puce16_core::apu::spc700::{Spc700, SmpBus, testbus::FlatSmpBus, F_C, F_Z, F_I, F_H, F_B, F_P, F_V, F_N};
+use puce16_core::apu::spc700::{Spc700, testbus::FlatSmpBus, F_C, F_Z, F_I, F_H, F_P, F_V, F_N};
 
 fn run(setup: impl FnOnce(&mut Spc700, &mut FlatSmpBus), prog: &[u8]) -> (Spc700, FlatSmpBus, u32) {
     let mut cpu = Spc700::new();
@@ -22,10 +22,10 @@ fn e06_28_push_a() {
 #[test]
 fn e06_28_push_x_y_psw() {
     // PUSH X, Y, PSW
-    let (cpu1, bus1, _) = run(|c, _| { c.sp = 0xEF; c.x = 0x11; }, &[0x4D]);
+    let (_cpu1, bus1, _) = run(|c, _| { c.sp = 0xEF; c.x = 0x11; }, &[0x4D]);
     assert_eq!(bus1.peek(0x01EF), 0x11, "PUSH X should write value to stack");
 
-    let (cpu2, bus2, _) = run(|c, _| { c.sp = 0xEF; c.y = 0x22; }, &[0x6D]);
+    let (_cpu2, bus2, _) = run(|c, _| { c.sp = 0xEF; c.y = 0x22; }, &[0x6D]);
     assert_eq!(bus2.peek(0x01EF), 0x22, "PUSH Y should write value to stack");
 
     let (cpu3, bus3, _) = run(|c, _| { c.sp = 0xEF; c.psw = 0x86; }, &[0x0D]);

@@ -1,4 +1,4 @@
-use puce16_core::apu::spc700::{Spc700, SmpBus, testbus::FlatSmpBus, F_C, F_Z, F_I, F_H, F_B, F_P, F_V, F_N};
+use puce16_core::apu::spc700::{Spc700, testbus::FlatSmpBus, F_C, F_Z, F_H, F_P, F_V, F_N};
 
 fn run(setup: impl FnOnce(&mut Spc700, &mut FlatSmpBus), prog: &[u8]) -> (Spc700, FlatSmpBus, u32) {
     let mut cpu = Spc700::new();
@@ -152,7 +152,7 @@ fn e06_15_or_dpx() {
 
 #[test]
 fn e06_15_or_dp_dp() {
-    let (cpu, bus, cyc) = run(|cpu, bus| {
+    let (cpu, bus, cyc) = run(|_cpu, bus| {
         bus.poke(0x0010, &[0x0F]);
         bus.poke(0x0020, &[0xF0]);
     }, &[0x09, 0x10, 0x20]);
@@ -164,7 +164,7 @@ fn e06_15_or_dp_dp() {
 
 #[test]
 fn e06_15_and_dp_dp() {
-    let (cpu, bus, cyc) = run(|cpu, bus| {
+    let (cpu, bus, cyc) = run(|_cpu, bus| {
         bus.poke(0x0010, &[0x3C]);
         bus.poke(0x0020, &[0xF0]);
     }, &[0x29, 0x10, 0x20]);
@@ -176,7 +176,7 @@ fn e06_15_and_dp_dp() {
 
 #[test]
 fn e06_15_eor_dp_dp_zero() {
-    let (cpu, bus, cyc) = run(|cpu, bus| {
+    let (cpu, bus, cyc) = run(|_cpu, bus| {
         bus.poke(0x0010, &[0xFF]);
         bus.poke(0x0020, &[0xFF]);
     }, &[0x49, 0x10, 0x20]);
@@ -188,7 +188,7 @@ fn e06_15_eor_dp_dp_zero() {
 
 #[test]
 fn e06_15_or_dp_imm() {
-    let (cpu, bus, cyc) = run(|cpu, bus| {
+    let (cpu, bus, cyc) = run(|_cpu, bus| {
         bus.poke(0x0010, &[0xF0]);
     }, &[0x18, 0x0F, 0x10]);
     assert_eq!(bus.peek(0x0010), 0xFF);
@@ -199,7 +199,7 @@ fn e06_15_or_dp_imm() {
 
 #[test]
 fn e06_15_and_dp_imm() {
-    let (cpu, bus, cyc) = run(|cpu, bus| {
+    let (cpu, bus, cyc) = run(|_cpu, bus| {
         bus.poke(0x0010, &[0x3C]);
     }, &[0x38, 0xF0, 0x10]);
     assert_eq!(bus.peek(0x0010), 0x30);

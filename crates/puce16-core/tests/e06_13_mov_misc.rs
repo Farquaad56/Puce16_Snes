@@ -1,4 +1,4 @@
-use puce16_core::apu::spc700::{Spc700, SmpBus, testbus::FlatSmpBus, F_C, F_Z, F_I, F_H, F_B, F_P, F_V, F_N};
+use puce16_core::apu::spc700::{Spc700, testbus::FlatSmpBus, F_Z, F_N};
 
 fn run(setup: impl FnOnce(&mut Spc700, &mut FlatSmpBus), prog: &[u8]) -> (Spc700, FlatSmpBus, u32) {
     let mut cpu = Spc700::new();
@@ -73,7 +73,7 @@ fn e06_13_mov_sp_x_no_flags() {
 
 #[test]
 fn e06_13_dp_imm() {
-    let (cpu, bus, cyc) = run(|_, _| {}, &[0x8F, 0x5A, 0x10]);
+    let (_cpu, bus, cyc) = run(|_, _| {}, &[0x8F, 0x5A, 0x10]);
     assert_eq!(bus.peek(0x0010), 0x5A);
     assert_eq!(cyc, 5);
     // Verify dummy read of destination before write
@@ -89,7 +89,7 @@ fn e06_13_dp_imm() {
 
 #[test]
 fn e06_13_dp_dp() {
-    let (cpu, bus, cyc) = run(|_, bus| {
+    let (_cpu, bus, cyc) = run(|_, bus| {
         bus.poke(0x0010, &[0x77]);
     }, &[0xFA, 0x10, 0x20]);
     assert_eq!(bus.peek(0x0020), 0x77);
@@ -111,7 +111,7 @@ fn e06_13_dp_dp() {
 
 #[test]
 fn e06_13_a_x_postinc() {
-    let (cpu, bus, cyc) = run(|cpu, bus| {
+    let (cpu, _bus, cyc) = run(|cpu, bus| {
         cpu.x = 0x10;
         bus.poke(0x0010, &[0x81]);
     }, &[0xBF]);
@@ -136,7 +136,7 @@ fn e06_13_x_postinc_store() {
 #[test]
 fn e06_13_movw_load() {
     // Normal case: load word into Y:A
-    let (cpu, bus, cyc) = run(|_, bus| {
+    let (cpu, _bus, cyc) = run(|_, bus| {
         bus.poke(0x0010, &[0x34]);
         bus.poke(0x0011, &[0x12]);
     }, &[0xBA, 0x10]);
@@ -147,14 +147,14 @@ fn e06_13_movw_load() {
     assert_eq!(cyc, 5);
 
     // Z flag: load zero word
-    let (cpu, bus, cyc) = run(|_, bus| {
+    let (cpu, _bus, _cyc) = run(|_, bus| {
         bus.poke(0x0010, &[0]);
         bus.poke(0x0011, &[0]);
     }, &[0xBA, 0x10]);
     assert!(cpu.flag(F_Z));
 
     // N flag: load word with bit 15 set
-    let (cpu, bus, cyc) = run(|_, bus| {
+    let (cpu, _bus, _cyc) = run(|_, bus| {
         bus.poke(0x0010, &[0x00]);
         bus.poke(0x0011, &[0x80]);
     }, &[0xBA, 0x10]);
@@ -164,7 +164,7 @@ fn e06_13_movw_load() {
 #[test]
 fn e06_13_movw_load_wrap() {
     // Wrap at 0xFF -> 0x00
-    let (cpu, bus, cyc) = run(|_, bus| {
+    let (cpu, _bus, _cyc) = run(|_, bus| {
         bus.poke(0x00FF, &[0x11]);
         bus.poke(0x0000, &[0x22]);
     }, &[0xBA, 0xFF]);
@@ -174,7 +174,7 @@ fn e06_13_movw_load_wrap() {
 
 #[test]
 fn e06_13_movw_store() {
-    let (cpu, bus, cyc) = run(|cpu, _| {
+    let (_cpu, bus, _cyc) = run(|cpu, _| {
         cpu.y = 0xAB;
         cpu.a = 0xCD;
     }, &[0xDA, 0x10]);
@@ -194,7 +194,7 @@ fn e06_13_movw_store() {
 #[test]
 fn e06_13_movw_store_wrap() {
     // Wrap at 0xFF -> 0x00
-    let (cpu, bus, cyc) = run(|cpu, _| {
+    let (_cpu, bus, _cyc) = run(|cpu, _| {
         cpu.y = 0x12;
         cpu.a = 0x34;
     }, &[0xDA, 0xFF]);

@@ -1,4 +1,4 @@
-use puce16_core::apu::spc700::{Spc700, SmpBus, testbus::FlatSmpBus, F_C, F_Z, F_I, F_H, F_B, F_P, F_V, F_N};
+use puce16_core::apu::spc700::{Spc700, testbus::FlatSmpBus, F_C, F_Z, F_H, F_P, F_V, F_N};
 
 fn run(setup: impl FnOnce(&mut Spc700, &mut FlatSmpBus), prog: &[u8]) -> (Spc700, FlatSmpBus, u32) {
     let mut cpu = Spc700::new();
@@ -206,7 +206,7 @@ fn e06_21_incw() {
 #[test]
 fn e06_21_decw() {
     // DECW dp: decrement word in memory with borrow propagation
-    let (cpu, bus, cyc) = run(|cpu, bus| {
+    let (_cpu, bus, cyc) = run(|cpu, bus| {
         cpu.psw = 0;
         bus.poke(0x10, &[0x00, 0x01]); // word value 0x0100
     }, &[0x1A, 0x10]);
@@ -236,7 +236,7 @@ fn e06_21_decw() {
 #[test]
 fn e06_21_page_wrap() {
     // INCW dp: high byte wraps within direct page (b=0xFF -> b+1=0x00)
-    let (cpu, bus, _) = run(|cpu, bus| {
+    let (_cpu, bus, _) = run(|cpu, bus| {
         cpu.psw = 0;
         bus.poke(0x00FF, &[0xFF]); // low byte at 0xFF
         bus.poke(0x0000, &[0x00]); // high byte wraps to 0x00
@@ -248,7 +248,7 @@ fn e06_21_page_wrap() {
 #[test]
 fn e06_21_p_flag() {
     // INCW dp: P flag selects direct page base (P=1 -> 0x0100)
-    let (cpu, bus, _) = run(|cpu, bus| {
+    let (_cpu, bus, _) = run(|cpu, bus| {
         cpu.psw = F_P;
         bus.poke(0x0110, &[0x01, 0x00]); // word at page 1
     }, &[0x3A, 0x10]);

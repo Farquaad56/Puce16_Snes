@@ -281,3 +281,55 @@ fn e06_16_sbc_dp_ind_y() {
     assert_eq!(cpu.a, 0x0F);
     assert_eq!(cyc, 6);
 }
+
+struct Form {
+    bytes: Vec<u8>,
+    x: u8,
+    y: u8,
+    pokes: Vec<(u16, Vec<u8>)>,
+    cycles: u32,
+}
+
+// The value 0x11 sits at the effective address of every form.
+fn forms(ops: [u8; 7]) -> Vec<Form> {
+    vec![
+        Form { bytes: vec![ops[0], 0x00, 0x30], x: 0, y: 0, pokes: vec![(0x3000, vec![0x11])], cycles: 4 },
+        Form { bytes: vec![ops[1]], x: 0x10, y: 0, pokes: vec![(0x0010, vec![0x11])], cycles: 3 },
+        Form { bytes: vec![ops[2], 0x10], x: 2, y: 0, pokes: vec![(0x0012, vec![0x00, 0x30]), (0x3000, vec![0x11])], cycles: 6 },
+        Form { bytes: vec![ops[3], 0x10], x: 1, y: 0, pokes: vec![(0x0011, vec![0x11])], cycles: 4 },
+        Form { bytes: vec![ops[4], 0xFF, 0x2F], x: 1, y: 0, pokes: vec![(0x3000, vec![0x11])], cycles: 5 },
+        Form { bytes: vec![ops[5], 0x00, 0x30], x: 0, y: 2, pokes: vec![(0x3002, vec![0x11])], cycles: 5 },
+        Form { bytes: vec![ops[6], 0x20], x: 0, y: 1, pokes: vec![(0x0020, vec![0xFF, 0x2F]), (0x3000, vec![0x11])], cycles: 6 },
+    ]
+}
+
+fn run_form(f: &Form, psw: u8, a: u8) -> (Spc700, u32) {
+    let (cpu, _, cyc) = run(|c, b| {
+        c.psw = psw;
+        c.a = a;
+        c.x = f.x;
+        c.y = f.y;
+        for (addr, data) in &f.pokes {
+            b.poke(*addr, data);
+        }
+    }, &f.bytes);
+    (cpu, cyc)
+}
+
+#[test]
+fn e06_16_adc_forms_cycles() {
+    for f in forms([0x85, 0x86, 0x87, 0x94, 0x95, 0x96, 0x97]) {
+        let (cpu, cyc) = run_form(&f, 0, 0);
+        assert_eq!(cpu.a, 0x11, "ADC form {:02X}", f.bytes[0]);
+        assert_eq!(cyc, f.cycles, "ADC form {:02X} cycles", f.bytes[0]);
+    }
+}
+
+#[test]
+fn e06_16_sbc_forms_cycles() {
+    for f in forms([0xA5, 0xA6, 0xA7, 0xB4, 0xB5, 0xB6, 0xB7]) {
+        let (cpu, cyc) = run_form(&f, F_C, 0x20);
+        assert_eq!(cpu.a, 0x0F, "SBC form {:02X}", f.bytes[0]);
+        assert_eq!(cyc, f.cycles, "SBC form {:02X} cycles", f.bytes[0]);
+    }
+}

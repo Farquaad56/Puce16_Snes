@@ -1,4 +1,4 @@
-use puce16_core::apu::spc700::{Spc700, SmpBus, testbus::FlatSmpBus, F_C, F_Z, F_I, F_H, F_B, F_P, F_V, F_N};
+use puce16_core::apu::spc700::{Spc700, testbus::FlatSmpBus, F_C, F_Z, F_I, F_H, F_B, F_P, F_V, F_N};
 
 fn run(setup: impl FnOnce(&mut Spc700, &mut FlatSmpBus), prog: &[u8]) -> (Spc700, FlatSmpBus, u32) {
     let mut cpu = Spc700::new();
@@ -14,7 +14,7 @@ fn run(setup: impl FnOnce(&mut Spc700, &mut FlatSmpBus), prog: &[u8]) -> (Spc700
 
 #[test]
 fn e06_12_dp_with_dummy_read() {
-    let (cpu, bus, cyc) = run(|cpu, _| {
+    let (_cpu, bus, cyc) = run(|cpu, _| {
         cpu.a = 0x5A;
     }, &[0xC4, 0x10]);
     assert_eq!(bus.peek(0x0010), 0x5A);
@@ -29,7 +29,7 @@ fn e06_12_dp_with_dummy_read() {
 
 #[test]
 fn e06_12_abs() {
-    let (cpu, bus, cyc) = run(|cpu, _| {
+    let (_cpu, bus, cyc) = run(|cpu, _| {
         cpu.a = 0x11;
     }, &[0xC5, 0x00, 0x30]);
     assert_eq!(bus.peek(0x3000), 0x11);
@@ -38,7 +38,7 @@ fn e06_12_abs() {
 
 #[test]
 fn e06_12_x_indirect() {
-    let (cpu, bus, cyc) = run(|cpu, _| {
+    let (_cpu, bus, cyc) = run(|cpu, _| {
         cpu.x = 0x20;
         cpu.a = 0x22;
     }, &[0xC6]);
@@ -48,7 +48,7 @@ fn e06_12_x_indirect() {
 
 #[test]
 fn e06_12_dpx_indirect() {
-    let (cpu, bus, cyc) = run(|cpu, bus| {
+    let (_cpu, bus, cyc) = run(|cpu, bus| {
         cpu.x = 2;
         cpu.a = 0x33;
         bus.poke(0x0012, &[0x00]);
@@ -60,7 +60,7 @@ fn e06_12_dpx_indirect() {
 
 #[test]
 fn e06_12_dpx() {
-    let (cpu, bus, cyc) = run(|cpu, _| {
+    let (_cpu, bus, cyc) = run(|cpu, _| {
         cpu.x = 1;
         cpu.a = 0x44;
     }, &[0xD4, 0x10]);
@@ -71,7 +71,7 @@ fn e06_12_dpx() {
 #[test]
 fn e06_12_absx_absy() {
     // MOV !abs+X, A
-    let (cpu, bus, cyc) = run(|cpu, _| {
+    let (_cpu, bus, cyc) = run(|cpu, _| {
         cpu.x = 1;
         cpu.a = 0x55;
     }, &[0xD5, 0xFF, 0x2F]);
@@ -79,7 +79,7 @@ fn e06_12_absx_absy() {
     assert_eq!(cyc, 6);
 
     // MOV !abs+Y, A
-    let (cpu, bus, cyc) = run(|cpu, _| {
+    let (_cpu, bus, cyc) = run(|cpu, _| {
         cpu.y = 2;
         cpu.a = 0x66;
     }, &[0xD6, 0x00, 0x30]);
@@ -89,7 +89,7 @@ fn e06_12_absx_absy() {
 
 #[test]
 fn e06_12_dp_indirect_y() {
-    let (cpu, bus, cyc) = run(|cpu, bus| {
+    let (_cpu, bus, cyc) = run(|cpu, bus| {
         cpu.y = 1;
         cpu.a = 0x77;
         bus.poke(0x0020, &[0xFF]);
@@ -102,21 +102,21 @@ fn e06_12_dp_indirect_y() {
 #[test]
 fn e06_12_from_x() {
     // MOV !abs, X
-    let (cpu, bus, cyc) = run(|cpu, _| {
+    let (_cpu, bus, cyc) = run(|cpu, _| {
         cpu.x = 0x88;
     }, &[0xC9, 0x00, 0x30]);
     assert_eq!(bus.peek(0x3000), 0x88);
     assert_eq!(cyc, 5);
 
     // MOV dp, X
-    let (cpu, bus, cyc) = run(|cpu, _| {
+    let (_cpu, bus, cyc) = run(|cpu, _| {
         cpu.x = 0x88;
     }, &[0xD8, 0x10]);
     assert_eq!(bus.peek(0x0010), 0x88);
     assert_eq!(cyc, 4);
 
     // MOV dp+Y, X (wrap)
-    let (cpu, bus, cyc) = run(|cpu, _| {
+    let (_cpu, bus, cyc) = run(|cpu, _| {
         cpu.x = 0x88;
         cpu.y = 3;
     }, &[0xD9, 0xFE]);
@@ -127,21 +127,21 @@ fn e06_12_from_x() {
 #[test]
 fn e06_12_from_y() {
     // MOV dp, Y
-    let (cpu, bus, cyc) = run(|cpu, _| {
+    let (_cpu, bus, cyc) = run(|cpu, _| {
         cpu.y = 0x99;
     }, &[0xCB, 0x10]);
     assert_eq!(bus.peek(0x0010), 0x99);
     assert_eq!(cyc, 4);
 
     // MOV !abs, Y
-    let (cpu, bus, cyc) = run(|cpu, _| {
+    let (_cpu, bus, cyc) = run(|cpu, _| {
         cpu.y = 0x99;
     }, &[0xCC, 0x00, 0x30]);
     assert_eq!(bus.peek(0x3000), 0x99);
     assert_eq!(cyc, 5);
 
     // MOV dp+X, Y
-    let (cpu, bus, cyc) = run(|cpu, _| {
+    let (_cpu, bus, cyc) = run(|cpu, _| {
         cpu.y = 0x99;
         cpu.x = 1;
     }, &[0xDB, 0x10]);
@@ -160,21 +160,18 @@ fn e06_12_no_flags() {
 
 #[test]
 fn e06_12_dummy_read_logged() {
-    let (cpu, bus, cyc) = run(|cpu, _| {
+    let (_cpu, bus, _cyc) = run(|cpu, _| {
         cpu.x = 0x20;
         cpu.a = 0x22;
     }, &[0xC6]);
-    // Find the write to 0x0020 and verify there's a read at 0x0020 before it
-    let mut found_write = false;
-    for cycle in &bus.log {
-        if cycle.addr == 0x0020 && cycle.kind == puce16_core::apu::spc700::testbus::CycleKind::Write {
-            found_write = true;
-            break;
-        }
-        if cycle.addr == 0x0020 && cycle.kind == puce16_core::apu::spc700::testbus::CycleKind::Read {
-            // Found read before write - success
-            return;
-        }
+    // The first access to 0x0020 must be the dummy read, before the write.
+    let first = bus.log.iter().find(|c| c.addr == 0x0020);
+    match first {
+        Some(c) => assert_eq!(
+            c.kind,
+            puce16_core::apu::spc700::testbus::CycleKind::Read,
+            "dummy read of destination not found before the write"
+        ),
+        None => panic!("no access to 0x0020 in log"),
     }
-    panic!("dummy read of destination not found in log");
 }

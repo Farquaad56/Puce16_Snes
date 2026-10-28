@@ -1,4 +1,4 @@
-use puce16_core::apu::spc700::{Spc700, SmpBus, testbus::FlatSmpBus, F_C};
+use puce16_core::apu::spc700::{Spc700, testbus::FlatSmpBus, F_C};
 
 fn run(setup: impl FnOnce(&mut Spc700, &mut FlatSmpBus), prog: &[u8]) -> (Spc700, FlatSmpBus, u32) {
     let mut cpu = Spc700::new();
@@ -113,14 +113,14 @@ fn e06_24_mov1_to_c() {
 #[test]
 fn e06_24_mov1_to_mem() {
     // MOV1 m.b,C: copy carry to memory bit
-    let (cpu, bus, cyc) = run(|c, b| {
+    let (_cpu, bus, cyc) = run(|c, b| {
         c.psw = F_C;
         b.poke(0x0005, &[0x00]);
     }, &[0xCA, 0x05, 0x20]);
     assert_eq!(bus.peek(0x0005), 0x02, "MOV1 m.b,C with C=1 should set bit");
     assert_eq!(cyc, 6);
 
-    let (cpu2, bus2, _) = run(|c, b| {
+    let (_cpu2, bus2, _) = run(|c, b| {
         c.psw = 0;
         b.poke(0x0005, &[0xFF]);
     }, &[0xCA, 0x05, 0x20]);
@@ -130,7 +130,7 @@ fn e06_24_mov1_to_mem() {
 #[test]
 fn e06_24_not1() {
     // NOT1 m.b: invert memory bit
-    let (cpu, bus, cyc) = run(|c, b| {
+    let (_cpu, bus, cyc) = run(|c, b| {
         c.psw = 0;
         b.poke(0x0005, &[0x00]);
     }, &[0xEA, 0x05, 0x20]);
@@ -138,7 +138,7 @@ fn e06_24_not1() {
     assert_eq!(cyc, 5);
 
     // Second execution: invert back
-    let (cpu2, bus2, _) = run(|c, b| {
+    let (_cpu2, bus2, _) = run(|c, b| {
         c.psw = 0;
         b.poke(0x0005, &[0x02]);
     }, &[0xEA, 0x05, 0x20]);
