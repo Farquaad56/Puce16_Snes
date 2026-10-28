@@ -180,12 +180,14 @@ fn e06_05_halted_step() {
 }
 
 #[test]
-#[should_panic(expected = "unimplemented opcode 00")]
 fn e06_05_unimplemented_panics() {
+    // Written when no opcode family existed (NOP panicked). Since E06-28 all 256
+    // opcodes are implemented, so the dispatch no longer panics: NOP must run.
     let mut bus = TB::new();
     let mut cpu = Spc700::new();
-    // opcode 0x00 (NOP) is not implemented yet at this stage
     cpu.pc = 0x0200;
     bus.ram[0x0200 as usize] = 0x00;
-    cpu.step(&mut bus);
+    let cycles = cpu.step(&mut bus);
+    assert_eq!(cpu.pc, 0x0201);
+    assert_eq!(cycles, 2);
 }

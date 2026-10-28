@@ -3,6 +3,7 @@ use puce16_core::apu::spc700::testbus::{CycleKind, FlatSmpBus};
 use puce16_core::apu::spc700::Spc700;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[allow(dead_code)]
 pub enum Level { Regs, Count, Full }
 
 fn fmt_u8(v: u8) -> String { format!("0x{:02X}", v) }
@@ -199,9 +200,10 @@ mod tests {
 
     #[test]
     fn e06_08_run_case_nop_like() {
-        // Opcode 0xE8 (MOV A,#imm) is not implemented - should panic
+        // Written when no opcode was implemented (E8 panicked). Since E06-28 every
+        // opcode exists, so run_case must NOT report a panic for E8 any more.
         let mut st = make_state(0x75F0, 0x00);
-        st.ram.push((0x75F0, 0xE8)); // unimplemented opcode
+        st.ram.push((0x75F0, 0xE8)); // MOV A,#imm
         st.ram.push((0x75F1, 0x42)); // immediate byte
         let case = Case {
             name: "test".to_string(),
@@ -212,8 +214,7 @@ mod tests {
         let mut cpu = Spc700::new();
         let mut bus = FlatSmpBus::new();
         let diffs = run_case(&case, &mut cpu, &mut bus, Level::Regs);
-        assert_eq!(diffs.len(), 1, "expected 1 panic line");
-        assert!(diffs[0].starts_with("panic:"), "should start with 'panic:': {}", diffs[0]);
+        assert!(diffs.iter().all(|d| !d.starts_with("panic:")), "unexpected panic: {:?}", diffs);
     }
 }
 
