@@ -559,36 +559,6 @@
       "state_hash": "0x3755cd0feb7a5933",
       "audio_hash": "0xb051896b18fd6a25"
     },
-    "peterlemon_ppu_hdma_hicolor128pertilerow_hicolor128pertilerow": {
-      "frames": 120,
-      "frame_hash": "0xfdc92a03b73695bc",
-      "state_hash": "0xc472f40f183b895f",
-      "audio_hash": "0xb051896b18fd6a25"
-    },
-    "peterlemon_ppu_hdma_hicolor128pertilerow_test_dq128pertilerow": {
-      "frames": 120,
-      "frame_hash": "0x8e9cc59464d744a7",
-      "state_hash": "0x00a57c8f08822d8d",
-      "audio_hash": "0xb051896b18fd6a25"
-    },
-    "peterlemon_ppu_hdma_hicolor128pertilerow_test_lenna128pertilerow": {
-      "frames": 120,
-      "frame_hash": "0x8d86c0c8c8ff95ab",
-      "state_hash": "0xace8fe7ec8ce307c",
-      "audio_hash": "0xb051896b18fd6a25"
-    },
-    "peterlemon_ppu_hdma_hicolor128pertilerow_test_mandrill128pertilerow": {
-      "frames": 120,
-      "frame_hash": "0x1da457c1b893da9d",
-      "state_hash": "0x5c10dfcf84c9af84",
-      "audio_hash": "0xb051896b18fd6a25"
-    },
-    "peterlemon_ppu_hdma_hicolor128pertilerow_test_rgb_24bits_palette_color_test_chart128pertilerow": {
-      "frames": 120,
-      "frame_hash": "0xfdc92a03b73695bc",
-      "state_hash": "0xc472f40f183b895f",
-      "audio_hash": "0xb051896b18fd6a25"
-    },
     "peterlemon_ppu_hdma_hicolor64pertilerow_hicolor64pertilerow": {
       "frames": 120,
       "frame_hash": "0xcd45f48b0f8b879c",
@@ -766,8 +736,8 @@
     "peterlemon_spc700_italotest_italotest": {
       "frames": 300,
       "frame_hash": "0xb3d415c7c3801d4a",
-      "state_hash": "0x8e90c03f28ccc95e",
-      "audio_hash": "0x6b04d6a48f1e0af2"
+      "state_hash": "0x2a926ffaf3c329b2",
+      "audio_hash": "0x373d4cd79a09388f"
     },
     "peterlemon_spc700_pitchmod_pitchmod": {
       "frames": 300,
