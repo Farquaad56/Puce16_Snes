@@ -204,7 +204,12 @@ E07-08	suite/runner.rs: executer une ROM du manifeste et la juger	E07	E07-07	0	c
 E07-09	suite.rs: la commande suite (manifeste, baseline, filtre d'epopee, PPM, mise a jour)	E07	E07-08	0	ui	130	hermes
 E07-10	Tests d'integration de `puce16-cli suite` (ROM synthetiques)	E07	E07-09	0	code	140	hermes
 E07-11	T-SUITE-REPORT: lancer la suite sur les vraies ROM et documenter l'etat	E07	E07-10	0	tooling	0	hermes
-E07-12	GATE J3/J5: captures validees, baseline fige	E07	E07-11	1	gate	0	user
+E07-11a	TUNE: DSP echo, spc_dsp6 echoue a Echo/echo calc (Failed 03)	E07	E07-11	0	code	100	hermes
+E07-11b	TUNE: temps d'acces memoire du SPC700 (spc_mem_access_times / spc_smp: Failed 02)	E07	E07-11a	0	code	120	hermes
+E07-11c	TUNE: Mode 7, bruit blanc dans le haut de l'image (PeterLemon StarWars)	E07	E07-11b	0	code	120	hermes
+E07-11d	TUNE: CPU 65816, gilyon cputest_full echoue au test 0027	E07	E07-11c	0	code	100	hermes
+E07-11e	TUNE: DSP enveloppe, spc_dsp6 echoue a Envelope/gain $E0 threshold (Failed 02)	E07	E07-11d	0	code	80	hermes
+E07-12	GATE J3/J5: captures validees, baseline fige	E07	E07-11e	1	gate	0	user
 E07-13	Preparer les jeux: README des ROM commerciales et verification du manifeste	E07	E07-12	0	doc	0	hermes
 E07-14	GATE J6: Super Mario World demarre et se joue	E07	E07-13	1	gate	0	user
 E07-15	GATE J7: ALttP et Super Mario All-Stars jouables	E07	E07-14	1	gate	0	user

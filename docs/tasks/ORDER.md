@@ -221,57 +221,62 @@ D-020: UNE seule tache a la fois, dans cet ordre. Une tache n'est prete que quan
 203. E07-09 suite.rs: la commande suite (manifeste, baseline, filtre d'epopee, PPM, mise a jour)
 204. E07-10 Tests d'integration de `puce16-cli suite` (ROM synthetiques)
 205. E07-11 T-SUITE-REPORT: lancer la suite sur les vraies ROM et documenter l'etat
-206. E07-12 GATE J3/J5: captures validees, baseline fige  [GATE]
-207. E07-13 Preparer les jeux: README des ROM commerciales et verification du manifeste
-208. E07-14 GATE J6: Super Mario World demarre et se joue  [GATE]
-209. E07-15 GATE J7: ALttP et Super Mario All-Stars jouables  [GATE]
+206. E07-11a TUNE: DSP echo, spc_dsp6 echoue a Echo/echo calc (Failed 03)
+207. E07-11b TUNE: temps d'acces memoire du SPC700 (spc_mem_access_times / spc_smp: Failed 02)
+208. E07-11c TUNE: Mode 7, bruit blanc dans le haut de l'image (PeterLemon StarWars)
+209. E07-11d TUNE: CPU 65816, gilyon cputest_full echoue au test 0027
+210. E07-11e TUNE: DSP enveloppe, spc_dsp6 echoue a Envelope/gain $E0 threshold (Failed 02)
+211. E07-12 GATE J3/J5: captures validees, baseline fige  [GATE]
+212. E07-13 Preparer les jeux: README des ROM commerciales et verification du manifeste
+213. E07-14 GATE J6: Super Mario World demarre et se joue  [GATE]
+214. E07-15 GATE J7: ALttP et Super Mario All-Stars jouables  [GATE]
 
 ## E08
-210. E08-01 savestate.rs: StateWriter, StateReader, StateError et trait State
-211. E08-02 State pour Cpu (cpu/mod.rs)
-212. E08-03 State pour Joypads, Cart (SRAM) et Wram
-213. E08-04 State pour Mmio et Timing
-214. E08-05 State pour Dma (canaux et etat HDMA)
-215. E08-06 State pour Vram, Cgram et Oam
-216. E08-07 State pour Scroll, M7Regs et Regs (registres PPU)
-217. E08-08 State pour Ppu (position, tampons de ligne, framebuffer)
-218. E08-09 State pour Spc700 et Timer
-219. E08-10 State pour Dsp et Voice
-220. E08-11 State pour ApuIo et Apu
-221. E08-12 Snes::save_state et load_state (assemblage, en-tete du blob)
-222. E08-13 Tests d'integration des save states sur des scenarios (NMI, DMA, HDMA, PPU, APU)
-223. E08-14 CLI: puce16-cli run --save-state / --load-state
-224. E08-15 Desktop audio.rs: anneau circulaire AudioRing (pur)
-225. E08-16 Desktop audio.rs: re-echantillonneur sinc fenetre (pur)
-226. E08-17 Desktop audio.rs: rendu du callback (volume, muet, canaux, sous-alimentation)
-227. E08-18 Desktop audio.rs: sortie cpal (AudioOut)
-228. E08-19 emu_thread: synchro audio (anneau), cadence PAL/NTSC, avance rapide
-229. E08-20 files.rs: chemins SRAM/save states, ecriture atomique, en-tete .p16s
-230. E08-21 emu_thread: SRAM (chargement, sauvegarde toutes les 5 s, a la fermeture)
-231. E08-22 emu_thread: save states (SaveState / LoadState, slots 0..9)
-232. E08-23 app.rs: raccourcis save states / slots / capture d'ecran / muet / avance rapide
-233. E08-24 config.rs: configuration JSON (defauts, aller-retour, ROM recentes)
-234. E08-25 video.rs: filtres, ratio par nom, scanlines (pur)
-235. E08-26 app.rs: configuration (chargement, application, ROM recentes, menus Video/Audio)
-236. E08-27 app.rs / main.rs: audio reel (anneau, flux cpal, volume, muet)
-237. E08-28 app.rs: plein ecran (F11), curseur masque, pause a la perte du focus
-238. E08-29 input.rs: tables manette (PadButton), stick, mappings personnalises (pur)
-239. E08-30 input.rs / app.rs: lecture des manettes avec gilrs (PadPoller)
-240. E08-31 GATE D5: desktop jouable (audio, SRAM, save states, manette, filtres, config)  [GATE]
-241. E08-32 snes.rs: accesseurs de debug (VRAM, CGRAM, OAM, registres PPU/SMP/DMA, page WRAM, run_until_pc)
-242. E08-33 emu_thread: commandes de debug (RequestDebug, SetWramPage, StepInstruction, RunToPc) et Event::Debug
-243. E08-34 debugger.rs: decodage de tuiles, couleurs, palettes, hexdump, drapeaux (pur)
-244. E08-35 debugger.rs: rendu des cartes BG, carte mode 7 et decodage OAM (pur)
-245. E08-36 debugger.rs / app.rs: fenetre du debugger (F10), registres et commandes d'execution
-246. E08-37 debugger.rs: onglets Tuiles, Cartes et Palettes
-247. E08-38 debugger.rs: onglets OAM et Memoire, parse_pc (+ tests purs)
-248. E08-39 GATE J8: save states, SRAM et debugger valides (jalon desktop final)  [GATE]
+215. E08-01 savestate.rs: StateWriter, StateReader, StateError et trait State
+216. E08-02 State pour Cpu (cpu/mod.rs)
+217. E08-03 State pour Joypads, Cart (SRAM) et Wram
+218. E08-04 State pour Mmio et Timing
+219. E08-05 State pour Dma (canaux et etat HDMA)
+220. E08-06 State pour Vram, Cgram et Oam
+221. E08-07 State pour Scroll, M7Regs et Regs (registres PPU)
+222. E08-08 State pour Ppu (position, tampons de ligne, framebuffer)
+223. E08-09 State pour Spc700 et Timer
+224. E08-10 State pour Dsp et Voice
+225. E08-11 State pour ApuIo et Apu
+226. E08-12 Snes::save_state et load_state (assemblage, en-tete du blob)
+227. E08-13 Tests d'integration des save states sur des scenarios (NMI, DMA, HDMA, PPU, APU)
+228. E08-14 CLI: puce16-cli run --save-state / --load-state
+229. E08-15 Desktop audio.rs: anneau circulaire AudioRing (pur)
+230. E08-16 Desktop audio.rs: re-echantillonneur sinc fenetre (pur)
+231. E08-17 Desktop audio.rs: rendu du callback (volume, muet, canaux, sous-alimentation)
+232. E08-18 Desktop audio.rs: sortie cpal (AudioOut)
+233. E08-19 emu_thread: synchro audio (anneau), cadence PAL/NTSC, avance rapide
+234. E08-20 files.rs: chemins SRAM/save states, ecriture atomique, en-tete .p16s
+235. E08-21 emu_thread: SRAM (chargement, sauvegarde toutes les 5 s, a la fermeture)
+236. E08-22 emu_thread: save states (SaveState / LoadState, slots 0..9)
+237. E08-23 app.rs: raccourcis save states / slots / capture d'ecran / muet / avance rapide
+238. E08-24 config.rs: configuration JSON (defauts, aller-retour, ROM recentes)
+239. E08-25 video.rs: filtres, ratio par nom, scanlines (pur)
+240. E08-26 app.rs: configuration (chargement, application, ROM recentes, menus Video/Audio)
+241. E08-27 app.rs / main.rs: audio reel (anneau, flux cpal, volume, muet)
+242. E08-28 app.rs: plein ecran (F11), curseur masque, pause a la perte du focus
+243. E08-29 input.rs: tables manette (PadButton), stick, mappings personnalises (pur)
+244. E08-30 input.rs / app.rs: lecture des manettes avec gilrs (PadPoller)
+245. E08-31 GATE D5: desktop jouable (audio, SRAM, save states, manette, filtres, config)  [GATE]
+246. E08-32 snes.rs: accesseurs de debug (VRAM, CGRAM, OAM, registres PPU/SMP/DMA, page WRAM, run_until_pc)
+247. E08-33 emu_thread: commandes de debug (RequestDebug, SetWramPage, StepInstruction, RunToPc) et Event::Debug
+248. E08-34 debugger.rs: decodage de tuiles, couleurs, palettes, hexdump, drapeaux (pur)
+249. E08-35 debugger.rs: rendu des cartes BG, carte mode 7 et decodage OAM (pur)
+250. E08-36 debugger.rs / app.rs: fenetre du debugger (F10), registres et commandes d'execution
+251. E08-37 debugger.rs: onglets Tuiles, Cartes et Palettes
+252. E08-38 debugger.rs: onglets OAM et Memoire, parse_pc (+ tests purs)
+253. E08-39 GATE J8: save states, SRAM et debugger valides (jalon desktop final)  [GATE]
 
 ## E09
-249. E09-01 Coprocesseur DSP-1 (Super Mario Kart, Pilotwings)
-250. E09-02 Coprocesseur Super FX / GSU (Star Fox, Yoshi's Island)
-251. E09-03 Coprocesseur SA-1 (Super Mario RPG, Kirby Super Star)
-252. E09-04 Decompresseur S-DD1 (Star Ocean, Street Fighter Alpha 2)
-253. E09-05 Decompresseur SPC7110 (Far East of Eden Zero, Momotaro Dentetsu Happy)
-254. E09-06 Coprocesseur Cx4 (Mega Man X2, X3)
-255. E09-07 Autres puces: OBC1, S-RTC, ST010/ST011/ST018, MSU-1, BS-X
+254. E09-01 Coprocesseur DSP-1 (Super Mario Kart, Pilotwings)
+255. E09-02 Coprocesseur Super FX / GSU (Star Fox, Yoshi's Island)
+256. E09-03 Coprocesseur SA-1 (Super Mario RPG, Kirby Super Star)
+257. E09-04 Decompresseur S-DD1 (Star Ocean, Street Fighter Alpha 2)
+258. E09-05 Decompresseur SPC7110 (Far East of Eden Zero, Momotaro Dentetsu Happy)
+259. E09-06 Coprocesseur Cx4 (Mega Man X2, X3)
+260. E09-07 Autres puces: OBC1, S-RTC, ST010/ST011/ST018, MSU-1, BS-X

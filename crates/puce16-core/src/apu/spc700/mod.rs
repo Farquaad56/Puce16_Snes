@@ -1,4 +1,5 @@
 pub mod table;
+pub mod pattern;
 pub mod addr;
 pub mod testbus;
 mod alu;
@@ -37,6 +38,8 @@ pub struct Spc700 {
     pub halted: bool,
     cyc: u32,
     taken: bool,
+    pat: &'static [u8],
+    pos: usize,
 }
 
 impl Spc700 {
@@ -44,26 +47,54 @@ impl Spc700 {
     pub fn new() -> Self {
         Spc700 {
             a: 0, x: 0, y: 0, sp: 0, pc: 0, psw: 0x02, halted: false, cyc: 0, taken: false,
+            pat: &[], pos: 0,
+        }
+    }
+
+    /// Emit the internal / dummy cycles the pattern places before the next
+    /// real access of kind `kind` (b'R' or b'W').
+    fn align<B: SmpBus>(&mut self, bus: &mut B, kind: u8, addr: u16) {
+        while self.pos < self.pat.len() {
+            let c = self.pat[self.pos];
+            if c == b'.' {
+                bus.idle();
+            } else if c == b'R' && kind == b'W' {
+                // dummy read before a write hits the same address as the write
+                let _ = bus.read(addr);
+            } else {
+                break;
+            }
+            self.cyc += 1;
+            self.pos += 1;
         }
     }
 
     /// Read one byte from bus at addr; counts as one cycle.
     pub fn rd<B: SmpBus>(&mut self, bus: &mut B, addr: u16) -> u8 {
+        self.align(bus, b'R', addr);
         let v = bus.read(addr);
         self.cyc += 1;
+        self.pos += 1;
         v
     }
 
     /// Write one byte to bus at addr; counts as one cycle.
     pub fn wr<B: SmpBus>(&mut self, bus: &mut B, addr: u16, v: u8) {
+        self.align(bus, b'W', addr);
         bus.write(addr, v);
         self.cyc += 1;
+        self.pos += 1;
     }
 
-    /// One idle bus cycle (no access).
+    /// One idle bus cycle: consumes the next pattern slot (a dummy read if it is an R slot).
     pub fn idle<B: SmpBus>(&mut self, bus: &mut B) {
-        bus.idle();
+        if self.pos < self.pat.len() && self.pat[self.pos] == b'R' {
+            let _ = bus.read(self.pc);
+        } else {
+            bus.idle();
+        }
         self.cyc += 1;
+        self.pos += 1;
     }
 
     /// Fetch one byte from PC and increment PC.
@@ -152,7 +183,11 @@ impl Spc700 {
         }
         self.cyc = 0;
         self.taken = false;
+        self.pat = &[];
+        self.pos = 0;
         let op = self.fetch8(bus);
+        self.pat = pattern::PATTERN[op as usize].as_bytes();
+        self.pos = 1;
         let exec = mov::exec(self, bus, op)
             || alu::exec(self, bus, op)
             || incdec::exec(self, bus, op)
@@ -163,6 +198,10 @@ impl Spc700 {
         if !exec {
             panic!("unimplemented opcode {:02X} ({})", op, table::NAME[op as usize]);
         }
+        while self.pos < self.pat.len() {
+            self.idle(bus);
+        }
+        self.pat = &[];
         let base = table::CYCLES[op as usize] as u32;
         let extra = if self.taken { table::BRANCH_EXTRA[op as usize] as u32 } else { 0 };
         let target = base + extra;

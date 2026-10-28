@@ -65,8 +65,8 @@ pub fn ea_dp_ind_y<B: SmpBus>(cpu: &mut Spc700, bus: &mut B) -> u16 {
     let b = cpu.fetch8(bus);
     let lo_addr = cpu.dp() | (b as u16);
     let hi_addr = cpu.dp() | ((b.wrapping_add(1)) as u16);
-    let ptr = cpu.rd16(bus, lo_addr, hi_addr);
     cpu.idle(bus);
+    let ptr = cpu.rd16(bus, lo_addr, hi_addr);
     (ptr as i32 + cpu.y as i32) as u16
 }
 

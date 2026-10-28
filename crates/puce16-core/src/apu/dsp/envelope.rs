@@ -11,7 +11,11 @@ impl Dsp {
             return;
         }
 
-        let adsr1 = self.regs[reg::vreg(x, reg::ADSR1)];
+        let adsr1 = if self.use_lat {
+            self.lat_adsr1[x & 7]
+        } else {
+            self.regs[reg::vreg(x, reg::ADSR1)]
+        };
         let adsr2 = self.regs[reg::vreg(x, reg::ADSR2)];
         let gain = self.regs[reg::vreg(x, reg::GAIN)];
 

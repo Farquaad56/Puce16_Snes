@@ -57,7 +57,9 @@ impl ApuIo {
         self.dsp_div += 1;
         if self.dsp_div == 32 {
             self.dsp_div = 0;
-            self.dsp.run_sample(&mut *self.ram);
+            self.dsp.run_sample_deferred(&mut *self.ram);
+        } else {
+            self.dsp.clock();
         }
     }
 
@@ -78,6 +80,7 @@ impl ApuIo {
         h.write_u8(self.dsp_div);
     }
 }
+
 
 impl SmpBus for ApuIo {
     fn read(&mut self, addr: u16) -> u8 {

@@ -163,8 +163,9 @@ impl Dma {
                     }
                 }
             } else {
-                // Counter > 0: transfer only if repeat flag set
-                ch.do_transfer = (ch.nltr & 0x80) != 0;
+                // Counter > 0: transfer only in repeat mode. NLTR $80 (count 0 = 128 lines)
+                // is NOT repeat: $01-$80 = one write then wait, $81-$FF = repeat (spec 03).
+                ch.do_transfer = (ch.nltr & 0x80) != 0 && (ch.nltr & 0x7F) != 0;
             }
         }
     }

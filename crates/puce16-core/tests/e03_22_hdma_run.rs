@@ -260,14 +260,13 @@ fn e03_22_line_count_128() {
     let mut bus = FakeBus::new(0);
     let mut dma = make_hdma_channel(0x00, 0x26, 0x7E, 0x2000);
 
-    // Line byte $80 means 128 lines (repeat flag set)
+    // Line byte $80 means 128 lines, NON-repeat (spec 03: $01-$80 = one write, then wait;
+    // only $81-$FF repeat). E07-11c fixed this: the old test assumed repeat mode.
     bus.poke(0x7E2000, 0x80);
-    // Provide data for all 128 transfers
-    for i in 0..128 {
-        bus.poke(0x7E2001 + i as u32, 0xAA);
-    }
+    // One data unit only
+    bus.poke(0x7E2001, 0xAA);
     // Next line byte after the group: 0x00 (done)
-    bus.poke(0x7E2001 + 128, 0x00);
+    bus.poke(0x7E2002, 0x00);
 
     dma.hdma_init(&mut bus, 0x01);
 

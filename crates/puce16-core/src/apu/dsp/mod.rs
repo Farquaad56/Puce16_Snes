@@ -59,6 +59,20 @@ pub struct Dsp {
     hist_l: [i32; 8],
     hist_r: [i32; 8],
     audio: Vec<i16>,
+    /// ENVX/OUTX values computed at the sample boundary, published to the register file
+    /// at the clock where the real S-DSP writes them (see `clock`).
+    pub(super) pend_envx: [u8; 8],
+    pub(super) pend_outx: [u8; 8],
+    /// Clock inside the current 32-clock sample (32 = nothing left to publish).
+    phase: u8,
+    /// ADSR1 as latched at each voice's V2 clock; used by the envelope in clocked mode.
+    pub(super) lat_adsr1: [u8; 8],
+    pub(super) use_lat: bool,
+    /// Shared transfer buffers between the voice pipeline and the ENVX/OUTX registers.
+    envx_buf: u8,
+    outx_buf: u8,
+    /// Configuration: output/ENVX use the envelope before the sample's update (reference order).
+    pub(super) ref_order: bool,
 }
 
 impl Dsp {
@@ -79,7 +93,20 @@ impl Dsp {
             hist_l: [0; 8],
             hist_r: [0; 8],
             audio: Vec::new(),
+            pend_envx: [0; 8],
+            pend_outx: [0; 8],
+            phase: 0,
+            lat_adsr1: [0; 8],
+            use_lat: false,
+            envx_buf: 0,
+            outx_buf: 0,
+            ref_order: false,
         }
+    }
+
+    /// Select the S-DSP evaluation order of the reference (see E07-11e-Q1).
+    pub fn set_reference_order(&mut self, on: bool) {
+        self.ref_order = on;
     }
 
     pub fn reset(&mut self) {
@@ -98,6 +125,13 @@ impl Dsp {
         for h in &mut self.hist_l { *h = 0; }
         for h in &mut self.hist_r { *h = 0; }
         self.audio.clear();
+        self.pend_envx = [0; 8];
+        self.pend_outx = [0; 8];
+        self.phase = 0;
+        self.lat_adsr1 = [0; 8];
+        self.use_lat = false;
+        self.envx_buf = 0;
+        self.outx_buf = 0;
     }
 
     pub fn read(&mut self, addr: u8) -> u8 {
@@ -107,6 +141,12 @@ impl Dsp {
     pub fn write(&mut self, addr: u8, v: u8) {
         let a = addr as usize & 0x7F;
         self.regs[a] = v;
+        // The S-DSP's ENVX/OUTX transfer buffers are loaded by CPU writes too.
+        match a & 0x0F {
+            8 => self.envx_buf = v,
+            9 => self.outx_buf = v,
+            _ => {}
+        }
         if a == reg::KON as usize {
             self.new_kon = v;
         }
@@ -116,7 +156,74 @@ impl Dsp {
         }
     }
 
+
+    /// Whole sample, results visible immediately (unit tests, offline use).
     pub fn run_sample(&mut self, ram: &mut [u8; 65536]) {
+        self.run_sample_inner(ram, false);
+        self.commit_all();
+    }
+
+    /// Publishes every pending ENVX/OUTX/ENDX value at once.
+    fn commit_all(&mut self) {
+        for x in 0..8 {
+            self.regs[reg::vreg(x, reg::ENVX)] = self.pend_envx[x];
+            self.regs[reg::vreg(x, reg::OUTX)] = self.pend_outx[x];
+        }
+        self.regs[reg::ENDX as usize] = self.endx;
+        self.phase = 32;
+    }
+
+    /// One DSP clock after `run_sample_deferred` (spec 07b / S-DSP pipeline): voice i
+    /// publishes ENDX at clock 2+3i, OUTX at 3+3i, ENVX at 4+3i.
+    pub fn clock(&mut self) {
+        let p = self.phase;
+        if p >= 32 {
+            return;
+        }
+        // ADSR1 is latched at the voice's V2 clock (voice 0: 21, voice x>=1: 3*(x-1)),
+        // so a write after that clock only takes effect on the next sample.
+        for x in 0..8usize {
+            let p2 = if x == 0 { 21 } else { 3 * (x as u8 - 1) };
+            if p == p2 {
+                self.lat_adsr1[x] = self.regs[reg::vreg(x, reg::ADSR1)];
+            }
+        }
+        // Shared OUTX/ENVX buffers (a CPU write to any voice's OUTX/ENVX also loads them):
+        // voice x loads OUTX buf at 3x+1 (V6), ENVX buf + ENDX at 3x+2 (V7), then stores
+        // OUTX at 3x+3 (V8) and ENVX at 3x+4 (V9).
+        if (1..=25).contains(&p) {
+            let k = (p - 1) as usize;
+            let x = k / 3;
+            match k % 3 {
+                0 => {
+                    // clock 3x+1: V9 of voice x-1 (store ENVX), then V6 of voice x (load OUTX)
+                    if x > 0 {
+                        self.regs[reg::vreg(x - 1, reg::ENVX)] = self.envx_buf;
+                    }
+                    if x < 8 {
+                        self.outx_buf = self.pend_outx[x];
+                    }
+                }
+                1 => {
+                    self.envx_buf = self.pend_envx[x];
+                    let bit = 1u8 << x;
+                    let r = &mut self.regs[reg::ENDX as usize];
+                    *r = (*r & !bit) | (self.endx & bit);
+                }
+                _ => self.regs[reg::vreg(x, reg::OUTX)] = self.outx_buf,
+            }
+        }
+        self.phase = p + 1;
+    }
+
+    /// Whole sample computed at once; register publication is left to `clock`.
+    pub fn run_sample_deferred(&mut self, ram: &mut [u8; 65536]) {
+        self.run_sample_inner(ram, true);
+    }
+
+    fn run_sample_inner(&mut self, ram: &mut [u8; 65536], latched: bool) {
+        self.use_lat = latched;
+        self.phase = 0;
         self.step_counter_noise();
         self.scan_kon_koff();
         let (mut sum_l, mut sum_r, mut echo_l, mut echo_r, mut prev_out) = (0i32, 0i32, 0i32, 0i32, 0i32);
@@ -133,7 +240,7 @@ impl Dsp {
         let (ml, mr) = self.run_echo(ram, sum_l, sum_r, echo_l, echo_r);
         self.audio.push(ml as i16);
         self.audio.push(mr as i16);
-        self.regs[reg::ENDX as usize] = self.endx;
+        self.use_lat = false;
     }
 
     fn scan_kon_koff(&mut self) {
@@ -188,6 +295,9 @@ impl Dsp {
         h.write_u8(self.endx);
         h.write_u16(self.echo_offset);
         h.write_u16(self.echo_length);
+        // Pipeline timing state (phase, pend_*, lat_adsr1, envx_buf/outx_buf) is derived from
+        // the SMP tick (ApuIo::dsp_div, hashed) and the register history; it is deliberately
+        // not hashed so the frozen state baselines keep their meaning (E07-11e).
         for &v in &self.hist_l {
             h.write_u32(v as u32);
         }

@@ -257,6 +257,100 @@ T("E07-11", "T-SUITE-REPORT: lancer la suite sur les vraies ROM et documenter l'
           "python -c \"import os,sys; sys.exit(0 if os.path.isfile('tests/out/suite.txt') else 1)\""],
   notes=CHAIN)
 
+T("E07-11a", "TUNE: DSP echo, spc_dsp6 echoue a Echo/echo calc (Failed 03)",
+  kind="code", size=100, crate="puce16-core",
+  context="""Tache de reglage creee a l'etape E07-12 (docs/03_KANBAN_HERMES.md section 6). La ROM `tests/roms/homebrew/blargg/spc/spc_dsp6.sfc` (manifeste: `blargg_spc_spc_dsp6`, 300 frames) affiche un ecran ROUGE avec `Failed 03` apres le sous-test `Echo/echo calc`. Les sous-tests `Echo/basics`, `esa_changes`, `edl_changes`, `wrap_around` et `zero_length` passent. Le DSP a ete valide contre les specs en E06; il reste un ecart sur le calcul de l'echo (filtre FIR, retour EFB, sortie EVOL, ou ecriture dans le tampon).""",
+  reads=["specs/07b_DSP.md (section echo)", "specs/07d_DSP_DESIGN.md", "docs/qa/SUITE_REPORT.md", "tests/roms/README.md (source de la ROM)"],
+  write=["crates/puce16-core/src/apu/dsp/echo.rs", "crates/puce16-core/src/apu/dsp/mod.rs", "crates/puce16-core/tests/e07_11a_*.rs", "tests/out/**"],
+  spec="""1. Reproduire: `cargo build --release -p puce16-cli` puis `target/release/puce16-cli run tests/roms/homebrew/blargg/spc/spc_dsp6.sfc --frames 300 --dump-ppm tests/out/e07_11a_dsp6.ppm`. Le pixel (0,0) est rouge tant que le test echoue (bleu quand il passe).
+2. Relire dans `specs/07b_DSP.md` et `specs/07d_DSP_DESIGN.md` la formule exacte de l'echo (historique, 8 coefficients FIR, ordre et saturation 16 bits, EFB, EVOL, bit d'ecriture du tampon dans FLG) et la comparer a `apu/dsp/echo.rs`. Ne rien deviner: toute valeur ou ordre non specifie -> commentaire `UNKNOWN - to confirm` + question bloquante.
+3. Regle de tuning: UNE seule modification a la fois (une constante, un ordre d'operations, une saturation), puis relancer la commande de l'etape 1 et noter le resultat dans le commit. Pas de modification groupee.
+4. Ajouter un test de non-regression qui echoue avant la correction et passe apres, avec des valeurs concretes tirees de la cause trouvee.
+5. Apres trois essais sans progres: ecrire la question et bloquer la tache; le GATE E07-12 documentera alors la ROM en `UNKNOWN` avec la cause.""",
+  tests=[("echo_calc_regression", "reproduit la cause exacte trouvee (valeurs d'echo concretes avant/apres)")],
+  accept=["cargo build --release -p puce16-cli",
+          "cargo test -p puce16-core e07_11a_",
+          "cargo test -p puce16-core e06_",
+          "cargo run --release -q -p puce16-cli -- run tests/roms/homebrew/blargg/spc/spc_dsp6.sfc --frames 300 --dump-ppm tests/out/e07_11a_dsp6.ppm",
+          "python -c \"import sys; d=open('tests/out/e07_11a_dsp6.ppm','rb').read(); sys.exit(0 if d[-172032] < 40 else 1)\""],
+  notes=CHAIN)
+
+T("E07-11b", "TUNE: temps d'acces memoire du SPC700 (spc_mem_access_times / spc_smp: Failed 02)",
+  kind="code", size=120, crate="puce16-core",
+  context="""Tache de reglage creee a l'etape E07-12. Les ROM `blargg_spc_spc_mem_access_times` (etiquetee E03 dans le manifeste: elle doit donc passer) et `blargg_spc_spc_smp` finissent sur le MEME ecran rouge `Failed 02`: une table des acces par opcode (D8..FB, colonnes du type `D0 W0 W1 R1`) et la valeur `10ADF742`. A 120 et 300 frames les tests tournent encore: le manifeste a ete porte a 1200 frames pour ces deux ROM. Le coeur SPC700 passe l'oracle 256/256 sur les RESULTATS; l'ecart porte donc sur le cycle SPC auquel chaque lecture/ecriture a lieu dans une instruction (acces fantomes, ordre des acces, cycle d'un acces timer/port).""",
+  reads=["specs/07_SPC700.md (cycles par instruction)", "specs/07c_SPC_DESIGN.md (recettes de cycles)", "docs/qa/SUITE_REPORT.md", "tests/roms/README.md (source de la ROM)"],
+  write=["crates/puce16-core/src/apu/spc700/**", "crates/puce16-core/src/apu/mod.rs", "crates/puce16-core/src/apu/io.rs", "crates/puce16-core/src/apu/timer.rs",
+         "crates/puce16-core/tests/e07_11b_*.rs", "crates/puce16-core/src/apu/spc700/pattern.rs", "docs/tools/gen_spc_patterns.py", "tests/out/**"],
+  spec="""1. Reproduire: `cargo build --release -p puce16-cli` puis `target/release/puce16-cli run tests/roms/homebrew/blargg/spc/spc_mem_access_times.sfc --frames 1200 --dump-ppm tests/out/e07_11b_mem.ppm` (et la meme commande pour `spc_smp.sfc`, fichier `e07_11b_smp.ppm`). Le pixel (0,0) est rouge tant que le test echoue.
+2. Determiner, instruction par instruction, a quel cycle SPC chaque acces bus doit avoir lieu (specs 07 et 07c). La valeur attendue de la somme de controle n'est pas dans les specs: si la table attendue est introuvable, question bloquante (type `spec`), ne pas deviner.
+3. Regle de tuning: UNE seule modification a la fois (un opcode ou une famille d'acces), puis relancer l'etape 1 et noter l'evolution de la table affichee.
+4. Test de non-regression: sequence d'acces attendue pour l'opcode corrige (via `testbus.rs`), echoue avant, passe apres.
+5. Apres trois essais sans progres: question et blocage. Le GATE E07-12 documentera alors `spc_smp` en `UNKNOWN` avec la cause; `spc_mem_access_times` (E03) devra par contre passer.
+6. DECISION UTILISATEUR (2026-10-28): positions des acces alignees sur l'oracle (table `pattern.rs` generee par `docs/tools/gen_spc_patterns.py`, test `e07_11b_access_cycle_positions`, `spc-test` 256/256). Les ROM `spc_mem_access_times` (E03, derogation explicite) et `spc_smp` restent en `Failed 02` (CRC 53B06F2C, table attendue introuvable): elles sont documentees `UNKNOWN` dans `docs/qa/SUITE_REPORT.md` et ne sont PAS figees dans la baseline. La tache est donc close sur la conformite a l'oracle; le critere pixel (0,0) a ete retire de l'acceptation.""",
+  tests=[("access_cycles_regression", "sequence d'acces bus attendue pour l'opcode corrige (cycle par cycle)")],
+  accept=["cargo build --release -p puce16-cli",
+          "cargo test -p puce16-core e07_11b_",
+          "cargo test -p puce16-core e06_",
+          "cargo run --release -q -p puce16-cli -- spc-test tests/oracle/spc700/v1",
+          "python docs/tools/gen_spc_patterns.py --check"],
+  notes=CHAIN)
+
+T("E07-11c", "TUNE: Mode 7, bruit blanc dans le haut de l'image (PeterLemon StarWars)",
+  kind="code", size=120, crate="puce16-core",
+  context="""Tache de reglage creee a l'etape E07-12. La ROM `tests/roms/homebrew/peterlemon/PPU/Mode7/StarWars/StarWars.sfc` (manifeste: `peterlemon_ppu_mode7_starwars_starwars`, epopee E05, portee de 120 a 600 frames) affiche dans la moitie haute de l'image des traits et blocs blancs, restes de texte repetes. Constate par l'utilisateur dans le desktop et reproduit en CLI a 600, 1200 et 1800 frames (pas a 120: le defilement n'a pas commence). La reference (Snes9x) montre le haut de l'image noir avec les etoiles. `ppu/mode7.rs` traite deja le hors-carte (boucle, transparent, tuile 0): la cause est donc plutot dans l'echantillonnage affine des lignes lointaines (grands facteurs d'echelle, arrondis, bits 13 signes) ou dans la prise en compte par ligne de la matrice M7A-M7D mise a jour par HDMA.""",
+  reads=["specs/05b_PPU_RENDER.md (mode 7)", "specs/05_PPU.md ($211A-$2120)", "specs/03_DMA.md (HDMA)", "docs/qa/SUITE_REPORT.md"],
+  write=["crates/puce16-core/src/ppu/mode7.rs", "crates/puce16-core/src/ppu/mod.rs", "crates/puce16-core/src/ppu/bg.rs", "crates/puce16-core/src/dma/hdma.rs",
+         "crates/puce16-core/tests/e07_11c_*.rs", "crates/puce16-core/tests/e03_22_hdma_run.rs", "tests/out/**"],
+  spec="""1. Reproduire: `cargo build --release -p puce16-cli` puis `target/release/puce16-cli run tests/roms/homebrew/peterlemon/PPU/Mode7/StarWars/StarWars.sfc --frames 600 --dump-ppm tests/out/e07_11c_starwars.ppm` et regarder le haut de l'image.
+2. Isoler la ligne la plus haute fautive: ecrire un test qui regle la matrice et le centre d'une ligne lointaine (valeurs reprises de la ROM, lues via `--debug` ou un test) et compare le pixel obtenu a la formule de la spec. Verifier aussi que la matrice utilisee pour la ligne N est celle ecrite par HDMA avant cette ligne.
+3. Regle de tuning: UNE seule modification a la fois (arrondi, largeur de bits, ordre, moment de latch), puis relancer l'etape 1 et noter l'effet.
+4. Test de non-regression avec valeurs concretes (matrice, centre, scroll, pixel attendu), echoue avant la correction, passe apres.
+5. Valeur ou comportement non specifie: `UNKNOWN - to confirm` + question bloquante, jamais de supposition.""",
+  tests=[("hdma_80_non_repeat", "table HDMA `$80 A2 01 A3 00`: `$80` = 128 lignes SANS repetition (une seule ecriture), cause reelle du bruit de StarWars (OBSEL lu dans la suite du ROM)")],
+  accept=["cargo build --release -p puce16-cli",
+          "cargo test -p puce16-core e07_11c_",
+          "cargo test -p puce16-core e05_",
+          "cargo run --release -q -p puce16-cli -- run tests/roms/homebrew/peterlemon/PPU/Mode7/StarWars/StarWars.sfc --frames 600 --dump-ppm tests/out/e07_11c_starwars.ppm"],
+  notes=CHAIN)
+
+T("E07-11d", "TUNE: CPU 65816, gilyon cputest_full echoue au test 0027",
+  kind="code", size=100, crate="puce16-core",
+  context="""Tache de reglage creee a l'etape E07-12. La ROM `tests/roms/homebrew/gilyon/cputest/cputest-full.sfc` (manifeste: `gilyon_cputest_cputest_full`, epopee E02, 120 frames) affiche `Running tests... Failed`, `Test number: 0027` et les registres `A = 1168  X = 00EE  Y = 0078  P = 30  S = 01EF`. La variante `cputest_basic` affiche `Success` (test 0452). Le critere de sortie du GATE E07-12 exige que toutes les ROM de l'epopee E02 passent. La baseline de cette ROM a ete retiree car la capture montre l'echec.""",
+  reads=["specs/01_CPU_65816.md", "specs/01b_CPU_DESIGN.md", "tests/roms/README.md (source de la ROM)", "docs/qa/FAQ_SNES.md"],
+  write=["crates/puce16-core/src/cpu/**", "crates/puce16-core/tests/e07_11d_*.rs", "tests/out/**"],
+  spec="""1. Reproduire: `cargo build --release -p puce16-cli` puis `target/release/puce16-cli run tests/roms/homebrew/gilyon/cputest/cputest-full.sfc --frames 600 --dump-ppm tests/out/e07_11d_full.ppm`.
+2. Identifier l'instruction et le mode d'adressage du test 0027 (liste des tests dans le depot source de la ROM, voir `tests/roms/README.md`). Si la correspondance numero -> instruction n'est pas disponible localement: question bloquante (type `spec`).
+3. Comparer l'etat final attendu (registres affiches par la ROM) avec celui de l'emulateur apres l'instruction, via un test unitaire sur le bus de test (`cpu/testbus.rs`).
+4. Regle de tuning: UNE seule modification a la fois, puis relancer l'etape 1. Verifier que `e02_` et `e03_` restent verts.
+5. Test de non-regression avec les valeurs concretes du test 0027 (A, X, Y, P, S avant/apres).""",
+  tests=[("test0027_regression", "instruction du test 0027 de cputest-full: registres avant/apres concrets")],
+  accept=["cargo build --release -p puce16-cli",
+          "cargo test -p puce16-core e07_11d_",
+          "cargo test -p puce16-core e02_",
+          "cargo run --release -q -p puce16-cli -- run tests/roms/homebrew/gilyon/cputest/cputest-full.sfc --frames 600 --dump-ppm tests/out/e07_11d_full.ppm"],
+  notes=CHAIN)
+
+T("E07-11e", "TUNE: DSP enveloppe, spc_dsp6 echoue a Envelope/gain $E0 threshold (Failed 02)",
+  kind="code", size=80, crate="puce16-core",
+  context="""Tache de reglage creee apres E07-11a. Une fois `Echo/echo calc` corrige, la ROM `tests/roms/homebrew/blargg/spc/spc_dsp6.sfc` (manifeste: `blargg_spc_spc_dsp6`) avance jusqu'a `Envelope/gain $E0 threshold` puis affiche un ecran ROUGE avec `Failed 02` et une serie de valeurs hexadecimales (`0020 0120 0220 0320 0420 0520 ...`, `0626 05E8`, `07E8 07E7`, `E7EEFEC8`). A 1200, 2400 et 4800 frames l'image est identique (hash `0x879686be98bb687a`). Les sous-tests precedents passent: Echo/*, `Envelope/attack->decay during gain`, `decay->sustain during gain`, `envelope rates`.
+GAIN `$E0` = mode 7 (augmentation `bent line`): +32 par pas, puis +8 quand l'enveloppe cachee `hidden_env` atteint 0x600 (spec 07b section 4.2). Piste NON verifiee: `envelope.rs` ne differe de la reference blargg (`SPC_DSP.cpp`, `run_envelope`) que sur un point lu a la main: en mode Release il met aussi `hidden_env` a jour, alors que la reference ne touche que `env`. Le seuil 0x600, la mise a jour conditionnelle par `poll`, ou la lecture de l'enveloppe visible (ENVX) sont d'autres candidats.""",
+  reads=["specs/07b_DSP.md (sections 4.2 enveloppes, 2 compteur)", "specs/07d_DSP_DESIGN.md", "docs/qa/SUITE_REPORT.md", "tests/roms/README.md (source de la ROM)"],
+  write=["crates/puce16-core/src/apu/dsp/envelope.rs", "crates/puce16-core/src/apu/dsp/voice.rs", "crates/puce16-core/src/apu/dsp/tables.rs", "crates/puce16-core/src/apu/dsp/mod.rs",
+         "crates/puce16-core/tests/e07_11e_*.rs", "tests/out/**"],
+  spec="""1. Reproduire: `cargo run --release -q -p puce16-cli -- run tests/roms/homebrew/blargg/spc/spc_dsp6.sfc --frames 4800 --hash --dump-ppm tests/out/e07_11e_dsp6.ppm`. Le hash actuel est `0x879686be98bb687a` et le pixel (0,0) est rouge.
+2. Les valeurs affichees par la ROM sont des enveloppes: relever celles d'un pas `$E0` avec les tests existants (`tests/e06_43_envelope.rs`) pour comparer avec la ROM. Si la signification des valeurs affichees est introuvable (source de la ROM, specs), question bloquante (type `spec`): ne pas deviner.
+3. Regle de tuning: UNE seule modification a la fois (ex: ne plus mettre a jour `hidden_env` en release, puis seuil, puis condition d'update), puis relancer l'etape 1 et noter si le hash change et ce que montre l'ecran.
+4. Test de non-regression avec valeurs concretes (GAIN, `hidden_env` avant, enveloppe apres), echoue avant la correction, passe apres. Ne pas affaiblir un test e06_ existant: s'il contredit la reference, question bloquante.
+5. Fin de tache: la ROM ne doit plus afficher `Failed 02` sur `gain $E0 threshold`. Si un AUTRE sous-test echoue ensuite, noter son nom dans le commit et le signaler a Claude (nouvelle tache), ne pas l'enchainer ici.
+6. Ne pas modifier le manifeste: apres correction `blargg_spc_spc_dsp6` devra passer de 300 a au moins 4800 frames (a faire a l'etape GATE).""",
+  tests=[("gain_e0_threshold_regression", "mode GAIN $E0 autour du seuil 0x600: hidden_env et enveloppe avant/apres, valeurs concretes")],
+  accept=["cargo build --release -p puce16-cli",
+          "cargo test -p puce16-core e07_11e_",
+          "cargo test -p puce16-core e06_",
+          "cargo run --release -q -p puce16-cli -- run tests/roms/homebrew/blargg/spc/spc_dsp6.sfc --frames 4800 --dump-ppm tests/out/e07_11e_dsp6.ppm",
+          "python -c \"import sys; d=open('tests/out/e07_11e_dsp6.ppm','rb').read(); sys.exit(0 if d[-172032] < 40 else 1)\""],
+  notes=CHAIN)
+
 T("E07-12", "GATE J3/J5: captures validees, baseline fige",
   kind="gate", gate=True, size=0,
   context="""Jalons J3 (ROM graphiques: modes 0 a 7, sprites, fenetres, mosaique, color math, HDMA) et J5 (sons de ROM de test). Claude trie d'abord les echecs du rapport (corrections via des taches de tuning `TUNE-nn`, une constante a la fois, ajoutees par Claude). L'utilisateur regarde les captures et fige les hash.""",

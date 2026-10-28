@@ -13,6 +13,12 @@
       "state_hash": "0x683e1c4a551ff228",
       "audio_hash": "0x69a53d5a0a363c15"
     },
+    "gilyon_cputest_cputest_full": {
+      "frames": 600,
+      "frame_hash": "0x44cfa72d8bed80e7",
+      "state_hash": "0x71751a7b912a243a",
+      "audio_hash": "0x06ff3bf0ed0dc205"
+    },
     "gilyon_spctest_spctest": {
       "frames": 300,
       "frame_hash": "0xc63ddd7d28754a27",
@@ -412,7 +418,7 @@
     "peterlemon_cputest_spc700_dec_spc700dec": {
       "frames": 120,
       "frame_hash": "0xb84deb77e3013292",
-      "state_hash": "0xbf30722aed117cb4",
+      "state_hash": "0x6917e9b2bdd1d6ab",
       "audio_hash": "0x495705b6dc053724"
     },
     "peterlemon_cputest_spc700_eor_spc700eor": {
@@ -424,7 +430,7 @@
     "peterlemon_cputest_spc700_inc_spc700inc": {
       "frames": 120,
       "frame_hash": "0x5bb93178fde702ec",
-      "state_hash": "0xe0ddb3c93de3b4ae",
+      "state_hash": "0xd9f05a581bc041bd",
       "audio_hash": "0x495705b6dc053724"
     },
     "peterlemon_cputest_spc700_ora_spc700ora": {
@@ -559,6 +565,36 @@
       "state_hash": "0x3755cd0feb7a5933",
       "audio_hash": "0xb051896b18fd6a25"
     },
+    "peterlemon_ppu_hdma_hicolor128pertilerow_hicolor128pertilerow": {
+      "frames": 120,
+      "frame_hash": "0x3bc222d4c6dd3216",
+      "state_hash": "0xb8b1b8beb6843853",
+      "audio_hash": "0xb051896b18fd6a25"
+    },
+    "peterlemon_ppu_hdma_hicolor128pertilerow_test_dq128pertilerow": {
+      "frames": 120,
+      "frame_hash": "0x7f324e6a1263196e",
+      "state_hash": "0x8f84124d9d5a41f1",
+      "audio_hash": "0xb051896b18fd6a25"
+    },
+    "peterlemon_ppu_hdma_hicolor128pertilerow_test_lenna128pertilerow": {
+      "frames": 120,
+      "frame_hash": "0x2e5754ab56fef381",
+      "state_hash": "0xf19eaa5f76f75bc4",
+      "audio_hash": "0xb051896b18fd6a25"
+    },
+    "peterlemon_ppu_hdma_hicolor128pertilerow_test_mandrill128pertilerow": {
+      "frames": 120,
+      "frame_hash": "0x053583e0c2b953a0",
+      "state_hash": "0x56a99a50536b058c",
+      "audio_hash": "0xb051896b18fd6a25"
+    },
+    "peterlemon_ppu_hdma_hicolor128pertilerow_test_rgb_24bits_palette_color_test_chart128pertilerow": {
+      "frames": 120,
+      "frame_hash": "0x3bc222d4c6dd3216",
+      "state_hash": "0xb8b1b8beb6843853",
+      "audio_hash": "0xb051896b18fd6a25"
+    },
     "peterlemon_ppu_hdma_hicolor64pertilerow_hicolor64pertilerow": {
       "frames": 120,
       "frame_hash": "0xcd45f48b0f8b879c",
@@ -691,6 +727,12 @@
       "state_hash": "0xeb3c99ae88c791ca",
       "audio_hash": "0xb051896b18fd6a25"
     },
+    "peterlemon_ppu_mode7_starwars_starwars": {
+      "frames": 600,
+      "frame_hash": "0x0ab3b7c4f10199b3",
+      "state_hash": "0xb1feb532f9c3f127",
+      "audio_hash": "0x63c5a65819b53315"
+    },
     "peterlemon_ppu_mosaic_mode3_mosaicmode3": {
       "frames": 120,
       "frame_hash": "0x0b7f288ca3998777",
@@ -772,7 +814,7 @@
     "peterlemon_spc700_twinkle_twinkle": {
       "frames": 300,
       "frame_hash": "0xb3d415c7c3801d4a",
-      "state_hash": "0xac0f4dc639e55193",
+      "state_hash": "0x1be100288434a686",
       "audio_hash": "0xd85135a241c22ae2"
     }
   }

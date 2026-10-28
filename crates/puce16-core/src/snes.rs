@@ -360,4 +360,12 @@ impl Snes {
             Inner::Real { sys, .. } => sys.wram.read(idx),
         }
     }
+
+    /// Read APU port $2140-$2143 (mirrored every 4). Returns byte written by SPC700.
+    pub fn apu_port(&self, i: usize) -> u8 {
+        match &self.inner {
+            Inner::Pattern { .. } => 0,
+            Inner::Real { sys, .. } => sys.apu.port_read(i),
+        }
+    }
 }

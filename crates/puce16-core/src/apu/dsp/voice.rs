@@ -181,6 +181,8 @@ impl Dsp {
                 self.voice_decode_group(x, ram);
             }
             self.voices[x].out = 0;
+            self.pend_envx[x & 7] = 0;
+            self.pend_outx[x & 7] = 0;
             return (0, 0);
         }
 
@@ -208,15 +210,25 @@ impl Dsp {
             sample = gauss_interp(a, b, c, d, frac);
         }
 
-        // Step 4: Run envelope and apply
-        self.run_envelope(x);
-        let env = self.voices[x].env;
-        let out = ((sample * env) >> 11) & !1;
+        // Step 4: envelope. Default keeps spec 07b order (run_envelope first). With
+        // `ref_order` the S-DSP order of the reference is used (output and ENVX use the
+        // envelope BEFORE this sample's update); see docs/qa/inbox/E07-11e-Q1.md.
+        let env;
+        let out;
+        if self.ref_order {
+            env = self.voices[x].env;
+            out = ((sample * env) >> 11) & !1;
+            self.run_envelope(x);
+        } else {
+            self.run_envelope(x);
+            env = self.voices[x].env;
+            out = ((sample * env) >> 11) & !1;
+        }
         self.voices[x].out = out;
 
-        // Step 5: Write ENVX and OUTX registers
-        self.regs[reg::vreg(x, reg::ENVX)] = (env >> 4) as u8;
-        self.regs[reg::vreg(x, reg::OUTX)] = (out >> 8) as u8;
+        // Step 5: ENVX and OUTX values (published to the register file by `clock`)
+        self.pend_envx[x & 7] = (env >> 4) as u8;
+        self.pend_outx[x & 7] = (out >> 8) as u8;
 
         // Step 6: Compute pitch with PMON modulation and advance interp_pos
         let pitchl = self.regs[reg::vreg(x, reg::PITCHL)];
@@ -241,6 +253,9 @@ impl Dsp {
 
     /// Debug wrapper for voice_step.
     pub fn debug_voice_step(&mut self, x: usize, ram: &[u8; 65536], prev_out: i32) -> (i32, i32) {
-        self.voice_step(x, ram, prev_out)
+        let r = self.voice_step(x, ram, prev_out);
+        self.regs[reg::vreg(x, reg::ENVX)] = self.pend_envx[x & 7];
+        self.regs[reg::vreg(x, reg::OUTX)] = self.pend_outx[x & 7];
+        r
     }
 }

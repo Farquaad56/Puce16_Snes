@@ -54,7 +54,13 @@ pub(super) fn ea<B: Bus>(cpu: &mut Cpu, bus: &mut B, am: Am, store: bool) -> Ea 
             }
             bus.idle();
             let off = (dl as u32) + (cpu.x as u32);
-            let (p0, p1, _) = ptr_addrs(cpu, off, false);
+            let (mut p0, mut p1, _) = ptr_addrs(cpu, off, false);
+            if cpu.e && (cpu.d & 0xFF) != 0 {
+                // E=1, DL!=0 (undocumented, verified by gilyon cputest 0027): the dp+D+X sum
+                // does not wrap, but the +1 for the pointer high byte wraps inside the page.
+                p0 = ((cpu.d as u32) + off) & 0xFFFF;
+                p1 = (p0 & 0xFF00) | ((p0 + 1) & 0xFF);
+            }
             let lo = bus.read(p0);
             let hi = bus.read(p1);
             let base = ((cpu.db as u32) << 16) | ((hi as u32) << 8) | (lo as u32);

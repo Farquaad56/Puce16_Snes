@@ -166,8 +166,12 @@ pub(super) fn exec<B: SmpBus>(cpu: &mut Spc700, bus: &mut B, op: u8) -> bool {
         }
         // MOV [dp]+Y, A
         0xD7 => {
-            let ea = addr::ea_dp_ind_y(cpu, bus);
-            let _ = cpu.rd(bus, ea);
+            // store: pointer reads first, then internal + dummy cycle (pattern aligned by wr)
+            let b = cpu.fetch8(bus);
+            let lo_addr = cpu.dp() | (b as u16);
+            let hi_addr = cpu.dp() | ((b.wrapping_add(1)) as u16);
+            let ptr = cpu.rd16(bus, lo_addr, hi_addr);
+            let ea = (ptr as i32 + cpu.y as i32) as u16;
             cpu.wr(bus, ea, cpu.a);
         }
 
@@ -280,7 +284,6 @@ pub(super) fn exec<B: SmpBus>(cpu: &mut Spc700, bus: &mut B, op: u8) -> bool {
         // MOV (X)+,A
         0xAF => {
             let ea = addr::ea_x(cpu, bus);
-            let _ = cpu.rd(bus, ea);
             cpu.wr(bus, ea, cpu.a);
             cpu.x = cpu.x.wrapping_add(1);
         }

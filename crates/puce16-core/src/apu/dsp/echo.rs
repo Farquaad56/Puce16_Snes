@@ -34,7 +34,7 @@ impl Dsp {
         // Step 5: FIR filter (8 taps, signed coefficients)
         let fir_l = {
             let mut acc = 0i32;
-            for i in 0..6 {
+            for i in 0..=6 {
                 let coeff = self.regs[reg::fir(i) as usize] as i8 as i32;
                 acc += (self.hist_l[i] * coeff) >> 6;
             }
@@ -47,7 +47,7 @@ impl Dsp {
 
         let fir_r = {
             let mut acc = 0i32;
-            for i in 0..6 {
+            for i in 0..=6 {
                 let coeff = self.regs[reg::fir(i) as usize] as i8 as i32;
                 acc += (self.hist_r[i] * coeff) >> 6;
             }

@@ -105,10 +105,10 @@ fn dbnz_y<B: SmpBus>(cpu: &mut Spc700, bus: &mut B) {
 /// DBNZ dp,rel - decrement memory at dp and branch if not zero
 fn dbnz_dp<B: SmpBus>(cpu: &mut Spc700, bus: &mut B) {
     let b = cpu.fetch8(bus);
-    let rel = cpu.fetch8(bus);
     let ea = cpu.dp() | (b as u16);
     let v = cpu.rd(bus, ea).wrapping_sub(1);
     cpu.wr(bus, ea, v);
+    let rel = cpu.fetch8(bus);
     if v != 0 {
         cpu.branch(rel);
     }
