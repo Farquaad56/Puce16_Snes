@@ -101,7 +101,7 @@ fn e06_32_divider_128() {
 #[test]
 fn e06_32_hash() {
     let mut a = Timer::new(16);
-    let mut b = Timer::new(16);
+    let b = Timer::new(16);
     let mut ha = Fnv64::new();
     let mut hb = Fnv64::new();
     a.hash_into(&mut ha);

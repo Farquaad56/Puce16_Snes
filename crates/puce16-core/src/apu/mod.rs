@@ -88,8 +88,8 @@ impl Apu {
 
     /// Debug: write bytes to SPC700 RAM without ticking.
     pub fn debug_poke(&mut self, addr: u16, bytes: &[u8]) {
-        for &b in bytes {
-            let a = addr as usize;
+        for (i, &b) in bytes.iter().enumerate() {
+            let a = addr.wrapping_add(i as u16) as usize;
             self.io.ram[a] = b;
         }
     }
@@ -112,6 +112,11 @@ impl Apu {
     /// Debug: write to DSP register directly.
     pub fn debug_dsp_write(&mut self, reg: u8, v: u8) {
         self.io.dsp.write(reg, v);
+    }
+
+    /// Debug: read from DSP register directly.
+    pub fn debug_dsp_read(&mut self, reg: u8) -> u8 {
+        self.io.dsp.read(reg)
     }
 
     /// Hash APU state into the given hasher.

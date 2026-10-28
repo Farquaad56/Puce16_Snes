@@ -10,6 +10,9 @@ use crate::ppu::output::{make_view, FrameBuf, FrameView};
 use crate::region::Region;
 use crate::bus::SysBus;
 
+/// Audio sample rate (D-004): APU_RESONATOR_HZ / 768 = 32040 Hz.
+pub const AUDIO_SAMPLE_RATE: u32 = 32_040;
+
 /// Test pattern width in columns (E01-06).
 const TEST_W: usize = 256;
 /// Test pattern height in rows, NTSC and PAL alike (E01-06).
@@ -216,8 +219,19 @@ impl Snes {
         }
     }
 
-    /// Audio samples for the frame; does nothing for now.
-    pub fn take_audio(&mut self, _out: &mut Vec<[i16; 2]>) {}
+    /// Take accumulated audio samples and append them to `out`.
+    /// Pattern variant does nothing (no audio). Real variant drains the DSP buffer.
+    pub fn take_audio(&mut self, out: &mut Vec<[i16; 2]>) {
+        match &mut self.inner {
+            Inner::Pattern { .. } => {}
+            Inner::Real { sys, .. } => {
+                let flat = sys.apu.take_audio();
+                for i in (0..flat.len()).step_by(2) {
+                    out.push([flat[i], flat[i + 1]]);
+                }
+            }
+        }
+    }
 
     /// Deterministic state hash: region, frame, CPU state, system state.
     pub fn state_hash(&self) -> u64 {

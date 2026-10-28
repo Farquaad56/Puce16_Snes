@@ -92,7 +92,7 @@ fn e06_31_voice_new() {
 #[test]
 fn e06_31_hash_changes() {
     let mut dsp1 = Dsp::new();
-    let mut dsp2 = Dsp::new();
+    let dsp2 = Dsp::new();
     let mut h1 = Fnv64::new();
     let mut h2 = Fnv64::new();
     dsp1.hash_into(&mut h1);
