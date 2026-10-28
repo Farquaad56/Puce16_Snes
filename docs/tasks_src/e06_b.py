@@ -331,7 +331,7 @@ T("E06-28", "spc700/misc.rs: PUSH, POP, flags, NOP, SLEEP, STOP",
          ("clrv_clears_h", "psw=0x48 (V,H) `E0`: psw==0x00, cycles 2 ; psw=0xC9 `E0`: psw==0x81."),
          ("p_flag", "psw=0 `40`: psw==0x20 ; `20`: psw==0 ; cycles 2."),
          ("nop", "psw=0x5A, `00`: tous les registres inchanges, pc==0x0201, cycles 2."),
-         ("sleep_halts", "`EF`: halted==true, cycles 3, pc==0x0201 ; un `step` de plus renvoie 1 et pc==0x0201 ; idem `FF`."),
+         ("sleep_halts", "`EF`: halted==true, cycles 7, pc==0x0201 ; un `step` de plus renvoie 1 et pc==0x0201 ; idem `FF`."),
          ("all_opcodes_implemented", "Pour chacun des 256 opcodes: bus plat avec l'opcode en 0x0200 et des octets d'operande 0x00; `catch_unwind` autour d'un `step`: AUCUN ne doit paniquer avec le message `unimplemented opcode` (d'autres paniques ne sont pas attendues non plus ; la valeur de retour est ignoree).")],
   notes=CHAIN)
 
