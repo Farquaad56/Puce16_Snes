@@ -1,0 +1,1278 @@
+[[rom]]
+name = "blargg_spc_spc_dsp6"
+path = "tests/roms/homebrew/blargg/spc/spc_dsp6.sfc"
+region = "auto"
+frames = 300
+optional = false
+epic = "E06"
+check = "hash"
+
+[[rom]]
+name = "blargg_spc_spc_mem_access_times"
+path = "tests/roms/homebrew/blargg/spc/spc_mem_access_times.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E03"
+check = "hash"
+
+[[rom]]
+name = "blargg_spc_spc_smp"
+path = "tests/roms/homebrew/blargg/spc/spc_smp.sfc"
+region = "auto"
+frames = 300
+optional = false
+epic = "E06"
+check = "hash"
+
+[[rom]]
+name = "blargg_spc_spc_timer"
+path = "tests/roms/homebrew/blargg/spc/spc_timer.sfc"
+region = "auto"
+frames = 300
+optional = false
+epic = "E06"
+check = "hash"
+
+[[rom]]
+name = "gilyon_cputest_cputest_basic"
+path = "tests/roms/homebrew/gilyon/cputest/cputest-basic.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E02"
+check = "hash"
+
+[[rom]]
+name = "gilyon_cputest_cputest_full"
+path = "tests/roms/homebrew/gilyon/cputest/cputest-full.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E02"
+check = "hash"
+
+[[rom]]
+name = "gilyon_spctest_spctest"
+path = "tests/roms/homebrew/gilyon/spctest/spctest.sfc"
+region = "auto"
+frames = 300
+optional = false
+epic = "E06"
+check = "hash"
+
+[[rom]]
+name = "higan_93143_hblank_dma_vram_hvdma"
+path = "tests/roms/homebrew/higan/93143-hblank-dma-vram/hvdma.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E03"
+check = "hash"
+
+[[rom]]
+name = "higan_93143_hblank_dma_vram_hvdma_max"
+path = "tests/roms/homebrew/higan/93143-hblank-dma-vram/hvdma_max.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E03"
+check = "hash"
+
+[[rom]]
+name = "higan_lidnariq_ppu_bus_activity_ppubusact"
+path = "tests/roms/homebrew/higan/lidnariq-ppu-bus-activity/ppubusact.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "higan_lidnariq_smp_clock_speed_measurement_smpspeed"
+path = "tests/roms/homebrew/higan/lidnariq-smp-clock-speed-measurement/smpspeed.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E03"
+check = "hash"
+
+[[rom]]
+name = "higan_tepples_tellinglys_tellinglys"
+path = "tests/roms/homebrew/higan/tepples-tellinglys/tellinglys.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E04"
+check = "hash"
+
+[[rom]]
+name = "higan_undisbeliever_inidisp_hdma_2100_glitch_2ch_0a"
+path = "tests/roms/homebrew/higan/undisbeliever-inidisp/hdma-2100-glitch-2ch-0a.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "higan_undisbeliever_inidisp_hdma_2100_glitch_2ch_81"
+path = "tests/roms/homebrew/higan/undisbeliever-inidisp/hdma-2100-glitch-2ch-81.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "higan_undisbeliever_inidisp_hdma_2100_glitch"
+path = "tests/roms/homebrew/higan/undisbeliever-inidisp/hdma-2100-glitch.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "higan_undisbeliever_inidisp_hdma_21ff_2100_0f_glitch"
+path = "tests/roms/homebrew/higan/undisbeliever-inidisp/hdma-21ff-2100-0f-glitch.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "higan_undisbeliever_inidisp_hdma_21ff_2100_glitch"
+path = "tests/roms/homebrew/higan/undisbeliever-inidisp/hdma-21ff-2100-glitch.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "higan_undisbeliever_inidisp_hdma_21ff_glitch"
+path = "tests/roms/homebrew/higan/undisbeliever-inidisp/hdma-21ff-glitch.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "higan_undisbeliever_inidisp_hdmaen_latch_test"
+path = "tests/roms/homebrew/higan/undisbeliever-inidisp/hdmaen_latch_test.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "higan_undisbeliever_inidisp_hdmaen_latch_test_2"
+path = "tests/roms/homebrew/higan/undisbeliever-inidisp/hdmaen_latch_test_2.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "higan_undisbeliever_inidisp_inidisp_brightness_delay"
+path = "tests/roms/homebrew/higan/undisbeliever-inidisp/inidisp_brightness_delay.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "higan_undisbeliever_inidisp_inidisp_d7_glitch_test"
+path = "tests/roms/homebrew/higan/undisbeliever-inidisp/inidisp_d7_glitch_test.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "higan_undisbeliever_inidisp_inidisp_enable_display_mid_frame"
+path = "tests/roms/homebrew/higan/undisbeliever-inidisp/inidisp_enable_display_mid_frame.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "higan_undisbeliever_inidisp_inidisp_forgot_to_force_blank"
+path = "tests/roms/homebrew/higan/undisbeliever-inidisp/inidisp_forgot_to_force_blank.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "higan_undisbeliever_inidisp_inidisp_hammer_0f"
+path = "tests/roms/homebrew/higan/undisbeliever-inidisp/inidisp_hammer_0f.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "higan_undisbeliever_inidisp_inidisp_hammer_0f00"
+path = "tests/roms/homebrew/higan/undisbeliever-inidisp/inidisp_hammer_0f00.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "higan_undisbeliever_inidisp_inidisp_hammer_0f0f"
+path = "tests/roms/homebrew/higan/undisbeliever-inidisp/inidisp_hammer_0f0f.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "higan_undisbeliever_inidisp_inidisp_hammer_0f8f"
+path = "tests/roms/homebrew/higan/undisbeliever-inidisp/inidisp_hammer_0f8f.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "higan_undisbeliever_inidisp_inidisp_hammer_0f8f_fast"
+path = "tests/roms/homebrew/higan/undisbeliever-inidisp/inidisp_hammer_0f8f_fast.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "higan_undisbeliever_inidisp_inidisp_hammer_0f_long"
+path = "tests/roms/homebrew/higan/undisbeliever-inidisp/inidisp_hammer_0f_long.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "higan_undisbeliever_inidisp_inidisp_hammer_8f0f"
+path = "tests/roms/homebrew/higan/undisbeliever-inidisp/inidisp_hammer_8f0f.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "higan_undisbeliever_inidisp_scpu_a_dma_bug_1"
+path = "tests/roms/homebrew/higan/undisbeliever-inidisp/scpu-a-dma-bug-1.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "higan_undisbeliever_inidisp_scpu_a_dma_bug_2"
+path = "tests/roms/homebrew/higan/undisbeliever-inidisp/scpu-a-dma-bug-2.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "higan_undisbeliever_inidisp_scpu_a_dma_bug_3"
+path = "tests/roms/homebrew/higan/undisbeliever-inidisp/scpu-a-dma-bug-3.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "higan_undisbeliever_inidisp_scpu_a_dma_bug_5"
+path = "tests/roms/homebrew/higan/undisbeliever-inidisp/scpu-a-dma-bug-5.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "higan_undisbeliever_inidisp_scpu_a_dma_bug_ch0"
+path = "tests/roms/homebrew/higan/undisbeliever-inidisp/scpu-a-dma-bug-ch0.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "higan_undisbeliever_inidisp_scpu_a_dma_bug_fix"
+path = "tests/roms/homebrew/higan/undisbeliever-inidisp/scpu-a-dma-bug-fix.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "higan_undisbeliever_inidisp_scpu_a_dma_bug_fix2"
+path = "tests/roms/homebrew/higan/undisbeliever-inidisp/scpu-a-dma-bug-fix2.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "higan_undisbeliever_inidisp_scpu_a_dma_bug_r2"
+path = "tests/roms/homebrew/higan/undisbeliever-inidisp/scpu-a-dma-bug-r2.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "higan_undisbeliever_inidisp_scpu_a_dma_bug_strange"
+path = "tests/roms/homebrew/higan/undisbeliever-inidisp/scpu-a-dma-bug-strange.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "higan_undisbeliever_inidisp_scpu_a_dma_bug_two_regs"
+path = "tests/roms/homebrew/higan/undisbeliever-inidisp/scpu-a-dma-bug-two-regs.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_bank_hiromfastrom_bankhiromfastrom"
+path = "tests/roms/homebrew/peterlemon/BANK/HiROMFastROM/BANKHiROMFastROM.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E03"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_bank_hiromslowrom_bankhiromslowrom"
+path = "tests/roms/homebrew/peterlemon/BANK/HiROMSlowROM/BANKHiROMSlowROM.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E03"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_bank_loromfastrom_bankloromfastrom"
+path = "tests/roms/homebrew/peterlemon/BANK/LoROMFastROM/BANKLoROMFastROM.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E03"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_bank_loromslowrom_bankloromslowrom"
+path = "tests/roms/homebrew/peterlemon/BANK/LoROMSlowROM/BANKLoROMSlowROM.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E03"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_bank_wram_bankwram"
+path = "tests/roms/homebrew/peterlemon/BANK/WRAM/BANKWRAM.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E03"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_compress_lz77_lz77wramgfx_lz77wramgfx"
+path = "tests/roms/homebrew/peterlemon/Compress/LZ77/LZ77WRAMGFX/LZ77WRAMGFX.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E04"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_cputest_cpu_adc_cpuadc"
+path = "tests/roms/homebrew/peterlemon/CPUTest/CPU/ADC/CPUADC.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E02"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_cputest_cpu_and_cpuand"
+path = "tests/roms/homebrew/peterlemon/CPUTest/CPU/AND/CPUAND.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E02"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_cputest_cpu_asl_cpuasl"
+path = "tests/roms/homebrew/peterlemon/CPUTest/CPU/ASL/CPUASL.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E02"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_cputest_cpu_bit_cpubit"
+path = "tests/roms/homebrew/peterlemon/CPUTest/CPU/BIT/CPUBIT.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E02"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_cputest_cpu_bra_cpubra"
+path = "tests/roms/homebrew/peterlemon/CPUTest/CPU/BRA/CPUBRA.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E02"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_cputest_cpu_cmp_cpucmp"
+path = "tests/roms/homebrew/peterlemon/CPUTest/CPU/CMP/CPUCMP.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E02"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_cputest_cpu_dec_cpudec"
+path = "tests/roms/homebrew/peterlemon/CPUTest/CPU/DEC/CPUDEC.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E02"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_cputest_cpu_eor_cpueor"
+path = "tests/roms/homebrew/peterlemon/CPUTest/CPU/EOR/CPUEOR.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E02"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_cputest_cpu_inc_cpuinc"
+path = "tests/roms/homebrew/peterlemon/CPUTest/CPU/INC/CPUINC.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E02"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_cputest_cpu_jmp_cpujmp"
+path = "tests/roms/homebrew/peterlemon/CPUTest/CPU/JMP/CPUJMP.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E02"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_cputest_cpu_ldr_cpuldr"
+path = "tests/roms/homebrew/peterlemon/CPUTest/CPU/LDR/CPULDR.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E02"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_cputest_cpu_lsr_cpulsr"
+path = "tests/roms/homebrew/peterlemon/CPUTest/CPU/LSR/CPULSR.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E02"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_cputest_cpu_mov_cpumov"
+path = "tests/roms/homebrew/peterlemon/CPUTest/CPU/MOV/CPUMOV.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E02"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_cputest_cpu_msc_cpumsc"
+path = "tests/roms/homebrew/peterlemon/CPUTest/CPU/MSC/CPUMSC.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E02"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_cputest_cpu_ora_cpuora"
+path = "tests/roms/homebrew/peterlemon/CPUTest/CPU/ORA/CPUORA.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E02"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_cputest_cpu_phl_cpuphl"
+path = "tests/roms/homebrew/peterlemon/CPUTest/CPU/PHL/CPUPHL.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E02"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_cputest_cpu_psr_cpupsr"
+path = "tests/roms/homebrew/peterlemon/CPUTest/CPU/PSR/CPUPSR.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E02"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_cputest_cpu_ret_cpuret"
+path = "tests/roms/homebrew/peterlemon/CPUTest/CPU/RET/CPURET.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E02"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_cputest_cpu_rol_cpurol"
+path = "tests/roms/homebrew/peterlemon/CPUTest/CPU/ROL/CPUROL.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E02"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_cputest_cpu_ror_cpuror"
+path = "tests/roms/homebrew/peterlemon/CPUTest/CPU/ROR/CPUROR.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E02"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_cputest_cpu_sbc_cpusbc"
+path = "tests/roms/homebrew/peterlemon/CPUTest/CPU/SBC/CPUSBC.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E02"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_cputest_cpu_str_cpustr"
+path = "tests/roms/homebrew/peterlemon/CPUTest/CPU/STR/CPUSTR.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E02"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_cputest_cpu_trn_cputrn"
+path = "tests/roms/homebrew/peterlemon/CPUTest/CPU/TRN/CPUTRN.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E02"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_cputest_spc700_adc_spc700adc"
+path = "tests/roms/homebrew/peterlemon/CPUTest/SPC700/ADC/SPC700ADC.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E02"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_cputest_spc700_and_spc700and"
+path = "tests/roms/homebrew/peterlemon/CPUTest/SPC700/AND/SPC700AND.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E02"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_cputest_spc700_dec_spc700dec"
+path = "tests/roms/homebrew/peterlemon/CPUTest/SPC700/DEC/SPC700DEC.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E02"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_cputest_spc700_eor_spc700eor"
+path = "tests/roms/homebrew/peterlemon/CPUTest/SPC700/EOR/SPC700EOR.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E02"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_cputest_spc700_inc_spc700inc"
+path = "tests/roms/homebrew/peterlemon/CPUTest/SPC700/INC/SPC700INC.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E02"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_cputest_spc700_ora_spc700ora"
+path = "tests/roms/homebrew/peterlemon/CPUTest/SPC700/ORA/SPC700ORA.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E02"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_cputest_spc700_sbc_spc700sbc"
+path = "tests/roms/homebrew/peterlemon/CPUTest/SPC700/SBC/SPC700SBC.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E02"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_games_monsterfarmjump_monsterfarmjump"
+path = "tests/roms/homebrew/peterlemon/Games/MonsterFarmJump/MonsterFarmJump.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E04"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_helloworld_helloworld"
+path = "tests/roms/homebrew/peterlemon/HelloWorld/HelloWorld.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E04"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_input_controllerlatency_controllerlatency"
+path = "tests/roms/homebrew/peterlemon/INPUT/ControllerLatency/ControllerLatency.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E04"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_input_xbandkeyboard_xbandkeyboard"
+path = "tests/roms/homebrew/peterlemon/INPUT/XBandKeyboard/XBandKeyboard.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E04"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_plotline_mode7_plotlinemode7"
+path = "tests/roms/homebrew/peterlemon/PlotLine/Mode7/PlotLineMode7.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E04"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_plotpixel_mode7_plotpixelmode7"
+path = "tests/roms/homebrew/peterlemon/PlotPixel/Mode7/PlotPixelMode7.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E04"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_bgmap_8x8_2bpp_8x8bg1map2bpp32x328pal_8x8bg1map2bpp32x328pal"
+path = "tests/roms/homebrew/peterlemon/PPU/BGMAP/8x8/2BPP/8x8BG1Map2BPP32x328PAL/8x8BG1Map2BPP32x328PAL.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_bgmap_8x8_2bpp_8x8bg2map2bpp32x328pal_8x8bg2map2bpp32x328pal"
+path = "tests/roms/homebrew/peterlemon/PPU/BGMAP/8x8/2BPP/8x8BG2Map2BPP32x328PAL/8x8BG2Map2BPP32x328PAL.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_bgmap_8x8_2bpp_8x8bg3map2bpp32x328pal_8x8bg3map2bpp32x328pal"
+path = "tests/roms/homebrew/peterlemon/PPU/BGMAP/8x8/2BPP/8x8BG3Map2BPP32x328PAL/8x8BG3Map2BPP32x328PAL.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_bgmap_8x8_2bpp_8x8bg4map2bpp32x328pal_8x8bg4map2bpp32x328pal"
+path = "tests/roms/homebrew/peterlemon/PPU/BGMAP/8x8/2BPP/8x8BG4Map2BPP32x328PAL/8x8BG4Map2BPP32x328PAL.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_bgmap_8x8_4bpp_8x8bgmap4bpp32x328pal_8x8bgmap4bpp32x328pal"
+path = "tests/roms/homebrew/peterlemon/PPU/BGMAP/8x8/4BPP/8x8BGMap4BPP32x328PAL/8x8BGMap4BPP32x328PAL.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_bgmap_8x8_8bpp_32x32_8x8bgmap8bpp32x32"
+path = "tests/roms/homebrew/peterlemon/PPU/BGMAP/8x8/8BPP/32x32/8x8BGMap8BPP32x32.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_bgmap_8x8_8bpp_32x64_8x8bgmap8bpp32x64"
+path = "tests/roms/homebrew/peterlemon/PPU/BGMAP/8x8/8BPP/32x64/8x8BGMap8BPP32x64.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_bgmap_8x8_8bpp_64x32_8x8bgmap8bpp64x32"
+path = "tests/roms/homebrew/peterlemon/PPU/BGMAP/8x8/8BPP/64x32/8x8BGMap8BPP64x32.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_bgmap_8x8_8bpp_64x64_8x8bgmap8bpp64x64"
+path = "tests/roms/homebrew/peterlemon/PPU/BGMAP/8x8/8BPP/64x64/8x8BGMap8BPP64x64.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_bgmap_8x8_8bpp_tileflip_8x8bgmaptileflip"
+path = "tests/roms/homebrew/peterlemon/PPU/BGMAP/8x8/8BPP/TileFlip/8x8BGMapTileFlip.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_blend_hicolor_hicolor1241dlair_hicolor1241dlair"
+path = "tests/roms/homebrew/peterlemon/PPU/Blend/HiColor/HiColor1241DLair/HiColor1241DLair.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_blend_hicolor_hicolor3840_hicolor3840"
+path = "tests/roms/homebrew/peterlemon/PPU/Blend/HiColor/HiColor3840/HiColor3840.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_blend_hicolor_hicolor575myst_hicolor575myst"
+path = "tests/roms/homebrew/peterlemon/PPU/Blend/HiColor/HiColor575Myst/HiColor575Myst.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_greenspace_greenspace"
+path = "tests/roms/homebrew/peterlemon/PPU/GreenSpace/GreenSpace.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_hdma_hicolor128pertilerow_hicolor128pertilerow"
+path = "tests/roms/homebrew/peterlemon/PPU/HDMA/HiColor128PerTileRow/HiColor128PerTileRow.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_hdma_hicolor128pertilerow_test_dq128pertilerow"
+path = "tests/roms/homebrew/peterlemon/PPU/HDMA/HiColor128PerTileRow/TEST/DQ128PerTileRow.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_hdma_hicolor128pertilerow_test_rgb_24bits_palette_color_test_chart128pertilerow"
+path = "tests/roms/homebrew/peterlemon/PPU/HDMA/HiColor128PerTileRow/TEST/RGB_24bits_palette_color_test_chart128PerTileRow.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_hdma_hicolor128pertilerow_test_lenna128pertilerow"
+path = "tests/roms/homebrew/peterlemon/PPU/HDMA/HiColor128PerTileRow/TEST/lenna128PerTileRow.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_hdma_hicolor128pertilerow_test_mandrill128pertilerow"
+path = "tests/roms/homebrew/peterlemon/PPU/HDMA/HiColor128PerTileRow/TEST/mandrill128PerTileRow.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_hdma_hicolor64pertilerow_hicolor64pertilerow"
+path = "tests/roms/homebrew/peterlemon/PPU/HDMA/HiColor64PerTileRow/HiColor64PerTileRow.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_hdma_hicolor64pertilerow_test_dq64pertilerow"
+path = "tests/roms/homebrew/peterlemon/PPU/HDMA/HiColor64PerTileRow/TEST/DQ64PerTileRow.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_hdma_hicolor64pertilerow_test_rgb_24bits_palette_color_test_chart64pertilerow"
+path = "tests/roms/homebrew/peterlemon/PPU/HDMA/HiColor64PerTileRow/TEST/RGB_24bits_palette_color_test_chart64PerTileRow.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_hdma_hicolor64pertilerow_test_lenna64pertilerow"
+path = "tests/roms/homebrew/peterlemon/PPU/HDMA/HiColor64PerTileRow/TEST/lenna64PerTileRow.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_hdma_hicolor64pertilerow_test_mandrill64pertilerow"
+path = "tests/roms/homebrew/peterlemon/PPU/HDMA/HiColor64PerTileRow/TEST/mandrill64PerTileRow.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_hdma_hicolor64pertilerowpseudohires_hicolor64pertilerowpseudohires"
+path = "tests/roms/homebrew/peterlemon/PPU/HDMA/HiColor64PerTileRowPseudoHiRes/HiColor64PerTileRowPseudoHiRes.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_hdma_hicolor64pertilerowpseudohires_test_rgb_24bits_palette_color_test_chart64pertilerowhires"
+path = "tests/roms/homebrew/peterlemon/PPU/HDMA/HiColor64PerTileRowPseudoHiRes/TEST/RGB_24bits_palette_color_test_chart64PerTileRowHiRes.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_hdma_hicolor64pertilerowpseudohires_test_lenna64pertilerowhires"
+path = "tests/roms/homebrew/peterlemon/PPU/HDMA/HiColor64PerTileRowPseudoHiRes/TEST/lenna64PerTileRowHiRes.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_hdma_hicolor64pertilerowpseudohires_test_mandrill64pertilerowhires"
+path = "tests/roms/homebrew/peterlemon/PPU/HDMA/HiColor64PerTileRowPseudoHiRes/TEST/mandrill64PerTileRowHiRes.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_hdma_mode7hdma_mode7hdma"
+path = "tests/roms/homebrew/peterlemon/PPU/HDMA/Mode7HDMA/Mode7HDMA.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_hdma_redspace9bithdma_redspace9bithdma"
+path = "tests/roms/homebrew/peterlemon/PPU/HDMA/RedSpace9BitHDMA/RedSpace9BitHDMA.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_hdma_redspacehdma_redspacehdma"
+path = "tests/roms/homebrew/peterlemon/PPU/HDMA/RedSpaceHDMA/RedSpaceHDMA.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_hdma_redspaceindirecthdma_redspaceindirecthdma"
+path = "tests/roms/homebrew/peterlemon/PPU/HDMA/RedSpaceIndirectHDMA/RedSpaceIndirectHDMA.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_hdma_wavehdma_wavehdma"
+path = "tests/roms/homebrew/peterlemon/PPU/HDMA/WaveHDMA/WaveHDMA.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_interlace_interlacefont_interlacefont"
+path = "tests/roms/homebrew/peterlemon/PPU/Interlace/InterlaceFont/InterlaceFont.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_interlace_interlacemoogle_interlacemoogle"
+path = "tests/roms/homebrew/peterlemon/PPU/Interlace/InterlaceMoogle/InterlaceMoogle.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_interlace_interlacemysthdma_interlacemysthdma"
+path = "tests/roms/homebrew/peterlemon/PPU/Interlace/InterlaceMystHDMA/InterlaceMystHDMA.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_interlace_interlacerpg_interlacerpg"
+path = "tests/roms/homebrew/peterlemon/PPU/Interlace/InterlaceRPG/InterlaceRPG.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_interlace_interlacescroll_interlacescroll"
+path = "tests/roms/homebrew/peterlemon/PPU/Interlace/InterlaceScroll/InterlaceScroll.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_interlace_interlacesimpsonshdma_interlacesimpsonshdma"
+path = "tests/roms/homebrew/peterlemon/PPU/Interlace/InterlaceSimpsonsHDMA/InterlaceSimpsonsHDMA.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_mode7_perspective_perspective"
+path = "tests/roms/homebrew/peterlemon/PPU/Mode7/Perspective/Perspective.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_mode7_rotzoom_rotzoom"
+path = "tests/roms/homebrew/peterlemon/PPU/Mode7/RotZoom/RotZoom.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_mode7_starwars_starwars"
+path = "tests/roms/homebrew/peterlemon/PPU/Mode7/StarWars/StarWars.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_mosaic_mode3_mosaicmode3"
+path = "tests/roms/homebrew/peterlemon/PPU/Mosaic/Mode3/MosaicMode3.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_mosaic_mode5_mosaicmode5"
+path = "tests/roms/homebrew/peterlemon/PPU/Mosaic/Mode5/MosaicMode5.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_rings_rings"
+path = "tests/roms/homebrew/peterlemon/PPU/Rings/Rings.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_window_windowhdma_windowhdma"
+path = "tests/roms/homebrew/peterlemon/PPU/Window/WindowHDMA/WindowHDMA.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_ppu_window_windowmultihdma_windowmultihdma"
+path = "tests/roms/homebrew/peterlemon/PPU/Window/WindowMultiHDMA/WindowMultiHDMA.sfc"
+region = "auto"
+frames = 120
+optional = false
+epic = "E05"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_spc700_axel_f_axel_f"
+path = "tests/roms/homebrew/peterlemon/SPC700/Axel-F/Axel-F.sfc"
+region = "auto"
+frames = 300
+optional = false
+epic = "E06"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_spc700_ffviiprelude_ffviiprelude"
+path = "tests/roms/homebrew/peterlemon/SPC700/FFVIIPrelude/FFVIIPrelude.sfc"
+region = "auto"
+frames = 300
+optional = false
+epic = "E06"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_spc700_italotest_italotest"
+path = "tests/roms/homebrew/peterlemon/SPC700/ItaloTest/ItaloTest.sfc"
+region = "auto"
+frames = 300
+optional = false
+epic = "E06"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_spc700_pitchmod_pitchmod"
+path = "tests/roms/homebrew/peterlemon/SPC700/PitchMod/PitchMod.sfc"
+region = "auto"
+frames = 300
+optional = false
+epic = "E06"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_spc700_playbrrsample_playbrrsample"
+path = "tests/roms/homebrew/peterlemon/SPC700/PlayBRRSample/PlayBRRSample.sfc"
+region = "auto"
+frames = 300
+optional = false
+epic = "E06"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_spc700_playnoise_playnoise"
+path = "tests/roms/homebrew/peterlemon/SPC700/PlayNoise/PlayNoise.sfc"
+region = "auto"
+frames = 300
+optional = false
+epic = "E06"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_spc700_playtwosong_playtwosong"
+path = "tests/roms/homebrew/peterlemon/SPC700/PlayTwoSong/PlayTwoSong.sfc"
+region = "auto"
+frames = 300
+optional = false
+epic = "E06"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_spc700_speechsynth_speechsynth"
+path = "tests/roms/homebrew/peterlemon/SPC700/SpeechSynth/SpeechSynth.sfc"
+region = "auto"
+frames = 300
+optional = false
+epic = "E06"
+check = "hash"
+
+[[rom]]
+name = "peterlemon_spc700_twinkle_twinkle"
+path = "tests/roms/homebrew/peterlemon/SPC700/Twinkle/Twinkle.sfc"
+region = "auto"
+frames = 300
+optional = false
+epic = "E06"
+check = "hash"
+
+[[rom]]
+name = "game_smw"
+path = "tests/roms/games/smw.sfc"
+region = "auto"
+frames = 600
+optional = true
+epic = "E07"
+check = "none"
+
+[[rom]]
+name = "game_alttp"
+path = "tests/roms/games/alttp.sfc"
+region = "auto"
+frames = 600
+optional = true
+epic = "E07"
+check = "none"
+
+[[rom]]
+name = "game_allstars"
+path = "tests/roms/games/smb_allstars.sfc"
+region = "auto"
+frames = 600
+optional = true
+epic = "E07"
+check = "none"
+
