@@ -5,12 +5,15 @@
 //! state is shared by lock. This module runs the test pattern (E01-06); ROM
 //! loading, save states, audio and debug data come with later tasks.
 
+use std::path::PathBuf;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 use puce16_core::{Region, Snes};
+
+use crate::files;
 
 /// Commands sent from the UI thread to the emulation thread.
 pub enum Command {
@@ -28,6 +31,10 @@ pub enum Command {
     SetFastForward(bool),
     /// Stop the emulation thread.
     Quit,
+    /// Set the ROM path (sent before LoadRom) so SRAM can be loaded/saved.
+    SetRomPath(PathBuf),
+    /// Force an immediate SRAM save to disk.
+    FlushSram,
 }
 
 /// One published frame: compact XRGB8888 pixels plus metadata.
@@ -46,6 +53,59 @@ pub enum Event {
     Status(String),
     /// Error message (ROM load failure, emulator panic).
     Error(String),
+    /// SRAM was saved to disk at this path.
+    SramSaved(PathBuf),
+}
+
+/// Interval between automatic SRAM saves (spec 08 section 6).
+pub const SRAM_SAVE_INTERVAL: Duration = Duration::from_secs(5);
+
+/// Tracks whether SRAM has changed since the last save and when to check again.
+pub struct SramSync {
+    /// Last saved SRAM contents (None means nothing saved yet).
+    pub last_saved: Option<Vec<u8>>,
+    /// Time of the last periodic save check.
+    pub last_check: Instant,
+}
+
+impl SramSync {
+    /// Create a new sync tracker with no saved state.
+    pub fn new(now: Instant) -> SramSync {
+        SramSync {
+            last_saved: None,
+            last_check: now,
+        }
+    }
+
+    /// Reset the tracker after loading a ROM or SRAM file.
+    /// If `current` is Some, treat it as already saved to disk.
+    pub fn reset(&mut self, now: Instant, current: Option<&[u8]>) {
+        self.last_saved = current.map(|c| c.to_vec());
+        self.last_check = now;
+    }
+
+    /// Check if it's time for a periodic save (every SRAM_SAVE_INTERVAL).
+    /// Returns true and updates last_check when due.
+    pub fn due(&mut self, now: Instant) -> bool {
+        if now - self.last_check >= SRAM_SAVE_INTERVAL {
+            self.last_check = now;
+            return true;
+        }
+        false
+    }
+
+    /// Check if SRAM has changed since the last save.
+    pub fn changed(&self, sram: &[u8]) -> bool {
+        match &self.last_saved {
+            None => true,
+            Some(saved) => saved != sram,
+        }
+    }
+
+    /// Mark SRAM as saved after a successful write.
+    pub fn mark_saved(&mut self, sram: &[u8]) {
+        self.last_saved = Some(sram.to_vec());
+    }
 }
 
 /// Handle to a running emulation thread.
@@ -109,6 +169,9 @@ fn emu_loop(
     let mut active_region = region;
     // Timer-based pacing deadline (used when no audio ring).
     let mut next: Option<std::time::Instant> = None;
+    // SRAM sync state.
+    let mut rom_path: Option<PathBuf> = None;
+    let mut sync = SramSync::new(Instant::now());
 
     loop {
         // Drain every pending command before doing any work.
@@ -124,7 +187,20 @@ fn emu_loop(
                     if port < 2 { joy[port] = buttons; }
                     snes.set_joypad(port, buttons);
                 }
+                Command::SetRomPath(path) => {
+                    // Save SRAM for the previous ROM before switching.
+                    save_sram(&snes, &rom_path, &mut sync, &tx_event);
+                    let _ = rom_path.replace(path);
+                }
+                Command::FlushSram => {
+                    if let Some(ref path) = rom_path {
+                        save_sram(&snes, &Some(path.clone()), &mut sync, &tx_event);
+                    }
+                }
                 Command::LoadRom(bytes, name) => {
+                    // Save SRAM for the previous ROM before loading a new one.
+                    save_sram(&snes, &rom_path, &mut sync, &tx_event);
+
                     match Snes::new(&bytes, None) {
                         Ok(new_snes) => {
                             snes = new_snes;
@@ -141,6 +217,11 @@ fn emu_loop(
                                     "Loaded {} ({:?}, {:?})", name, info.map, info.region)));
                             } else {
                                 let _ = tx_event.send(Event::Status(format!("Loaded {}", name)));
+                            }
+
+                            // Load SRAM if file exists.
+                            if let Some(ref path) = rom_path {
+                                load_sram(&mut snes, &path, &mut sync, &tx_event);
                             }
                         }
                         Err(puce16_core::snes::LoadError::Cart(e)) => {
@@ -161,7 +242,10 @@ fn emu_loop(
                     frame_no = 0;
                 }
                 Command::SetFastForward(on) => { fast_forward = on; next = None; }
-                Command::Quit => return,
+                Command::Quit => {
+                    save_sram(&snes, &rom_path, &mut sync, &tx_event);
+                    return;
+                }
             }
         }
 
@@ -169,6 +253,14 @@ fn emu_loop(
             thread::sleep(Duration::from_millis(5));
         } else {
             run_one_frame(&mut snes, &mut frame_no, &tx_event);
+
+            // Periodic SRAM save check.
+            let now = Instant::now();
+            if sync.due(now) {
+                if let Some(ref path) = rom_path {
+                    save_sram(&snes, &Some(path.clone()), &mut sync, &tx_event);
+                }
+            }
 
             // Audio: take samples from SNES and push to ring (if any).
             let mut audio_buf = Vec::new();
@@ -225,6 +317,63 @@ fn emu_loop(
                 }
                 next = Some(target);
             }
+        }
+    }
+}
+
+/// Load SRAM from disk into the emulator (if file exists).
+fn load_sram(
+    snes: &mut Snes,
+    rom_path: &PathBuf,
+    sync: &mut SramSync,
+    tx_event: &Sender<Event>,
+) {
+    let srm = files::srm_path(&rom_path);
+    if !srm.exists() {
+        return;
+    }
+
+    match std::fs::read(&srm) {
+        Ok(data) => {
+            snes.load_sram(&data);
+            sync.reset(Instant::now(), Some(&data));
+        }
+        Err(e) => {
+            let _ = tx_event.send(Event::Error(format!(
+                "cannot load SRAM {}: {}", srm.display(), e)));
+        }
+    }
+}
+
+/// Save SRAM to disk if it has changed.
+fn save_sram(
+    snes: &Snes,
+    rom_path: &Option<PathBuf>,
+    sync: &mut SramSync,
+    tx_event: &Sender<Event>,
+) {
+    let sram = match snes.sram() {
+        Some(s) => s.to_vec(),
+        None => return, // No SRAM -> no file.
+    };
+
+    if !sync.changed(&sram) {
+        return; // Unchanged since last save.
+    }
+
+    let path = match rom_path {
+        Some(p) => files::srm_path(&p),
+        None => return,
+    };
+
+    match files::write_atomic(&path, &sram) {
+        Ok(()) => {
+            sync.mark_saved(&sram);
+            let _ = tx_event.send(Event::SramSaved(path));
+        }
+        Err(e) => {
+            let _ = tx_event.send(Event::Error(format!(
+                "cannot save SRAM {}: {}", path.display(), e)));
         }
     }
 }

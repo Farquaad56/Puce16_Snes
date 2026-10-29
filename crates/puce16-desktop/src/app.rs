@@ -50,6 +50,8 @@ impl App {
     pub fn open_path(&mut self, path: &std::path::Path) {
         match files::load_rom_file(path) {
             Ok((name, bytes)) => {
+                // Send the ROM path first so SRAM can be loaded/saved.
+                let _ = self.handle.tx.send(Command::SetRomPath(path.to_path_buf()));
                 self.send(Command::LoadRom(bytes, name));
             }
             Err(e) => {
@@ -161,6 +163,7 @@ impl eframe::App for App {
                 Event::Frame(frame) => latest = Some(frame),
                 Event::Status(text) => self.status = text,
                 Event::Error(e) => self.status = format!("ERROR: {}", e),
+                Event::SramSaved(path) => self.status = format!("SRAM saved to {}", path.display()),
             }
         }
         if let Some(frame) = latest { self.last = Some(frame); }
