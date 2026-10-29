@@ -11,6 +11,26 @@ use crate::region::Region;
 use crate::bus::SysBus;
 use crate::savestate::{State, StateWriter, StateReader, STATE_VERSION, StateError};
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SmpSnapshot {
+    pub a: u8,
+    pub x: u8,
+    pub y: u8,
+    pub sp: u8,
+    pub pc: u16,
+    pub psw: u8,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DmaChanSnapshot {
+    pub dmap: u8,
+    pub bbad: u8,
+    pub a1t: u16,
+    pub a1b: u8,
+    pub das: u16,
+    pub dasb: u8,
+}
+
 /// Audio sample rate (D-004): APU_RESONATOR_HZ / 768 = 32040 Hz.
 pub const AUDIO_SAMPLE_RATE: u32 = 32_040;
 
@@ -324,6 +344,106 @@ impl Snes {
                     master: sys.master,
                     frame: self.frame,
                 }
+            }
+        }
+    }
+
+    /// VRAM contents for debugger (32768 words). Empty slice for test pattern variant.
+    pub fn debug_vram(&self) -> &[u16] {
+        match &self.inner {
+            Inner::Pattern { .. } => &[],
+            Inner::Real { sys, .. } => sys.ppu.vram(),
+        }
+    }
+
+    /// CGRAM contents for debugger (256 words). Empty slice for test pattern variant.
+    pub fn debug_cgram(&self) -> &[u16] {
+        match &self.inner {
+            Inner::Pattern { .. } => &[],
+            Inner::Real { sys, .. } => sys.ppu.cgram(),
+        }
+    }
+
+    /// OAM contents for debugger (544 bytes). Empty slice for test pattern variant.
+    pub fn debug_oam(&self) -> &[u8] {
+        match &self.inner {
+            Inner::Pattern { .. } => &[],
+            Inner::Real { sys, .. } => sys.ppu.oam(),
+        }
+    }
+
+    /// PPU register snapshot for debugger. None for test pattern variant.
+    pub fn debug_ppu_regs(&self) -> Option<crate::ppu::PpuRegsSnapshot> {
+        match &self.inner {
+            Inner::Pattern { .. } => None,
+            Inner::Real { sys, .. } => Some(sys.ppu.regs_snapshot()),
+        }
+    }
+
+    /// SMP register snapshot for debugger. None for test pattern variant.
+    pub fn debug_smp(&self) -> Option<SmpSnapshot> {
+        match &self.inner {
+            Inner::Pattern { .. } => None,
+            Inner::Real { sys, .. } => {
+                let (a, x, y, sp, pc, psw) = sys.apu.smp_regs();
+                Some(SmpSnapshot { a, x, y, sp, pc, psw })
+            }
+        }
+    }
+
+    /// DMA channel snapshots for debugger. None for test pattern variant.
+    pub fn debug_dma(&self) -> Option<[DmaChanSnapshot; 8]> {
+        match &self.inner {
+            Inner::Pattern { .. } => None,
+            Inner::Real { sys, .. } => {
+                let snaps = core::array::from_fn(|i| {
+                    let ch = &sys.dma.ch[i];
+                    DmaChanSnapshot {
+                        dmap: ch.dmap,
+                        bbad: ch.bbad,
+                        a1t: ch.a1t,
+                        a1b: ch.a1b,
+                        das: ch.das,
+                        dasb: ch.dasb,
+                    }
+                });
+                Some(snaps)
+            }
+        }
+    }
+
+    /// Read 256 bytes of WRAM at the given page (0..=511). Returns zeros for test pattern variant.
+    pub fn debug_wram_page(&self, page: u16) -> Vec<u8> {
+        let masked = page & 0x1FF;
+        match &self.inner {
+            Inner::Pattern { .. } => vec![0u8; 256],
+            Inner::Real { sys, .. } => {
+                let mut out = Vec::with_capacity(256);
+                for i in 0..256 {
+                    let addr = (masked as u32) * 256 + i as u32;
+                    out.push(sys.wram.read(addr));
+                }
+                out
+            }
+        }
+    }
+
+    /// Execute instructions until PB:PC matches the target, or max_instructions is reached.
+    /// Returns true if the address was reached (or already at it). Pattern variant returns false.
+    pub fn debug_run_until_pc(&mut self, pb: u8, pc: u16, max_instructions: u32) -> bool {
+        match &mut self.inner {
+            Inner::Pattern { .. } => false,
+            Inner::Real { cpu, sys, .. } => {
+                if cpu.pb == pb && cpu.pc == pc {
+                    return true;
+                }
+                for _ in 0..max_instructions {
+                    cpu.step(&mut **sys);
+                    if cpu.pb == pb && cpu.pc == pc {
+                        return true;
+                    }
+                }
+                false
             }
         }
     }

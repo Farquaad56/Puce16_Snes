@@ -120,6 +120,11 @@ impl Apu {
         self.io.dsp.read(reg)
     }
 
+    /// SMP register snapshot for debugger: (a, x, y, sp, pc, psw).
+    pub fn smp_regs(&self) -> (u8, u8, u8, u8, u16, u8) {
+        (self.spc.a, self.spc.x, self.spc.y, self.spc.sp, self.spc.pc, self.spc.psw)
+    }
+
     /// Hash APU state into the given hasher.
     pub fn hash_into(&self, h: &mut crate::hash::Fnv64) {
         // SPC700 registers
