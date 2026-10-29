@@ -319,6 +319,8 @@ impl AudioOut {
                 let ring_cb = ring.clone();
                 let vol_cb = volume.clone();
                 let mut_cb = muted.clone();
+                // One Playback per stream: its resampler history must survive between callbacks.
+                let mut playback = Playback::new(sample_rate);
                 device.build_output_stream(
                     config.into(),
                     move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
@@ -326,7 +328,6 @@ impl AudioOut {
                         if frames == 0 {
                             return;
                         }
-                        let mut playback = Playback::new(sample_rate);
                         let vol_bits = vol_cb.load(std::sync::atomic::Ordering::Relaxed);
                         let vol = f32::from_bits(vol_bits);
                         let mute = mut_cb.load(std::sync::atomic::Ordering::Relaxed);
@@ -344,6 +345,8 @@ impl AudioOut {
                 let ring_cb = ring.clone();
                 let vol_cb = volume.clone();
                 let mut_cb = muted.clone();
+                // One Playback per stream: its resampler history must survive between callbacks.
+                let mut playback = Playback::new(sample_rate);
                 device.build_output_stream(
                     config.into(),
                     move |data: &mut [i16], _: &cpal::OutputCallbackInfo| {
@@ -352,7 +355,6 @@ impl AudioOut {
                             return;
                         }
                         let mut f32_buf = vec![0.0f32; frames * channels];
-                        let mut playback = Playback::new(sample_rate);
                         let vol_bits = vol_cb.load(std::sync::atomic::Ordering::Relaxed);
                         let vol = f32::from_bits(vol_bits);
                         let mute = mut_cb.load(std::sync::atomic::Ordering::Relaxed);
@@ -382,6 +384,8 @@ impl AudioOut {
                 let ring_cb = ring.clone();
                 let vol_cb = volume.clone();
                 let mut_cb = muted.clone();
+                // One Playback per stream: its resampler history must survive between callbacks.
+                let mut playback = Playback::new(sample_rate);
                 device.build_output_stream(
                     config.into(),
                     move |data: &mut [u16], _: &cpal::OutputCallbackInfo| {
@@ -390,7 +394,6 @@ impl AudioOut {
                             return;
                         }
                         let mut f32_buf = vec![0.0f32; frames * channels];
-                        let mut playback = Playback::new(sample_rate);
                         let vol_bits = vol_cb.load(std::sync::atomic::Ordering::Relaxed);
                         let vol = f32::from_bits(vol_bits);
                         let mute = mut_cb.load(std::sync::atomic::Ordering::Relaxed);
