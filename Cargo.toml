@@ -1,3 +1,9 @@
 [workspace]
 resolver = "2"
 members = ["crates/*"]
+
+# Le core doit tourner en temps reel meme en build debug (sinon le son craque: sous-alimentation de l'audio).
+[profile.dev.package.puce16-core]
+opt-level = 3
+[profile.dev.package.puce16-desktop]
+opt-level = 2
