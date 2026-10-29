@@ -2,10 +2,10 @@
 
 use puce16_core::Region;
 use puce16_desktop::app::{App, rom_arg};
-use puce16_desktop::emu_thread::spawn_test_pattern;
+use puce16_desktop::emu_thread::{spawn_with_audio, Command};
 
 fn main() -> eframe::Result {
-    let handle = spawn_test_pattern(Region::Ntsc, false);
+    let handle = spawn_with_audio(Region::Ntsc, false, None);
     let options = eframe::NativeOptions {
         viewport: eframe::egui::ViewportBuilder::default().with_inner_size([768.0, 740.0]),
         ..Default::default()

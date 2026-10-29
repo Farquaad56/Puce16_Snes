@@ -115,6 +115,14 @@ struct RunArgs {
     /// Scripted joypad 1 input, e.g. `300-305:start,500-510:right+b` (frame ranges, inclusive).
     #[arg(long)]
     input: Option<String>,
+
+    /// After running frames, save emulator state to this file.
+    #[arg(long)]
+    save_state: Option<PathBuf>,
+
+    /// Load emulator state from this file before running frames.
+    #[arg(long)]
+    load_state: Option<PathBuf>,
 }
 
 /// Parse `--input` into (first, last, buttons) ranges; unknown button names are an error.
@@ -202,6 +210,12 @@ fn run_command(args: &RunArgs) -> ExitCode {
     // Determine region: explicit > ROM header > NTSC default for pattern.
     let region_opt = args.region.map(|r| r.into());
 
+    // Validate save/load state options with test-pattern.
+    if args.test_pattern && (args.save_state.is_some() || args.load_state.is_some()) {
+        eprintln!("error: --save-state needs a ROM");
+        return ExitCode::from(2);
+    }
+
     // Build the Snes instance (ROM or test pattern).
     let mut snes = match (&args.rom, args.test_pattern) {
         (Some(path), false) => {
@@ -229,6 +243,21 @@ fn run_command(args: &RunArgs) -> ExitCode {
         }
     };
 
+    // Load state if requested (before running frames).
+    if let Some(path) = &args.load_state {
+        let data = match std::fs::read(path) {
+            Ok(d) => d,
+            Err(err) => {
+                eprintln!("error: cannot read {}: {}", path.display(), err);
+                return ExitCode::from(2);
+            }
+        };
+        if let Err(e) = snes.load_state(&data) {
+            eprintln!("error: cannot load state: {}", e);
+            return ExitCode::from(2);
+        }
+    }
+
     // Run frames with panic catching.
     let script = match args.input.as_deref().map(parse_input_script).transpose() {
         Ok(s) => s.unwrap_or_default(),
@@ -247,6 +276,15 @@ fn run_command(args: &RunArgs) -> ExitCode {
             eprintln!("emulator panic");
             println!("{}", run_cmd::format_debug(&snes.debug()));
             return ExitCode::from(1);
+        }
+    }
+
+    // Save state if requested (after running frames).
+    if let Some(path) = &args.save_state {
+        let data = snes.save_state();
+        if let Err(err) = std::fs::write(path, &data) {
+            eprintln!("error: cannot write {}: {}", path.display(), err);
+            return ExitCode::from(2);
         }
     }
 

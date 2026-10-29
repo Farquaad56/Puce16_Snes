@@ -8,7 +8,7 @@
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use puce16_core::{Region, Snes};
 
@@ -65,13 +65,25 @@ impl EmuHandle {
     }
 }
 
-/// Spawn an emulation thread running the test pattern for `region`.
-pub fn spawn_test_pattern(region: Region, start_paused: bool) -> EmuHandle {
+/// Frame period in nanoseconds for a given region (reference cadence).
+pub fn frame_period_ns(region: Region) -> u64 {
+    match region {
+        Region::Ntsc => 16_639_267, // 1e9 / 60.0988
+        Region::Pal => 19_997_200,  // 1e9 / 50.0070
+    }
+}
+
+/// Spawn an emulation thread with optional audio ring buffer.
+pub fn spawn_with_audio(
+    region: Region,
+    start_paused: bool,
+    ring: Option<crate::audio::SharedRing>,
+) -> EmuHandle {
     let (tx_cmd, rx_cmd) = mpsc::channel();
     let (tx_event, rx_event) = mpsc::channel();
     let join = thread::Builder::new()
         .name("puce16-emu".to_string())
-        .spawn(move || emu_loop(region, start_paused, rx_cmd, tx_event))
+        .spawn(move || emu_loop(region, start_paused, ring, rx_cmd, tx_event))
         .expect("failed to spawn the emulation thread");
     EmuHandle {
         tx: tx_cmd,
@@ -84,6 +96,7 @@ pub fn spawn_test_pattern(region: Region, start_paused: bool) -> EmuHandle {
 fn emu_loop(
     region: Region,
     start_paused: bool,
+    ring: Option<crate::audio::SharedRing>,
     rx_cmd: Receiver<Command>,
     tx_event: Sender<Event>,
 ) {
@@ -92,12 +105,16 @@ fn emu_loop(
     let mut fast_forward = false;
     let mut joy = [0u16; 2];
     let mut frame_no: u64 = 0;
+    // Region from loaded ROM overrides the spawn region.
+    let mut active_region = region;
+    // Timer-based pacing deadline (used when no audio ring).
+    let mut next: Option<std::time::Instant> = None;
 
     loop {
         // Drain every pending command before doing any work.
         while let Ok(cmd) = rx_cmd.try_recv() {
             match cmd {
-                Command::Pause(pause) => paused = pause,
+                Command::Pause(pause) => { paused = pause; next = None; }
                 Command::FrameAdvance => {
                     if paused {
                         run_one_frame(&mut snes, &mut frame_no, &tx_event);
@@ -117,7 +134,9 @@ fn emu_loop(
                             }
                             frame_no = 0;
                             paused = false;
+                            next = None;
                             if let Some(info) = snes.cart_info() {
+                                active_region = info.region;
                                 let _ = tx_event.send(Event::Status(format!(
                                     "Loaded {} ({:?}, {:?})", name, info.map, info.region)));
                             } else {
@@ -141,7 +160,7 @@ fn emu_loop(
                     snes.reset();
                     frame_no = 0;
                 }
-                Command::SetFastForward(on) => fast_forward = on,
+                Command::SetFastForward(on) => { fast_forward = on; next = None; }
                 Command::Quit => return,
             }
         }
@@ -150,9 +169,61 @@ fn emu_loop(
             thread::sleep(Duration::from_millis(5));
         } else {
             run_one_frame(&mut snes, &mut frame_no, &tx_event);
-            // Cadence is not exact in this milestone; fast forward skips the wait.
-            if !fast_forward {
-                thread::sleep(Duration::from_millis(16));
+
+            // Audio: take samples from SNES and push to ring (if any).
+            let mut audio_buf = Vec::new();
+            snes.take_audio(&mut audio_buf);
+
+            if fast_forward {
+                // Fast forward: discard audio, no wait.
+            } else if let Some(ring_ref) = &ring {
+                if !audio_buf.is_empty() {
+                    // Back-pressure: wait while the ring is above RING_WAIT_ABOVE, but never longer
+                    // than one frame period (the consumer may be stalled or absent).
+                    let max_wait_ms = (frame_period_ns(active_region) / 1_000_000) as u32 + 1;
+                    let mut waited_ms = 0;
+                    let mut has_room = false;
+                    loop {
+                        match ring_ref.lock() {
+                            Ok(r) => {
+                                if r.len() <= crate::audio::RING_WAIT_ABOVE {
+                                    has_room = true;
+                                    break;
+                                }
+                            }
+                            Err(_) => break, // Poisoned: give up waiting.
+                        }
+                        if waited_ms >= max_wait_ms {
+                            break;
+                        }
+                        thread::sleep(Duration::from_millis(1));
+                        waited_ms += 1;
+                    }
+                    // Still above the threshold after the wait: drop this frame's audio so the
+                    // ring stays bounded (a stalled consumer must not make it grow).
+                    if has_room {
+                        match ring_ref.lock() {
+                            Ok(mut r) => { r.push(&audio_buf); }
+                            Err(poisoned) => { poisoned.into_inner().push(&audio_buf); }
+                        }
+                    }
+                }
+            } else {
+                // No audio: timer-based pacing at console cadence.
+                let period = Duration::from_nanos(frame_period_ns(active_region));
+                let now = Instant::now();
+                let mut target = match next {
+                    Some(t) => t + period,
+                    None => now + period,
+                };
+                if now > target + Duration::from_millis(100) {
+                    // More than 100 ms behind: resynchronise instead of running a burst.
+                    target = now + period;
+                }
+                if now < target {
+                    thread::sleep(target - now);
+                }
+                next = Some(target);
             }
         }
     }

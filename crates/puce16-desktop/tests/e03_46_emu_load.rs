@@ -35,7 +35,7 @@ fn recv_until(handle: &puce16_desktop::emu_thread::EmuHandle, timeout_s: u64, pr
 
 #[test]
 fn e03_46_load_ok_status() {
-    let handle = puce16_desktop::emu_thread::spawn_test_pattern(Region::Ntsc, true);
+    let handle = puce16_desktop::emu_thread::spawn_with_audio(Region::Ntsc, true, None);
     handle.tx.send(Command::LoadRom(tiny_rom(), "tiny.sfc".into())).unwrap();
 
     let event = recv_until(&handle, 2, |e| matches!(e, Event::Status(s) if s.contains("Loaded tiny.sfc")));
@@ -50,7 +50,7 @@ fn e03_46_load_ok_status() {
 
 #[test]
 fn e03_46_load_ok_black_frame() {
-    let handle = puce16_desktop::emu_thread::spawn_test_pattern(Region::Ntsc, true);
+    let handle = puce16_desktop::emu_thread::spawn_with_audio(Region::Ntsc, true, None);
     handle.tx.send(Command::LoadRom(tiny_rom(), "tiny.sfc".into())).unwrap();
 
     // Wait for status event first.
@@ -75,7 +75,7 @@ fn e03_46_load_ok_black_frame() {
 
 #[test]
 fn e03_46_load_resumes_running() {
-    let handle = puce16_desktop::emu_thread::spawn_test_pattern(Region::Ntsc, true);
+    let handle = puce16_desktop::emu_thread::spawn_with_audio(Region::Ntsc, true, None);
     handle.tx.send(Command::LoadRom(tiny_rom(), "tiny.sfc".into())).unwrap();
 
     // Wait for status event.
@@ -98,7 +98,7 @@ fn e03_46_load_resumes_running() {
 
 #[test]
 fn e03_46_load_error_keeps_old() {
-    let handle = puce16_desktop::emu_thread::spawn_test_pattern(Region::Ntsc, true);
+    let handle = puce16_desktop::emu_thread::spawn_with_audio(Region::Ntsc, true, None);
 
     // Try to load a ROM that's too small.
     handle.tx.send(Command::LoadRom(vec![0u8; 10], "bad.sfc".into())).unwrap();
@@ -120,7 +120,7 @@ fn e03_46_load_error_keeps_old() {
 
 #[test]
 fn e03_46_reset_real() {
-    let handle = puce16_desktop::emu_thread::spawn_test_pattern(Region::Ntsc, true);
+    let handle = puce16_desktop::emu_thread::spawn_with_audio(Region::Ntsc, true, None);
     handle.tx.send(Command::LoadRom(tiny_rom(), "tiny.sfc".into())).unwrap();
 
     // Wait for status event.
@@ -145,7 +145,7 @@ fn e03_46_reset_real() {
 
 #[test]
 fn e03_46_joypad_survives_load() {
-    let handle = puce16_desktop::emu_thread::spawn_test_pattern(Region::Ntsc, true);
+    let handle = puce16_desktop::emu_thread::spawn_with_audio(Region::Ntsc, true, None);
 
     // Set joypad before loading.
     handle.tx.send(Command::SetJoypad(0, 0x8000)).unwrap();
@@ -160,7 +160,7 @@ fn e03_46_joypad_survives_load() {
 
 #[test]
 fn e03_46_quit_after_load() {
-    let handle = puce16_desktop::emu_thread::spawn_test_pattern(Region::Ntsc, true);
+    let handle = puce16_desktop::emu_thread::spawn_with_audio(Region::Ntsc, true, None);
     handle.tx.send(Command::LoadRom(tiny_rom(), "tiny.sfc".into())).unwrap();
 
     // Wait for status event.

@@ -24,7 +24,7 @@ fn recv_frame(rx: &Receiver<Event>, timeout: Duration) -> Arc<FrameData> {
 
 #[test]
 fn e01_09_start_paused_no_frame() {
-    let handle = spawn_test_pattern(Region::Ntsc, true);
+    let handle = spawn_with_audio(Region::Ntsc, true, None);
     thread_sleep_ms(100);
     assert!(
         matches!(handle.rx.try_recv(), Err(TryRecvError::Empty)),
@@ -38,7 +38,7 @@ fn e01_09_start_paused_no_frame() {
 
 #[test]
 fn e01_09_frame_advance_twice() {
-    let handle = spawn_test_pattern(Region::Ntsc, true);
+    let handle = spawn_with_audio(Region::Ntsc, true, None);
     thread_sleep_ms(50); // let the thread settle into its paused loop
     handle.tx.send(Command::FrameAdvance).expect("send FrameAdvance 1");
     handle.tx.send(Command::FrameAdvance).expect("send FrameAdvance 2");
@@ -51,7 +51,7 @@ fn e01_09_frame_advance_twice() {
 
 #[test]
 fn e01_09_run_free() {
-    let handle = spawn_test_pattern(Region::Ntsc, false);
+    let handle = spawn_with_audio(Region::Ntsc, false, None);
     let deadline = Instant::now() + Duration::from_secs(2);
     let mut last: Option<u64> = None;
     for _ in 0..3 {
@@ -77,7 +77,7 @@ fn e01_09_run_free() {
 
 #[test]
 fn e01_09_joypad_visible() {
-    let handle = spawn_test_pattern(Region::Ntsc, true);
+    let handle = spawn_with_audio(Region::Ntsc, true, None);
     thread_sleep_ms(50); // let the thread settle into its paused loop
     handle.tx.send(Command::SetJoypad(0, 0x8000)).expect("send SetJoypad");
     handle.tx.send(Command::FrameAdvance).expect("send FrameAdvance");
@@ -89,7 +89,7 @@ fn e01_09_joypad_visible() {
 
 #[test]
 fn e01_09_quit_joins() {
-    let handle = spawn_test_pattern(Region::Ntsc, true);
+    let handle = spawn_with_audio(Region::Ntsc, true, None);
     let start = Instant::now();
     handle.quit();
     assert!(start.elapsed() < Duration::from_secs(1), "quit took too long");
