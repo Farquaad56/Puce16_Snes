@@ -242,3 +242,5 @@ Place commercial ROMs in `tests/roms/games/` with these exact names:
 - `smb_allstars.sfc` - Super Mario All-Stars
 
 These are never committed to git.
+
+Launch games with: `target/release/puce16-desktop tests/roms/games/<name>.sfc`
