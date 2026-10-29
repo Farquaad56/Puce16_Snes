@@ -1,6 +1,7 @@
 //! DMA channel registers ($4300-$437F). No transfer logic yet.
 
 use crate::hash::Fnv64;
+use crate::savestate::{State, StateError, StateReader, StateWriter};
 
 pub mod hdma;
 
@@ -220,5 +221,237 @@ impl Dma {
             // After channel: das = 0
             ch.das = 0;
         }
+    }
+}
+
+impl State for Dma {
+    fn save(&self, w: &mut StateWriter) {
+        for ch in &self.ch {
+            w.u8(ch.dmap);
+            w.u8(ch.bbad);
+            w.u16(ch.a1t);
+            w.u8(ch.a1b);
+            w.u16(ch.das);
+            w.u8(ch.dasb);
+            w.u16(ch.a2a);
+            w.u8(ch.nltr);
+            w.u8(ch.unused);
+            w.bool(ch.do_transfer);
+            w.bool(ch.done);
+            w.u8(ch.line_counter);
+        }
+    }
+
+    fn load(&mut self, r: &mut StateReader) -> Result<(), StateError> {
+        for ch in &mut self.ch {
+            ch.dmap = r.u8()?;
+            ch.bbad = r.u8()?;
+            ch.a1t = r.u16()?;
+            ch.a1b = r.u8()?;
+            ch.das = r.u16()?;
+            ch.dasb = r.u8()?;
+            ch.a2a = r.u16()?;
+            ch.nltr = r.u8()?;
+            ch.unused = r.u8()?;
+            ch.do_transfer = r.bool()?;
+            ch.done = r.bool()?;
+            ch.line_counter = r.u8()?;
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::savestate::{StateWriter, StateReader};
+
+    fn make_dma_with_values() -> Dma {
+        let mut d = Dma::new();
+        for n in 0..8 {
+            let ch = &mut d.ch[n];
+            ch.dmap = 0x10 + n as u8;
+            ch.bbad = 0x20 + n as u8;
+            ch.a1t = 0x3000 + (n * 10) as u16;
+            ch.a1b = 0x40 + n as u8;
+            ch.das = 0x5000 + (n * 20) as u16;
+            ch.dasb = 0x60 + n as u8;
+            ch.a2a = 0x7000 + (n * 30) as u16;
+            ch.nltr = 0x80 + n as u8;
+            ch.unused = 0x90 + n as u8;
+            ch.do_transfer = n % 2 == 0;
+            ch.done = n % 3 != 0;
+            ch.line_counter = (n * 5) as u8;
+        }
+        d
+    }
+
+    #[test]
+    fn e08_05_roundtrip_all_fields() {
+        let original = make_dma_with_values();
+
+        // Save
+        let mut w = StateWriter::new();
+        original.save(&mut w);
+        let data = w.finish();
+
+        // Load into fresh instance
+        let mut restored = Dma::new();
+        let mut r = StateReader::new(&data);
+        restored.load(&mut r).unwrap();
+
+        // Verify all fields match
+        for n in 0..8 {
+            assert_eq!(original.ch[n].dmap, restored.ch[n].dmap);
+            assert_eq!(original.ch[n].bbad, restored.ch[n].bbad);
+            assert_eq!(original.ch[n].a1t, restored.ch[n].a1t);
+            assert_eq!(original.ch[n].a1b, restored.ch[n].a1b);
+            assert_eq!(original.ch[n].das, restored.ch[n].das);
+            assert_eq!(original.ch[n].dasb, restored.ch[n].dasb);
+            assert_eq!(original.ch[n].a2a, restored.ch[n].a2a);
+            assert_eq!(original.ch[n].nltr, restored.ch[n].nltr);
+            assert_eq!(original.ch[n].unused, restored.ch[n].unused);
+            assert_eq!(original.ch[n].do_transfer, restored.ch[n].do_transfer);
+            assert_eq!(original.ch[n].done, restored.ch[n].done);
+            assert_eq!(original.ch[n].line_counter, restored.ch[n].line_counter);
+        }
+
+        // Verify hash is identical after roundtrip
+        let mut h1 = crate::hash::Fnv64::new();
+        original.hash_into(&mut h1);
+        let mut h2 = crate::hash::Fnv64::new();
+        restored.hash_into(&mut h2);
+        assert_eq!(h1.finish(), h2.finish());
+
+        // Verify re-save produces identical bytes
+        let mut w2 = StateWriter::new();
+        restored.save(&mut w2);
+        let data2 = w2.finish();
+        assert_eq!(data, data2);
+    }
+
+    #[test]
+    fn e08_05_fresh_dma_roundtrip() {
+        // Save a fresh Dma (all 0xFF / done=true defaults)
+        let original = Dma::new();
+        let mut w = StateWriter::new();
+        original.save(&mut w);
+        let data = w.finish();
+
+        // Load into a modified instance - should restore to defaults
+        let mut modified = make_dma_with_values();
+        let mut r = StateReader::new(&data);
+        modified.load(&mut r).unwrap();
+
+        // Verify restored to fresh defaults
+        for n in 0..8 {
+            assert_eq!(modified.ch[n].dmap, 0xFF);
+            assert_eq!(modified.ch[n].bbad, 0xFF);
+            assert_eq!(modified.ch[n].a1t, 0xFFFF);
+            assert_eq!(modified.ch[n].a1b, 0xFF);
+            assert_eq!(modified.ch[n].das, 0xFFFF);
+            assert_eq!(modified.ch[n].dasb, 0xFF);
+            assert_eq!(modified.ch[n].a2a, 0xFFFF);
+            assert_eq!(modified.ch[n].nltr, 0xFF);
+            assert_eq!(modified.ch[n].unused, 0xFF);
+            assert!(!modified.ch[n].do_transfer);
+            assert!(modified.ch[n].done);
+            assert_eq!(modified.ch[n].line_counter, 0);
+        }
+    }
+
+    #[test]
+    fn e08_05_truncated() {
+        let original = make_dma_with_values();
+        let mut w = StateWriter::new();
+        original.save(&mut w);
+        let data = w.finish();
+
+        // Test truncation at 0, len/2, and len-1
+        for n in [0, data.len() / 2, data.len() - 1] {
+            let mut restored = Dma::new();
+            let mut r = StateReader::new(&data[..n]);
+            let result = restored.load(&mut r);
+            assert!(result.is_err(), "expected error at truncation point {}", n);
+        }
+    }
+
+    // Minimal inline bus for HDMA test (no external dependency)
+    struct TestBus {
+        mem: std::collections::BTreeMap<u32, u8>,
+        master: u64,
+    }
+
+    impl TestBus {
+        fn new() -> Self {
+            TestBus {
+                mem: std::collections::BTreeMap::new(),
+                master: 0,
+            }
+        }
+
+        fn poke(&mut self, addr: u32, v: u8) {
+            self.mem.insert(addr, v);
+        }
+    }
+
+    impl DmaBus for TestBus {
+        fn a_read(&mut self, addr: u32) -> u8 {
+            match self.mem.get(&addr) {
+                Some(v) => *v,
+                None => 0,
+            }
+        }
+
+        fn a_write(&mut self, _addr: u32, _v: u8) {}
+
+        fn b_read(&mut self, _reg: u8) -> u8 {
+            0
+        }
+
+        fn b_write(&mut self, _reg: u8, _v: u8) {}
+
+        fn elapse(&mut self, clocks: u32) {
+            self.master += clocks as u64;
+        }
+
+        fn master(&self) -> u64 {
+            self.master
+        }
+    }
+
+    #[test]
+    fn e08_05_hdma_state_preserved() {
+        // Set up HDMA on channel 0: direct mode, 3 lines
+        let mut dma = Dma::new();
+        let ch = &mut dma.ch[0];
+        ch.dmap = 0x40; // indirect bit set for table reads
+        ch.bbad = 0x80;
+        ch.a1t = 0x1000;
+        ch.a1b = 0x7E;
+
+        let mut bus = TestBus::new();
+        // Line byte: $83 means transfer on line, count=3 (low 7 bits)
+        bus.poke(0x7E1000, 0x83);
+        // DAS for indirect mode
+        bus.poke(0x7E1001, 0x00);
+        bus.poke(0x7E1002, 0x80);
+
+        dma.hdma_init(&mut bus, 1);
+
+        let state_before = dma.hdma_state(0);
+
+        // Save and restore
+        let mut w = StateWriter::new();
+        dma.save(&mut w);
+        let data = w.finish();
+
+        let mut restored = Dma::new();
+        let mut r = StateReader::new(&data);
+        restored.load(&mut r).unwrap();
+
+        let state_after = restored.hdma_state(0);
+
+        assert_eq!(state_before, state_after, "HDMA state must be preserved through save/load");
     }
 }

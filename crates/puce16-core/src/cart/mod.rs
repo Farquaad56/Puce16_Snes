@@ -149,6 +149,138 @@ impl Cart {
     }
 }
 
+impl crate::savestate::State for Cart {
+    fn save(&self, w: &mut crate::savestate::StateWriter) {
+        // Save SRAM only (ROM is never saved).
+        // not saved: rom (reconstructed from file), header (derived from ROM),
+        // map (derived from ROM/header), region (derived from header), has_battery (derived from header)
+        w.vec_u8(&self.sram);
+    }
+
+    fn load(&mut self, r: &mut crate::savestate::StateReader) -> Result<(), crate::savestate::StateError> {
+        // Read SRAM length prefix manually to validate size before copying.
+        let len = r.u32()? as usize;
+        if len != self.sram.len() {
+            return Err(crate::savestate::StateError::Mismatch("sram size"));
+        }
+        // Length matches, now read the bytes into sram in place.
+        for i in 0..len {
+            let b = r.u8()?;
+            self.sram[i] = b;
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::savestate::{State, StateWriter, StateReader};
+
+    fn make_cart_with_sram(sram_size: usize) -> Cart {
+        // Create a minimal cart with specified SRAM size.
+        let mut ram_log2 = 0u8;
+        if sram_size > 0 {
+            let mut sz = sram_size;
+            while sz > 1 {
+                sz >>= 1;
+                ram_log2 += 1;
+            }
+        }
+        Cart {
+            rom: vec![0u8; 0x40000],
+            rom_mask: 0x3FFFF,
+            map: MapMode::LoRom,
+            sram: vec![0u8; sram_size],
+            has_battery: true,
+            header: Header {
+                title: String::from("TEST"),
+                map_byte: 0x21, // LoROM mapper byte
+                chipset: 0x01,  // LoROM chipset
+                rom_log2: 18,   // 256KB ROM
+                ram_log2,
+                country: 0x34,  // NTSC-J
+                dev_id: 0,
+                version: 0,
+                checksum: 0,
+                complement: 0xFFFF,
+            },
+            region: Region::Ntsc,
+        }
+    }
+
+    #[test]
+    fn e08_03_cart_roundtrip_and_size_mismatch() {
+        // Create cart with 8KB SRAM filled with pattern
+        let mut c = make_cart_with_sram(8192);
+        for i in 0..c.sram.len() {
+            c.sram[i] = (i * 3) as u8;
+        }
+
+        // Save
+        let mut w = StateWriter::new();
+        c.save(&mut w);
+        let data = w.finish();
+
+        // Load into fresh cart of same size
+        let mut c2 = make_cart_with_sram(8192);
+        for i in 0..c2.sram.len() {
+            c2.sram[i] = 0xFF; // Different initial values
+        }
+        let mut r = StateReader::new(&data);
+        c2.load(&mut r).unwrap();
+
+        // Verify SRAM restored correctly
+        assert_eq!(c.sram, c2.sram);
+
+        // Test size mismatch: load into cart with 2KB SRAM
+        let mut c3 = make_cart_with_sram(2048);
+        for i in 0..c3.sram.len() {
+            c3.sram[i] = 0xAA;
+        }
+        let original_c3_sram = c3.sram.clone();
+        let mut r3 = StateReader::new(&data);
+        let result = c3.load(&mut r3);
+        assert!(result.is_err());
+        if let Err(crate::savestate::StateError::Mismatch("sram size")) = result {
+            // Expected error
+        } else {
+            panic!("Expected Mismatch(\"sram size\"), got {:?}", result);
+        }
+        // SRAM should be unchanged after failed load
+        assert_eq!(original_c3_sram, c3.sram);
+
+        // Test cart with no SRAM: save writes empty vec_u8, load Ok
+        let mut c4 = make_cart_with_sram(0);
+        let mut w4 = StateWriter::new();
+        c4.save(&mut w4);
+        let data4 = w4.finish();
+
+        let mut c5 = make_cart_with_sram(0);
+        let mut r5 = StateReader::new(&data4);
+        assert!(c5.load(&mut r5).is_ok());
+    }
+
+    #[test]
+    fn e08_03_cart_truncated() {
+        let mut c = make_cart_with_sram(1024);
+        for i in 0..c.sram.len() {
+            c.sram[i] = (i * 5) as u8;
+        }
+
+        let mut w = StateWriter::new();
+        c.save(&mut w);
+        let data = w.finish();
+
+        // Test truncation at various points
+        for n in [0, data.len() / 2, data.len() - 1] {
+            let mut r = StateReader::new(&data[..n]);
+            let mut c2 = make_cart_with_sram(1024);
+            assert!(c2.load(&mut r).is_err(), "truncated at {} should fail", n);
+        }
+    }
+}
+
 /// Strip 512-byte copier header if present (len % 1024 == 512).
 pub fn strip_copier_header(data: &[u8]) -> &[u8] {
     if data.len() % 1024 == 512 {

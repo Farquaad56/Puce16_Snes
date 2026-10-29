@@ -197,3 +197,193 @@ impl Cpu {
         interrupts::reset(self, bus);
     }
 }
+
+impl crate::savestate::State for Cpu {
+    fn save(&self, w: &mut crate::savestate::StateWriter) {
+        // Save all CPU fields in declaration order. All are covered by hash_into.
+        w.u16(self.a);
+        w.u16(self.x);
+        w.u16(self.y);
+        w.u16(self.s);
+        w.u16(self.d);
+        w.u8(self.db);
+        w.u8(self.pb);
+        w.u16(self.pc);
+        w.u8(self.p);
+        w.bool(self.e);
+        w.bool(self.halted);
+        w.bool(self.waiting);
+    }
+
+    fn load(&mut self, r: &mut crate::savestate::StateReader) -> Result<(), crate::savestate::StateError> {
+        // Load all CPU fields in declaration order.
+        self.a = r.u16()?;
+        self.x = r.u16()?;
+        self.y = r.u16()?;
+        self.s = r.u16()?;
+        self.d = r.u16()?;
+        self.db = r.u8()?;
+        self.pb = r.u8()?;
+        self.pc = r.u16()?;
+        self.p = r.u8()?;
+        self.e = r.bool()?;
+        self.halted = r.bool()?;
+        self.waiting = r.bool()?;
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::savestate::{State, StateWriter, StateReader};
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::Hasher;
+
+    fn cpu_hash(cpu: &Cpu) -> u64 {
+        let mut h = DefaultHasher::new();
+        cpu.hash_into(&mut h);
+        h.finish()
+    }
+
+    #[test]
+    fn e08_02_roundtrip_all_fields() {
+        // Set each field to a distinct non-zero value
+        let mut cpu = Cpu::new();
+        cpu.a = 0x1111;
+        cpu.x = 0x2222;
+        cpu.y = 0x3333;
+        cpu.s = 0x4444;
+        cpu.d = 0x5555;
+        cpu.db = 0x66;
+        cpu.pb = 0x77;
+        cpu.pc = 0x8888;
+        cpu.p = 0x99;
+        cpu.e = false;
+        cpu.halted = true;
+        cpu.waiting = true;
+
+        // Save
+        let mut writer = StateWriter::new();
+        cpu.save(&mut writer);
+        let data = writer.finish();
+
+        // Load into fresh instance
+        let mut loaded = Cpu::new();
+        let mut reader = StateReader::new(&data);
+        loaded.load(&mut reader).unwrap();
+
+        // Verify bytes match on re-save
+        let mut writer2 = StateWriter::new();
+        loaded.save(&mut writer2);
+        let data2 = writer2.finish();
+        assert_eq!(data, data2, "re-saved bytes must match original");
+
+        // Verify hash matches
+        assert_eq!(cpu_hash(&cpu), cpu_hash(&loaded), "hashes must match after roundtrip");
+    }
+
+    #[test]
+    fn e08_02_truncated() {
+        let mut cpu = Cpu::new();
+        cpu.a = 0x1234;
+        cpu.x = 0x5678;
+        cpu.y = 0x9ABC;
+        cpu.s = 0xDEF0;
+        cpu.d = 0x1111;
+        cpu.db = 0x22;
+        cpu.pb = 0x33;
+        cpu.pc = 0x4444;
+        cpu.p = 0x55;
+        cpu.e = false;
+        cpu.halted = true;
+        cpu.waiting = true;
+
+        let mut writer = StateWriter::new();
+        cpu.save(&mut writer);
+        let data = writer.finish();
+        let len = data.len();
+
+        // Test truncation at offsets 0, len/2, len-1
+        for n in [0, len / 2, len - 1] {
+            let mut loaded = Cpu::new();
+            let mut reader = StateReader::new(&data[..n]);
+            let result = loaded.load(&mut reader);
+            assert!(result.is_err(), "load on truncated data at offset {} should fail", n);
+        }
+    }
+
+    #[test]
+    fn e08_02_behaves_identically_after_load() {
+        // Build a simple program: LDA #12, CLC, ADC #1, INC A, DEC A, PHA, PLA, RTS
+        let program = [
+            0xA9, 0x12, // LDA #12
+            0x18,       // CLC
+            0x69, 0x01, // ADC #1
+            0xEB,       // SBC #0 (no borrow)
+            0x80, 0xFE, // BIT #$FE (set N flag)
+            0x4A,       // LSR A
+            0x0A,       // ASL A
+            0x29, 0xFF, // AND #$FF
+            0x65, 0x00, // ADC $00 (read from memory)
+            0x4C, 0x00, 0x80, // JMP $8000 (loop back to start of program area)
+        ];
+
+        let mut bus = testbus::FlatBus::new();
+        bus.poke(0x008000, &program);
+
+        // First CPU: run normally
+        let mut cpu1 = Cpu::new();
+        cpu1.pb = 0;
+        cpu1.pc = 0x8000;
+        for _ in 0..10 {
+            cpu1.step(&mut bus);
+        }
+
+        // Save state after running
+        let mut writer = StateWriter::new();
+        cpu1.save(&mut writer);
+        let data = writer.finish();
+
+        // Second CPU: load from saved state and run same instructions
+        let mut bus2 = testbus::FlatBus::new();
+        bus2.poke(0x008000, &program);
+
+        let mut cpu2 = Cpu::new();
+        let mut reader = StateReader::new(&data);
+        cpu2.load(&mut reader).unwrap();
+
+        // Run 10 more steps on both
+        for _ in 0..10 {
+            cpu1.step(&mut bus);
+            cpu2.step(&mut bus2);
+        }
+
+        assert_eq!(cpu_hash(&cpu1), cpu_hash(&cpu2), "hashes must match after executing same instructions");
+    }
+
+    #[test]
+    fn e08_02_wai_stp_state_kept() {
+        // CPU in WAI state: waiting=true, halted=false
+        let mut cpu = Cpu::new();
+        cpu.waiting = true;
+        cpu.pc = 0x1000;
+
+        // Save and restore
+        let mut writer = StateWriter::new();
+        cpu.save(&mut writer);
+        let data = writer.finish();
+
+        let mut loaded = Cpu::new();
+        let mut reader = StateReader::new(&data);
+        loaded.load(&mut reader).unwrap();
+
+        // Verify waiting state is preserved
+        assert!(loaded.waiting, "waiting flag must be preserved after load");
+
+        // Step without interrupt: PC should not advance (WAI waits for IRQ/NMI)
+        let mut bus = testbus::FlatBus::new();
+        loaded.step(&mut bus);
+        assert_eq!(loaded.pc, 0x1000, "PC must not advance while waiting in WAI state");
+    }
+}

@@ -229,3 +229,164 @@ impl Default for Spc700 {
         Self::new()
     }
 }
+
+impl crate::savestate::State for Spc700 {
+    fn save(&self, w: &mut crate::savestate::StateWriter) {
+        // Save all fields in declaration order. All are covered by hash_into or influence future behavior.
+        w.u8(self.a);
+        w.u8(self.x);
+        w.u8(self.y);
+        w.u8(self.sp);
+        w.u16(self.pc);
+        w.u8(self.psw);
+        w.bool(self.halted);
+        w.u32(self.cyc);
+        w.bool(self.taken);
+        // not saved: pat (instruction pattern, reset each step)
+        // not saved: pos (pattern position, reset each step)
+    }
+
+    fn load(&mut self, r: &mut crate::savestate::StateReader) -> Result<(), crate::savestate::StateError> {
+        // Load all fields in declaration order.
+        self.a = r.u8()?;
+        self.x = r.u8()?;
+        self.y = r.u8()?;
+        self.sp = r.u8()?;
+        self.pc = r.u16()?;
+        self.psw = r.u8()?;
+        self.halted = r.bool()?;
+        self.cyc = r.u32()?;
+        self.taken = r.bool()?;
+        // pat and pos are reset at the start of each step, so no need to restore them.
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::savestate::{State, StateWriter, StateReader};
+    use crate::hash::Fnv64;
+
+    fn spc_hash(spc: &Spc700) -> u64 {
+        let mut h = Fnv64::new();
+        h.write_u8(spc.a);
+        h.write_u8(spc.x);
+        h.write_u8(spc.y);
+        h.write_u8(spc.sp);
+        h.write_u16(spc.pc);
+        h.write_u8(spc.psw);
+        h.write_u8(if spc.halted { 1 } else { 0 });
+        h.write_u32(spc.cyc);
+        h.write_u8(if spc.taken { 1 } else { 0 });
+        h.finish()
+    }
+
+    #[test]
+    fn e08_09_spc_roundtrip() {
+        // Set every saved field to a distinct non-zero value.
+        let mut spc = Spc700::new();
+        spc.a = 0xA1;
+        spc.x = 0xB2;
+        spc.y = 0xC3;
+        spc.sp = 0xD4;
+        spc.pc = 0x5678;
+        spc.psw = 0xE9;
+        spc.halted = true;
+        spc.cyc = 12345;
+        spc.taken = true;
+
+        // Save.
+        let mut writer = StateWriter::new();
+        spc.save(&mut writer);
+        let data = writer.finish();
+
+        // Load into fresh instance.
+        let mut loaded = Spc700::new();
+        let mut reader = StateReader::new(&data);
+        loaded.load(&mut reader).unwrap();
+
+        // Verify bytes match on re-save.
+        let mut writer2 = StateWriter::new();
+        loaded.save(&mut writer2);
+        let data2 = writer2.finish();
+        assert_eq!(data, data2, "re-saved bytes must match original");
+
+        // Verify hash matches.
+        assert_eq!(spc_hash(&spc), spc_hash(&loaded), "hashes must match after roundtrip");
+    }
+
+    #[test]
+    fn e08_09_spc_truncated() {
+        let mut spc = Spc700::new();
+        spc.a = 0xA1;
+        spc.x = 0xB2;
+        spc.y = 0xC3;
+        spc.sp = 0xD4;
+        spc.pc = 0x5678;
+        spc.psw = 0xE9;
+        spc.halted = true;
+        spc.cyc = 12345;
+        spc.taken = true;
+
+        let mut writer = StateWriter::new();
+        spc.save(&mut writer);
+        let data = writer.finish();
+
+        // Test truncation at various points.
+        for n in [0, data.len() / 2, data.len() - 1] {
+            let mut loaded = Spc700::new();
+            let mut reader = StateReader::new(&data[..n]);
+            let result = loaded.load(&mut reader);
+            assert!(matches!(result, Err(crate::savestate::StateError::Truncated)),
+                "truncation at {} should fail with Truncated", n);
+        }
+    }
+
+    #[test]
+    fn e08_09_spc_behaves_identically() {
+        // Same short program on original and restored CPU: 20 steps -> identical registers.
+        use crate::apu::spc700::testbus::FlatSmpBus;
+
+        // Program: MOV A,#$10 ; INC A ; BRA -2 (infinite loop incrementing A)
+        let prog = [0xE8, 0x10, 0xBC, 0x2F, 0xFE];
+
+        // Original CPU.
+        let mut bus1 = FlatSmpBus::new();
+        for (i, b) in prog.iter().enumerate() {
+            bus1.write(0x8000 + i as u16, *b);
+        }
+        let mut spc1 = Spc700::new();
+        spc1.pc = 0x8000;
+        for _ in 0..20 {
+            spc1.step(&mut bus1);
+        }
+
+        // Save original state.
+        let mut writer = StateWriter::new();
+        spc1.save(&mut writer);
+        let data = writer.finish();
+
+        // Restored CPU.
+        let mut bus2 = FlatSmpBus::new();
+        for (i, b) in prog.iter().enumerate() {
+            bus2.write(0x8000 + i as u16, *b);
+        }
+        let mut spc2 = Spc700::new();
+        let mut reader = StateReader::new(&data);
+        spc2.load(&mut reader).unwrap();
+
+        // Run both for 20 more steps.
+        for _ in 0..20 {
+            spc1.step(&mut bus1);
+            spc2.step(&mut bus2);
+        }
+
+        assert_eq!(spc1.a, spc2.a, "A must match");
+        assert_eq!(spc1.x, spc2.x, "X must match");
+        assert_eq!(spc1.y, spc2.y, "Y must match");
+        assert_eq!(spc1.sp, spc2.sp, "SP must match");
+        assert_eq!(spc1.pc, spc2.pc, "PC must match");
+        assert_eq!(spc1.psw, spc2.psw, "PSW must match");
+    }
+}

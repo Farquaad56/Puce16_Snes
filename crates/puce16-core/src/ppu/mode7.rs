@@ -2,6 +2,7 @@
 //! clip13/m7_sample are pure functions; m7_pixel reads VRAM/CGRAM.
 
 use crate::hash::Fnv64;
+use crate::savestate::{State, StateError, StateReader, StateWriter};
 use super::bg::{Pix, direct_color_m7};
 use super::bg::mosaic_xy;
 
@@ -147,6 +148,102 @@ impl M7Regs {
         h.write_u16(self.vofs as u16);
         h.write_u8(self.latch);
         h.write_u8(self.b_last_byte);
+    }
+}
+
+impl State for M7Regs {
+    fn save(&self, w: &mut StateWriter) {
+        // not saved: none (all fields are stateful)
+        w.bool(self.flip_x);
+        w.bool(self.flip_y);
+        w.bool(self.fill);
+        w.bool(self.outside);
+        w.i16(self.a);
+        w.i16(self.b);
+        w.i16(self.c);
+        w.i16(self.d);
+        w.i16(self.cx);
+        w.i16(self.cy);
+        w.i16(self.hofs);
+        w.i16(self.vofs);
+        w.u8(self.latch);
+        w.u8(self.b_last_byte);
+    }
+
+    fn load(&mut self, r: &mut StateReader) -> Result<(), StateError> {
+        self.flip_x = r.bool()?;
+        self.flip_y = r.bool()?;
+        self.fill = r.bool()?;
+        self.outside = r.bool()?;
+        self.a = r.i16()?;
+        self.b = r.i16()?;
+        self.c = r.i16()?;
+        self.d = r.i16()?;
+        self.cx = r.i16()?;
+        self.cy = r.i16()?;
+        self.hofs = r.i16()?;
+        self.vofs = r.i16()?;
+        self.latch = r.u8()?;
+        self.b_last_byte = r.u8()?;
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::savestate::{StateWriter, StateReader};
+
+    #[test]
+    fn e08_07_m7_roundtrip() {
+        let mut original = M7Regs::new();
+        original.flip_x = true;
+        original.flip_y = true;
+        original.fill = true;
+        original.outside = true;
+        original.a = 12345;
+        original.b = -6789;
+        original.c = 100;
+        original.d = -200;
+        original.cx = 512;
+        original.cy = -256;
+        original.hofs = 1000;
+        original.vofs = -500;
+        original.latch = 0xFF;
+        original.b_last_byte = 0x7F;
+
+        let mut w = StateWriter::new();
+        original.save(&mut w);
+        let data = w.finish();
+
+        let mut restored = M7Regs::new();
+        let mut r = StateReader::new(&data);
+        restored.load(&mut r).unwrap();
+
+        assert_eq!(original.flip_x, restored.flip_x);
+        assert_eq!(original.flip_y, restored.flip_y);
+        assert_eq!(original.fill, restored.fill);
+        assert_eq!(original.outside, restored.outside);
+        assert_eq!(original.a, restored.a);
+        assert_eq!(original.b, restored.b);
+        assert_eq!(original.c, restored.c);
+        assert_eq!(original.d, restored.d);
+        assert_eq!(original.cx, restored.cx);
+        assert_eq!(original.cy, restored.cy);
+        assert_eq!(original.hofs, restored.hofs);
+        assert_eq!(original.vofs, restored.vofs);
+        assert_eq!(original.latch, restored.latch);
+        assert_eq!(original.b_last_byte, restored.b_last_byte);
+
+        let mut h1 = Fnv64::new();
+        original.hash_into(&mut h1);
+        let mut h2 = Fnv64::new();
+        restored.hash_into(&mut h2);
+        assert_eq!(h1.finish(), h2.finish());
+
+        let mut w2 = StateWriter::new();
+        restored.save(&mut w2);
+        assert_eq!(data, w2.finish());
     }
 }
 

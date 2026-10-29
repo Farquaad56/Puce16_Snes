@@ -5,6 +5,7 @@
 //! to track low/high byte position within each word.
 
 use crate::hash::Fnv64;
+use crate::savestate::{State, StateError, StateReader, StateWriter};
 
 #[derive(Clone)]
 pub struct Cgram {
@@ -99,5 +100,63 @@ impl Cgram {
         h.write_u8(self.addr);
         h.write_u8(if self.toggle { 1 } else { 0 });
         h.write_u8(self.latch);
+    }
+}
+
+impl State for Cgram {
+    fn save(&self, w: &mut StateWriter) {
+        // not saved: none (all fields are stateful)
+        w.slice_u16(&self.mem);
+        w.u8(self.addr);
+        w.bool(self.toggle);
+        w.u8(self.latch);
+    }
+
+    fn load(&mut self, r: &mut StateReader) -> Result<(), StateError> {
+        r.slice_u16_into(&mut self.mem)?;
+        self.addr = r.u8()?;
+        self.toggle = r.bool()?;
+        self.latch = r.u8()?;
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::savestate::{StateWriter, StateReader};
+
+    #[test]
+    fn e08_06_cgram_roundtrip() {
+        let mut original = Cgram::new();
+        for i in 0..256 {
+            original.mem[i] = (i as u16) ^ 0xAAAA;
+        }
+        original.addr = 0x42;
+        original.toggle = true;
+        original.latch = 0x77;
+
+        let mut w = StateWriter::new();
+        original.save(&mut w);
+        let data = w.finish();
+
+        let mut restored = Cgram::new();
+        let mut r = StateReader::new(&data);
+        restored.load(&mut r).unwrap();
+
+        assert_eq!(original.mem, restored.mem);
+        assert_eq!(original.addr, restored.addr);
+        assert_eq!(original.toggle, restored.toggle);
+        assert_eq!(original.latch, restored.latch);
+
+        let mut h1 = Fnv64::new();
+        original.hash_into(&mut h1);
+        let mut h2 = Fnv64::new();
+        restored.hash_into(&mut h2);
+        assert_eq!(h1.finish(), h2.finish());
+
+        let mut w2 = StateWriter::new();
+        restored.save(&mut w2);
+        assert_eq!(data, w2.finish());
     }
 }

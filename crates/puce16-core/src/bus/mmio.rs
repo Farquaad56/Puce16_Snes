@@ -249,3 +249,148 @@ impl Mmio {
         }
     }
 }
+
+impl crate::savestate::State for Mmio {
+    fn save(&self, w: &mut crate::savestate::StateWriter) {
+        // Save all fields in declaration order. All are covered by hash_into.
+        w.u8(self.nmitimen);
+        w.u8(self.wrio);
+        w.u16(self.htime);
+        w.u16(self.vtime);
+        w.u8(self.hdmaen);
+        w.bool(self.memsel);
+        w.bool(self.rdnmi_flag);
+        w.bool(self.timeup_flag);
+        w.bool(self.irq_line);
+        w.slice_u16(&self.joy);
+        w.u8(self.wrmpya);
+        w.u16(self.wrdiv);
+        w.u16(self.rddiv);
+        w.u16(self.rdmpy);
+        match &self.math_pending {
+            None => w.u8(0),
+            Some(p) => {
+                w.u8(1);
+                w.u64(p.done_at);
+                w.u16(p.rddiv);
+                w.u16(p.rdmpy);
+            }
+        }
+    }
+
+    fn load(&mut self, r: &mut crate::savestate::StateReader) -> Result<(), crate::savestate::StateError> {
+        // Load all fields in declaration order.
+        self.nmitimen = r.u8()?;
+        self.wrio = r.u8()?;
+        self.htime = r.u16()?;
+        self.vtime = r.u16()?;
+        self.hdmaen = r.u8()?;
+        self.memsel = r.bool()?;
+        self.rdnmi_flag = r.bool()?;
+        self.timeup_flag = r.bool()?;
+        self.irq_line = r.bool()?;
+        r.slice_u16_into(&mut self.joy)?;
+        self.wrmpya = r.u8()?;
+        self.wrdiv = r.u16()?;
+        self.rddiv = r.u16()?;
+        self.rdmpy = r.u16()?;
+        let idx = r.u8()?;
+        match idx {
+            0 => self.math_pending = None,
+            1 => {
+                let done_at = r.u64()?;
+                let rddiv = r.u16()?;
+                let rdmpy = r.u16()?;
+                self.math_pending = Some(MathPending { done_at, rddiv, rdmpy });
+            }
+            _ => return Err(crate::savestate::StateError::Mismatch("math_pending")),
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::savestate::{State, StateWriter, StateReader};
+    use crate::hash::Fnv64;
+
+    fn mmio_hash(mmio: &Mmio) -> u64 {
+        let mut h = Fnv64::new();
+        mmio.hash_into(&mut h);
+        h.finish()
+    }
+
+    #[test]
+    fn e08_04_mmio_roundtrip() {
+        // Set every saved field to a distinct non-zero value
+        let mut mmio = Mmio::new();
+        mmio.nmitimen = 0x12;
+        mmio.wrio = 0x34;
+        mmio.htime = 0x5678;
+        mmio.vtime = 0x9ABC;
+        mmio.hdmaen = 0xDE;
+        mmio.memsel = true;
+        mmio.rdnmi_flag = true;
+        mmio.timeup_flag = true;
+        mmio.irq_line = true;
+        mmio.joy = [0x1111, 0x2222, 0x3333, 0x4444];
+        mmio.wrmpya = 0xFF;
+        mmio.wrdiv = 0xFFFF;
+        mmio.rddiv = 0xABCD;
+        mmio.rdmpy = 0xEF01;
+        mmio.math_pending = Some(MathPending { done_at: 987654321, rddiv: 0x1234, rdmpy: 0x5678 });
+
+        // Save
+        let mut writer = StateWriter::new();
+        mmio.save(&mut writer);
+        let data = writer.finish();
+
+        // Load into fresh instance
+        let mut loaded = Mmio::new();
+        let mut reader = StateReader::new(&data);
+        loaded.load(&mut reader).unwrap();
+
+        // Verify bytes match on re-save
+        let mut writer2 = StateWriter::new();
+        loaded.save(&mut writer2);
+        let data2 = writer2.finish();
+        assert_eq!(data, data2, "re-saved bytes must match original");
+
+        // Verify hash matches
+        assert_eq!(mmio_hash(&mmio), mmio_hash(&loaded), "hashes must match after roundtrip");
+    }
+
+    #[test]
+    fn e08_04_mmio_truncated() {
+        let mut mmio = Mmio::new();
+        mmio.nmitimen = 0x12;
+        mmio.wrio = 0x34;
+        mmio.htime = 0x5678;
+        mmio.vtime = 0x9ABC;
+        mmio.hdmaen = 0xDE;
+        mmio.memsel = true;
+        mmio.rdnmi_flag = true;
+        mmio.timeup_flag = true;
+        mmio.irq_line = true;
+        mmio.joy = [0x1111, 0x2222, 0x3333, 0x4444];
+        mmio.wrmpya = 0xFF;
+        mmio.wrdiv = 0xFFFF;
+        mmio.rddiv = 0xABCD;
+        mmio.rdmpy = 0xEF01;
+        mmio.math_pending = Some(MathPending { done_at: 987654321, rddiv: 0x1234, rdmpy: 0x5678 });
+
+        let mut writer = StateWriter::new();
+        mmio.save(&mut writer);
+        let data = writer.finish();
+
+        // Test truncation at various points
+        for n in [0, data.len() / 2, data.len() - 1] {
+            let mut loaded = Mmio::new();
+            let mut reader = StateReader::new(&data[..n]);
+            let result = loaded.load(&mut reader);
+            assert!(matches!(result, Err(crate::savestate::StateError::Truncated)), 
+                "truncation at {} should fail with Truncated", n);
+        }
+    }
+}

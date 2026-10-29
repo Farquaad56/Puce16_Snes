@@ -12,6 +12,7 @@ pub mod dot;
 
 use crate::region::Region;
 use crate::hash::Fnv64;
+use crate::savestate::{State, StateError, StateReader, StateWriter};
 use crate::consts::{HV_LATCH_DOT_OFFSET, FB_WIDTH, FB_HEIGHT};
 use self::dot::{line_type, line_dots as dot_line_dots, dot_clocks};
 use self::vram::Vram;
@@ -762,5 +763,354 @@ impl Ppu {
         h.write_u8(if self.opvct_byte { 1 } else { 0 });
         h.write_u8(if self.range_over { 1 } else { 0 });
         h.write_u8(if self.time_over { 1 } else { 0 });
+    }
+}
+
+impl State for Ppu {
+    fn save(&self, w: &mut StateWriter) {
+        // not saved: none (all fields are stateful)
+        w.u8(self.region as u8);
+        self.vram.save(w);
+        self.cgram.save(w);
+        self.oam.save(w);
+        self.scroll.save(w);
+        self.m7.save(w);
+        self.regs.save(w);
+        w.u16(self.v);
+        w.u16(self.dot);
+        w.bool(self.field);
+        w.bool(self.interlace);
+        w.bool(self.obj_interlace);
+        w.bool(self.overscan);
+        w.bool(self.pseudo_hires);
+        w.bool(self.extbg);
+        w.bool(self.forced_blank);
+        w.u8(self.brightness);
+        w.u8(self.ppu1_mdr);
+        w.u8(self.ppu2_mdr);
+        w.u16(self.latch_h);
+        w.u16(self.latch_v);
+        w.bool(self.counter_latched);
+        w.bool(self.ophct_byte);
+        w.bool(self.opvct_byte);
+        w.bool(self.range_over);
+        w.bool(self.time_over);
+        // line_obj: 256 entries of Option<Pix> (rgb u16, prio u8, obj_pal u8)
+        for i in 0..256 {
+            match self.line_obj[i] {
+                None => w.u8(0),
+                Some(p) => {
+                    w.u8(1);
+                    w.u16(p.rgb);
+                    w.u8(p.prio);
+                    w.u8(p.obj_pal);
+                }
+            }
+        }
+        // framebuffer: full 512x478 buffer
+        w.slice_u32(&self.fb.pixels);
+        // view (compact frame)
+        w.u32(self.view.len() as u32);
+        w.slice_u32(&self.view);
+        w.u32(self.view_w as u32);
+        w.u32(self.view_h as u32);
+        w.bool(self.line_hires);
+        // row_hires: 478 bools
+        for i in 0..FB_HEIGHT {
+            w.bool(self.row_hires[i]);
+        }
+    }
+
+    fn load(&mut self, r: &mut StateReader) -> Result<(), StateError> {
+        let region_byte = r.u8()?;
+        if region_byte != (self.region as u8) {
+            return Err(StateError::Mismatch("region"));
+        }
+        self.vram.load(r)?;
+        self.cgram.load(r)?;
+        self.oam.load(r)?;
+        self.scroll.load(r)?;
+        self.m7.load(r)?;
+        self.regs.load(r)?;
+        self.v = r.u16()?;
+        self.dot = r.u16()?;
+        self.field = r.bool()?;
+        self.interlace = r.bool()?;
+        self.obj_interlace = r.bool()?;
+        self.overscan = r.bool()?;
+        self.pseudo_hires = r.bool()?;
+        self.extbg = r.bool()?;
+        self.forced_blank = r.bool()?;
+        self.brightness = r.u8()?;
+        self.ppu1_mdr = r.u8()?;
+        self.ppu2_mdr = r.u8()?;
+        self.latch_h = r.u16()?;
+        self.latch_v = r.u16()?;
+        self.counter_latched = r.bool()?;
+        self.ophct_byte = r.bool()?;
+        self.opvct_byte = r.bool()?;
+        self.range_over = r.bool()?;
+        self.time_over = r.bool()?;
+        // line_obj: 256 entries of Option<Pix>
+        for i in 0..256 {
+            let tag = r.u8()?;
+            match tag {
+                0 => self.line_obj[i] = None,
+                1 => {
+                    let rgb = r.u16()?;
+                    let prio = r.u8()?;
+                    let obj_pal = r.u8()?;
+                    self.line_obj[i] = Some(Pix { rgb, prio, obj_pal });
+                }
+                _ => return Err(StateError::Mismatch("line_obj tag")),
+            }
+        }
+        // framebuffer: full 512x478 buffer
+        r.slice_u32_into(&mut self.fb.pixels)?;
+        // view (compact frame)
+        let view_len = r.u32()? as usize;
+        let mut loaded_view = vec![0u32; view_len];
+        r.slice_u32_into(&mut loaded_view)?;
+        self.view_w = r.u32()? as usize;
+        self.view_h = r.u32()? as usize;
+        if loaded_view.len() != self.view_w * self.view_h {
+            return Err(StateError::Mismatch("view size"));
+        }
+        self.view = loaded_view;
+        self.line_hires = r.bool()?;
+        // row_hires: 478 bools
+        for i in 0..FB_HEIGHT {
+            self.row_hires[i] = r.bool()?;
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::savestate::{StateWriter, StateReader};
+
+    fn make_ppu_with_state() -> Ppu {
+        let mut p = Ppu::new(Region::Ntsc);
+        // Set non-default values for all saved fields
+        p.v = 100;
+        p.dot = 77;
+        p.field = true;
+        p.interlace = true;
+        p.obj_interlace = true;
+        p.overscan = true;
+        p.pseudo_hires = true;
+        p.extbg = true;
+        p.forced_blank = false;
+        p.brightness = 12;
+        p.ppu1_mdr = 0xAB;
+        p.ppu2_mdr = 0xCD;
+        p.latch_h = 500;
+        p.latch_v = 99;
+        p.counter_latched = true;
+        p.ophct_byte = true;
+        p.opvct_byte = false;
+        p.range_over = true;
+        p.time_over = false;
+        // Set some line_obj entries
+        p.line_obj[0] = Some(Pix { rgb: 0x1234, prio: 1, obj_pal: 5 });
+        p.line_obj[1] = None;
+        p.line_obj[2] = Some(Pix { rgb: 0x5678, prio: 2, obj_pal: 10 });
+        // Set framebuffer pixel
+        p.fb.set(10, 20, 0xFF123456);
+        // Set view
+        p.view = vec![0xFF_AABBCC; 256 * 224];
+        p.view_w = 256;
+        p.view_h = 224;
+        p.line_hires = true;
+        p.row_hires[10] = true;
+        p.row_hires[20] = true;
+        // Set some VRAM/CGRAM/OAM data via registers
+        p.write(0x05, 0x0F); // BG mode + tile sizes
+        p.write(0x33, 0x1F); // SETINI: interlace, obj_interlace, overscan, pseudo_hires, extbg
+        p
+    }
+
+    #[test]
+    fn e08_08_roundtrip_all_fields() {
+        let original = make_ppu_with_state();
+
+        let mut w = StateWriter::new();
+        original.save(&mut w);
+        let data = w.finish();
+
+        let mut restored = Ppu::new(Region::Ntsc);
+        let mut r = StateReader::new(&data);
+        restored.load(&mut r).unwrap();
+
+        // Verify all fields match
+        assert_eq!(original.v, restored.v);
+        assert_eq!(original.dot, restored.dot);
+        assert_eq!(original.field, restored.field);
+        assert_eq!(original.interlace, restored.interlace);
+        assert_eq!(original.obj_interlace, restored.obj_interlace);
+        assert_eq!(original.overscan, restored.overscan);
+        assert_eq!(original.pseudo_hires, restored.pseudo_hires);
+        assert_eq!(original.extbg, restored.extbg);
+        assert_eq!(original.forced_blank, restored.forced_blank);
+        assert_eq!(original.brightness, restored.brightness);
+        assert_eq!(original.ppu1_mdr, restored.ppu1_mdr);
+        assert_eq!(original.ppu2_mdr, restored.ppu2_mdr);
+        assert_eq!(original.latch_h, restored.latch_h);
+        assert_eq!(original.latch_v, restored.latch_v);
+        assert_eq!(original.counter_latched, restored.counter_latched);
+        assert_eq!(original.ophct_byte, restored.ophct_byte);
+        assert_eq!(original.opvct_byte, restored.opvct_byte);
+        assert_eq!(original.range_over, restored.range_over);
+        assert_eq!(original.time_over, restored.time_over);
+
+        // Verify line_obj entries
+        match (original.line_obj[0], restored.line_obj[0]) {
+            (Some(o), Some(r)) => {
+                assert_eq!(o.rgb, r.rgb);
+                assert_eq!(o.prio, r.prio);
+                assert_eq!(o.obj_pal, r.obj_pal);
+            }
+            _ => panic!("line_obj[0] mismatch"),
+        }
+        assert!(restored.line_obj[1].is_none());
+        match (original.line_obj[2], restored.line_obj[2]) {
+            (Some(o), Some(r)) => {
+                assert_eq!(o.rgb, r.rgb);
+                assert_eq!(o.prio, r.prio);
+                assert_eq!(o.obj_pal, r.obj_pal);
+            }
+            _ => panic!("line_obj[2] mismatch"),
+        }
+
+        // Verify framebuffer pixel
+        assert_eq!(original.fb.get(10, 20), restored.fb.get(10, 20));
+
+        // Verify view dimensions and content
+        assert_eq!(original.view_w, restored.view_w);
+        assert_eq!(original.view_h, restored.view_h);
+        assert_eq!(original.view.len(), restored.view.len());
+        for i in 0..restored.view.len() {
+            assert_eq!(original.view[i], restored.view[i]);
+        }
+
+        // Verify row_hires
+        assert_eq!(original.line_hires, restored.line_hires);
+        for i in 0..FB_HEIGHT {
+            assert_eq!(original.row_hires[i], restored.row_hires[i]);
+        }
+
+        // Re-save and compare bytes
+        let mut w2 = StateWriter::new();
+        restored.save(&mut w2);
+        assert_eq!(data, w2.finish());
+
+        // Hash comparison
+        let mut h1 = Fnv64::new();
+        original.hash_into(&mut h1);
+        let mut h2 = Fnv64::new();
+        restored.hash_into(&mut h2);
+        assert_eq!(h1.finish(), h2.finish());
+    }
+
+    #[test]
+    fn e08_08_region_mismatch() {
+        let original = Ppu::new(Region::Ntsc);
+        let mut w = StateWriter::new();
+        original.save(&mut w);
+        let data = w.finish();
+
+        let mut restored = Ppu::new(Region::Pal);
+        let mut r = StateReader::new(&data);
+        let result = restored.load(&mut r);
+        assert!(matches!(result, Err(StateError::Mismatch("region"))));
+    }
+
+    #[test]
+    fn e08_08_behaves_identically_midframe() {
+        // Create two PPUs with identical initial state
+        let mut p1 = Ppu::new(Region::Ntsc);
+        let mut p2 = Ppu::new(Region::Ntsc);
+
+        // Write some VRAM/CGRAM data via registers to create a scene
+        for i in 0..10 {
+            p1.write(0x16, (i * 3) as u8);
+            p1.write(0x17, ((i * 3) >> 8) as u8);
+            p1.write(0x18, (i * 5 + 1) as u8);
+            p1.write(0x19, (i * 7 + 2) as u8);
+        }
+
+        // Run both for the same number of dots to reach mid-frame state
+        let warmup_dots = 120_000;
+        for _ in 0..warmup_dots {
+            p1.step_dot();
+            p2.step_dot();
+        }
+
+        // Save state from p1 at this point
+        let mut w = StateWriter::new();
+        p1.save(&mut w);
+        let data = w.finish();
+
+        // Load into p2 (replacing its state)
+        let mut r = StateReader::new(&data);
+        p2.load(&mut r).unwrap();
+
+        // Run both for 50,000 more dots
+        let run_dots = 50_000;
+        for _ in 0..run_dots {
+            p1.step_dot();
+            p2.step_dot();
+        }
+
+        // Compare hashes
+        let mut h1 = Fnv64::new();
+        p1.hash_into(&mut h1);
+        let mut h2 = Fnv64::new();
+        p2.hash_into(&mut h2);
+        assert_eq!(h1.finish(), h2.finish());
+
+        // Compare frames pixel by pixel
+        let f1 = p1.frame();
+        let f2 = p2.frame();
+        assert_eq!(f1.width, f2.width);
+        assert_eq!(f1.height, f2.height);
+        for i in 0..f1.pixels.len() {
+            assert_eq!(f1.pixels[i], f2.pixels[i]);
+        }
+    }
+
+    #[test]
+    fn e08_08_framebuffer_roundtrip() {
+        let mut p = Ppu::new(Region::Ntsc);
+        // Set a specific pixel in the framebuffer
+        p.fb.set(10, 20, 0xFF123456);
+
+        let mut w = StateWriter::new();
+        p.save(&mut w);
+        let data = w.finish();
+
+        let mut restored = Ppu::new(Region::Ntsc);
+        let mut r = StateReader::new(&data);
+        restored.load(&mut r).unwrap();
+
+        // Verify the pixel survived roundtrip
+        assert_eq!(restored.fb.get(10, 20), 0xFF123456);
+    }
+
+    #[test]
+    fn e08_08_truncated() {
+        let original = make_ppu_with_state();
+
+        let mut w = StateWriter::new();
+        original.save(&mut w);
+        let data = w.finish();
+
+        for n in [0, data.len() / 2, data.len() - 1] {
+            let mut r = StateReader::new(&data[..n]);
+            let mut p = Ppu::new(Region::Ntsc);
+            assert!(p.load(&mut r).is_err(), "truncated at {} should fail", n);
+        }
     }
 }

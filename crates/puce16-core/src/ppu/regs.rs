@@ -1,6 +1,7 @@
 //! PPU scroll registers: BGnHOFS/BGnVOFS with shared latches.
 
 use crate::hash::Fnv64;
+use crate::savestate::{State, StateError, StateReader, StateWriter};
 
 #[derive(Clone)]
 pub struct Scroll {
@@ -54,6 +55,24 @@ impl Scroll {
         }
         h.write_u8(self.bgofs_latch);
         h.write_u8(self.bghofs_latch);
+    }
+}
+
+impl State for Scroll {
+    fn save(&self, w: &mut StateWriter) {
+        // not saved: none (all fields are stateful)
+        w.slice_u16(&self.hofs);
+        w.slice_u16(&self.vofs);
+        w.u8(self.bgofs_latch);
+        w.u8(self.bghofs_latch);
+    }
+
+    fn load(&mut self, r: &mut StateReader) -> Result<(), StateError> {
+        r.slice_u16_into(&mut self.hofs)?;
+        r.slice_u16_into(&mut self.vofs)?;
+        self.bgofs_latch = r.u8()?;
+        self.bghofs_latch = r.u8()?;
+        Ok(())
     }
 }
 
@@ -251,5 +270,282 @@ impl Regs {
         h.write_u8(self.fixed_r);
         h.write_u8(self.fixed_g);
         h.write_u8(self.fixed_b);
+    }
+}
+
+impl State for Regs {
+    fn save(&self, w: &mut StateWriter) {
+        // not saved: none (all fields are stateful)
+        w.u8(self.obj_size);
+        w.u16(self.obj_name_gap);
+        w.u16(self.obj_base);
+        w.u8(self.bg_mode);
+        w.bool(self.bg3_priority);
+        for n in 0..4 {
+            w.bool(self.tile16[n]);
+        }
+        w.u8(self.mosaic_raw);
+        w.u8(self.mosaic_en);
+        w.slice_u16(&self.map_base);
+        for n in 0..4 {
+            w.bool(self.map_x2[n]);
+        }
+        for n in 0..4 {
+            w.bool(self.map_y2[n]);
+        }
+        w.slice_u16(&self.chr_base);
+        w.bytes(&self.win_sel);
+        w.bytes(&self.wh);
+        w.u8(self.win_log_bg);
+        w.u8(self.win_log_obj);
+        w.u8(self.win_log_col);
+        w.u8(self.tm);
+        w.u8(self.ts);
+        w.u8(self.tmw);
+        w.u8(self.tsw);
+        w.bool(self.direct_color);
+        w.bool(self.addend_subscreen);
+        w.u8(self.math_region);
+        w.u8(self.black_region);
+        w.u8(self.math_mask);
+        w.bool(self.math_half);
+        w.bool(self.math_sub);
+        w.u8(self.fixed_r);
+        w.u8(self.fixed_g);
+        w.u8(self.fixed_b);
+    }
+
+    fn load(&mut self, r: &mut StateReader) -> Result<(), StateError> {
+        self.obj_size = r.u8()?;
+        self.obj_name_gap = r.u16()?;
+        self.obj_base = r.u16()?;
+        self.bg_mode = r.u8()?;
+        self.bg3_priority = r.bool()?;
+        for n in 0..4 {
+            self.tile16[n] = r.bool()?;
+        }
+        self.mosaic_raw = r.u8()?;
+        self.mosaic_en = r.u8()?;
+        r.slice_u16_into(&mut self.map_base)?;
+        for n in 0..4 {
+            self.map_x2[n] = r.bool()?;
+        }
+        for n in 0..4 {
+            self.map_y2[n] = r.bool()?;
+        }
+        r.slice_u16_into(&mut self.chr_base)?;
+        r.bytes_into(&mut self.win_sel)?;
+        r.bytes_into(&mut self.wh)?;
+        self.win_log_bg = r.u8()?;
+        self.win_log_obj = r.u8()?;
+        self.win_log_col = r.u8()?;
+        self.tm = r.u8()?;
+        self.ts = r.u8()?;
+        self.tmw = r.u8()?;
+        self.tsw = r.u8()?;
+        self.direct_color = r.bool()?;
+        self.addend_subscreen = r.bool()?;
+        self.math_region = r.u8()?;
+        self.black_region = r.u8()?;
+        self.math_mask = r.u8()?;
+        self.math_half = r.bool()?;
+        self.math_sub = r.bool()?;
+        self.fixed_r = r.u8()?;
+        self.fixed_g = r.u8()?;
+        self.fixed_b = r.u8()?;
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::savestate::{StateWriter, StateReader};
+
+    #[test]
+    fn e08_07_scroll_roundtrip() {
+        let mut original = Scroll::new();
+        for i in 0..4 {
+            original.hofs[i] = (i * 100 + 5) as u16;
+            original.vofs[i] = (i * 200 + 7) as u16;
+        }
+        original.bgofs_latch = 0xAB;
+        original.bghofs_latch = 0xCD;
+
+        let mut w = StateWriter::new();
+        original.save(&mut w);
+        let data = w.finish();
+
+        let mut restored = Scroll::new();
+        let mut r = StateReader::new(&data);
+        restored.load(&mut r).unwrap();
+
+        for i in 0..4 {
+            assert_eq!(original.hofs[i], restored.hofs[i]);
+            assert_eq!(original.vofs[i], restored.vofs[i]);
+        }
+        assert_eq!(original.bgofs_latch, restored.bgofs_latch);
+        assert_eq!(original.bghofs_latch, restored.bghofs_latch);
+
+        let mut h1 = Fnv64::new();
+        original.hash_into(&mut h1);
+        let mut h2 = Fnv64::new();
+        restored.hash_into(&mut h2);
+        assert_eq!(h1.finish(), h2.finish());
+
+        let mut w2 = StateWriter::new();
+        restored.save(&mut w2);
+        assert_eq!(data, w2.finish());
+    }
+
+    #[test]
+    fn e08_07_regs_roundtrip() {
+        let mut original = Regs::new();
+        // Set each field to a distinct non-zero value (i+1 pattern)
+        original.obj_size = 1;
+        original.obj_name_gap = 2;
+        original.obj_base = 3;
+        original.bg_mode = 4;
+        original.bg3_priority = true;
+        for n in 0..4 {
+            original.tile16[n] = (n % 2) == 0;
+        }
+        original.mosaic_raw = 8;
+        original.mosaic_en = 9;
+        for n in 0..4 {
+            original.map_base[n] = (n + 10) as u16;
+        }
+        for n in 0..4 {
+            original.map_x2[n] = (n % 3) == 0;
+        }
+        for n in 0..4 {
+            original.map_y2[n] = (n % 3) == 1;
+        }
+        for n in 0..4 {
+            original.chr_base[n] = (n + 14) as u16;
+        }
+        for i in 0..3 {
+            original.win_sel[i] = (i + 18) as u8;
+        }
+        for i in 0..4 {
+            original.wh[i] = (i + 21) as u8;
+        }
+        original.win_log_bg = 25;
+        original.win_log_obj = 26;
+        original.win_log_col = 27;
+        original.tm = 28;
+        original.ts = 29;
+        original.tmw = 30;
+        original.tsw = 31;
+        original.direct_color = true;
+        original.addend_subscreen = true;
+        original.math_region = 34;
+        original.black_region = 35;
+        original.math_mask = 36;
+        original.math_half = true;
+        original.math_sub = true;
+        original.fixed_r = 39;
+        original.fixed_g = 40;
+        original.fixed_b = 41;
+
+        let mut w = StateWriter::new();
+        original.save(&mut w);
+        let data = w.finish();
+
+        let mut restored = Regs::new();
+        let mut r = StateReader::new(&data);
+        restored.load(&mut r).unwrap();
+
+        assert_eq!(original.obj_size, restored.obj_size);
+        assert_eq!(original.obj_name_gap, restored.obj_name_gap);
+        assert_eq!(original.obj_base, restored.obj_base);
+        assert_eq!(original.bg_mode, restored.bg_mode);
+        assert_eq!(original.bg3_priority, restored.bg3_priority);
+        for n in 0..4 {
+            assert_eq!(original.tile16[n], restored.tile16[n]);
+        }
+        assert_eq!(original.mosaic_raw, restored.mosaic_raw);
+        assert_eq!(original.mosaic_en, restored.mosaic_en);
+        for n in 0..4 {
+            assert_eq!(original.map_base[n], restored.map_base[n]);
+        }
+        for n in 0..4 {
+            assert_eq!(original.map_x2[n], restored.map_x2[n]);
+        }
+        for n in 0..4 {
+            assert_eq!(original.map_y2[n], restored.map_y2[n]);
+        }
+        for n in 0..4 {
+            assert_eq!(original.chr_base[n], restored.chr_base[n]);
+        }
+        for i in 0..3 {
+            assert_eq!(original.win_sel[i], restored.win_sel[i]);
+        }
+        for i in 0..4 {
+            assert_eq!(original.wh[i], restored.wh[i]);
+        }
+        assert_eq!(original.win_log_bg, restored.win_log_bg);
+        assert_eq!(original.win_log_obj, restored.win_log_obj);
+        assert_eq!(original.win_log_col, restored.win_log_col);
+        assert_eq!(original.tm, restored.tm);
+        assert_eq!(original.ts, restored.ts);
+        assert_eq!(original.tmw, restored.tmw);
+        assert_eq!(original.tsw, restored.tsw);
+        assert_eq!(original.direct_color, restored.direct_color);
+        assert_eq!(original.addend_subscreen, restored.addend_subscreen);
+        assert_eq!(original.math_region, restored.math_region);
+        assert_eq!(original.black_region, restored.black_region);
+        assert_eq!(original.math_mask, restored.math_mask);
+        assert_eq!(original.math_half, restored.math_half);
+        assert_eq!(original.math_sub, restored.math_sub);
+        assert_eq!(original.fixed_r, restored.fixed_r);
+        assert_eq!(original.fixed_g, restored.fixed_g);
+        assert_eq!(original.fixed_b, restored.fixed_b);
+
+        let mut h1 = Fnv64::new();
+        original.hash_into(&mut h1);
+        let mut h2 = Fnv64::new();
+        restored.hash_into(&mut h2);
+        assert_eq!(h1.finish(), h2.finish());
+
+        let mut w2 = StateWriter::new();
+        restored.save(&mut w2);
+        assert_eq!(data, w2.finish());
+    }
+
+    #[test]
+    fn e08_07_truncated_each() {
+        // Scroll truncated
+        let scroll = Scroll::new();
+        let mut w = StateWriter::new();
+        scroll.save(&mut w);
+        let sdata = w.finish();
+        for n in [0, sdata.len() / 2, sdata.len() - 1] {
+            let mut r = StateReader::new(&sdata[..n]);
+            let mut s = Scroll::new();
+            assert!(s.load(&mut r).is_err(), "scroll truncated at {}", n);
+        }
+
+        // Regs truncated
+        let regs = Regs::new();
+        let mut w = StateWriter::new();
+        regs.save(&mut w);
+        let rdata = w.finish();
+        for n in [0, rdata.len() / 2, rdata.len() - 1] {
+            let mut r = StateReader::new(&rdata[..n]);
+            let mut rg = Regs::new();
+            assert!(rg.load(&mut r).is_err(), "regs truncated at {}", n);
+        }
+
+        // M7Regs truncated
+        let m7 = crate::ppu::mode7::M7Regs::new();
+        let mut w = StateWriter::new();
+        m7.save(&mut w);
+        let mdata = w.finish();
+        for n in [0, mdata.len() / 2, mdata.len() - 1] {
+            let mut r = StateReader::new(&mdata[..n]);
+            let mut m = crate::ppu::mode7::M7Regs::new();
+            assert!(m.load(&mut r).is_err(), "m7 truncated at {}", n);
+        }
     }
 }

@@ -76,3 +76,117 @@ impl Wram {
         h.write_u32(self.addr);
     }
 }
+
+impl crate::savestate::State for Wram {
+    fn save(&self, w: &mut crate::savestate::StateWriter) {
+        // mem (128 KiB, bytes without prefix) then addr (u32)
+        w.bytes(&self.mem);
+        w.u32(self.addr);
+    }
+
+    fn load(&mut self, r: &mut crate::savestate::StateReader) -> Result<(), crate::savestate::StateError> {
+        // Read mem into place
+        for i in 0..Self::SIZE {
+            let b = r.u8()?;
+            self.mem[i] = b;
+        }
+        self.addr = r.u32()?;
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::savestate::{State, StateWriter, StateReader};
+
+    #[test]
+    fn e08_03_wram_roundtrip() {
+        let mut w = Wram::new();
+        // Fill with pattern: mem[i] = (i * 7) as u8
+        for i in 0..w.mem.len() {
+            w.write(i as u32, (i * 7) as u8);
+        }
+        w.addr = 0x1ABCD;
+
+        // Save
+        let mut sw = StateWriter::new();
+        w.save(&mut sw);
+        let data = sw.finish();
+
+        // Verify saved size: 0x20000 + 4 bytes
+        assert_eq!(data.len(), 0x20000 + 4, "saved size should be 128 KiB + 4");
+
+        // Load into fresh instance
+        let mut w2 = Wram::new();
+        let mut sr = StateReader::new(&data);
+        w2.load(&mut sr).unwrap();
+
+        // Verify memory restored identically
+        for i in 0..w.mem.len() {
+            assert_eq!(w.read(i as u32), w2.read(i as u32), "byte {} mismatch", i);
+        }
+        assert_eq!(w.addr, w2.addr, "addr mismatch");
+
+        // Verify re-save produces identical bytes
+        let mut sw2 = StateWriter::new();
+        w2.save(&mut sw2);
+        assert_eq!(data, sw2.finish());
+
+        // Verify hash_into matches
+        let mut h1 = Fnv64::new();
+        w.hash_into(&mut h1);
+        let mut h2 = Fnv64::new();
+        w2.hash_into(&mut h2);
+        assert_eq!(h1.finish(), h2.finish());
+    }
+
+    #[test]
+    fn e08_03_wram_truncated() {
+        let mut w = Wram::new();
+        for i in 0..w.mem.len() {
+            w.write(i as u32, (i * 7) as u8);
+        }
+        w.addr = 0x1ABCD;
+
+        let mut sw = StateWriter::new();
+        w.save(&mut sw);
+        let data = sw.finish();
+
+        // Test truncation at various points
+        for n in [0, data.len() / 2, data.len() - 1] {
+            let mut sr = StateReader::new(&data[..n]);
+            let mut w2 = Wram::new();
+            assert!(w2.load(&mut sr).is_err(), "truncated at {} should fail", n);
+        }
+    }
+
+    /// Truncation for each of the three E08-03 types. Wram and Joypads are covered here;
+    /// Cart has its own `e08_03_cart_truncated` (its test helper is private to cart/mod.rs).
+    #[test]
+    fn e08_03_truncated_each() {
+        use crate::joypad::Joypads;
+        use crate::savestate::StateError;
+
+        let mut w = Wram::new();
+        w.addr = 0x1ABCD;
+        let mut sw = StateWriter::new();
+        w.save(&mut sw);
+        let data = sw.finish();
+        for n in [0, data.len() / 2, data.len() - 1] {
+            let mut w2 = Wram::new();
+            assert_eq!(w2.load(&mut StateReader::new(&data[..n])), Err(StateError::Truncated), "wram n={n}");
+        }
+
+        let mut j = Joypads::new();
+        j.set_buttons(0, 0xAAA0);
+        j.set_buttons(1, 0x5550);
+        let mut sj = StateWriter::new();
+        j.save(&mut sj);
+        let data = sj.finish();
+        for n in [0, data.len() / 2, data.len() - 1] {
+            let mut j2 = Joypads::new();
+            assert_eq!(j2.load(&mut StateReader::new(&data[..n])), Err(StateError::Truncated), "joypads n={n}");
+        }
+    }
+}

@@ -106,3 +106,90 @@ impl Joypads {
         }
     }
 }
+
+impl crate::savestate::State for Joypads {
+    fn save(&self, w: &mut crate::savestate::StateWriter) {
+        // state[0], state[1] (u16 each), shift[0], shift[1] (u16 each), out0 (bool)
+        w.u16(self.state[0]);
+        w.u16(self.state[1]);
+        w.u16(self.shift[0]);
+        w.u16(self.shift[1]);
+        w.bool(self.out0);
+    }
+
+    fn load(&mut self, r: &mut crate::savestate::StateReader) -> Result<(), crate::savestate::StateError> {
+        self.state[0] = r.u16()?;
+        self.state[1] = r.u16()?;
+        self.shift[0] = r.u16()?;
+        self.shift[1] = r.u16()?;
+        self.out0 = r.bool()?;
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::savestate::{State, StateWriter, StateReader};
+
+    #[test]
+    fn e08_03_joypads_roundtrip() {
+        let mut j = Joypads::new();
+        // Set all fields to distinct non-zero values
+        j.state[0] = 0xAAAA;
+        j.state[1] = 0xBBBB;
+        j.shift[0] = 0xCCCC;
+        j.shift[1] = 0xDDDD;
+        j.out0 = true;
+
+        // Save
+        let mut w = StateWriter::new();
+        j.save(&mut w);
+        let data = w.finish();
+
+        // Load into fresh instance
+        let mut j2 = Joypads::new();
+        let mut r = StateReader::new(&data);
+        j2.load(&mut r).unwrap();
+
+        // Verify fields match
+        assert_eq!(j.state[0], j2.state[0]);
+        assert_eq!(j.state[1], j2.state[1]);
+        assert_eq!(j.shift[0], j2.shift[0]);
+        assert_eq!(j.shift[1], j2.shift[1]);
+        assert_eq!(j.out0, j2.out0);
+
+        // Verify re-save produces identical bytes
+        let mut w2 = StateWriter::new();
+        j2.save(&mut w2);
+        assert_eq!(data, w2.finish());
+
+        // Verify hash_into matches
+        let mut h1 = crate::hash::Fnv64::new();
+        j.hash_into(&mut h1);
+        let mut h2 = crate::hash::Fnv64::new();
+        j2.hash_into(&mut h2);
+        assert_eq!(h1.finish(), h2.finish());
+    }
+
+    #[test]
+    fn e08_03_joypads_truncated() {
+        let mut j = Joypads::new();
+        j.state[0] = 0xAAAA;
+        j.state[1] = 0xBBBB;
+        j.shift[0] = 0xCCCC;
+        j.shift[1] = 0xDDDD;
+        j.out0 = true;
+
+        let mut w = StateWriter::new();
+        j.save(&mut w);
+        let data = w.finish();
+
+        // Test truncation at various points
+        for n in [0, data.len() / 2, data.len() - 1] {
+            let mut r = StateReader::new(&data[..n]);
+            let mut j2 = Joypads::new();
+            assert!(j2.load(&mut r).is_err(), "truncated at {} should fail", n);
+        }
+    }
+}

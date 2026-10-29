@@ -83,6 +83,62 @@ impl Voice {
     }
 }
 
+use crate::savestate::{State, StateWriter, StateReader, StateError};
+
+impl State for Voice {
+    fn save(&self, w: &mut StateWriter) {
+        // Save all fields in declaration order. All are covered by hash_into.
+        w.u8(self.kon_delay);
+        let mode_val = match self.mode {
+            Mode::Attack => 0u8,
+            Mode::Decay => 1u8,
+            Mode::Sustain => 2u8,
+            Mode::Release => 3u8,
+        };
+        w.u8(mode_val);
+        w.i32(self.env);
+        w.i32(self.hidden_env);
+        w.u16(self.addr);
+        w.u8(self.block_header);
+        w.u8(self.group_in_block);
+        for &v in &self.buf {
+            w.i32(v);
+        }
+        w.u8(self.buf_pos as u8);
+        w.u32(self.interp_pos);
+        w.i32(self.out);
+        w.i32(self.p1);
+        w.i32(self.p2);
+    }
+
+    fn load(&mut self, r: &mut StateReader) -> Result<(), StateError> {
+        // Load all fields in declaration order.
+        self.kon_delay = r.u8()?;
+        let mode_val = r.u8()?;
+        match mode_val {
+            0 => self.mode = Mode::Attack,
+            1 => self.mode = Mode::Decay,
+            2 => self.mode = Mode::Sustain,
+            3 => self.mode = Mode::Release,
+            _ => return Err(StateError::Mismatch("voice mode")),
+        }
+        self.env = r.i32()?;
+        self.hidden_env = r.i32()?;
+        self.addr = r.u16()?;
+        self.block_header = r.u8()?;
+        self.group_in_block = r.u8()?;
+        for slot in &mut self.buf {
+            *slot = r.i32()?;
+        }
+        self.buf_pos = r.u8()? as usize;
+        self.interp_pos = r.u32()?;
+        self.out = r.i32()?;
+        self.p1 = r.i32()?;
+        self.p2 = r.i32()?;
+        Ok(())
+    }
+}
+
 impl Dsp {
     pub fn voice(&self, x: usize) -> &Voice {
         &self.voices[x & 7]
@@ -257,5 +313,93 @@ impl Dsp {
         self.regs[reg::vreg(x, reg::ENVX)] = self.pend_envx[x & 7];
         self.regs[reg::vreg(x, reg::OUTX)] = self.pend_outx[x & 7];
         r
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::savestate::{State, StateWriter, StateReader};
+    use crate::hash::Fnv64;
+
+    fn voice_hash(v: &Voice) -> u64 {
+        let mut h = Fnv64::new();
+        v.hash_into(&mut h);
+        h.finish()
+    }
+
+    #[test]
+    fn e08_10_voice_roundtrip() {
+        // Set every saved field to a distinct non-zero value. Mode: Sustain (2).
+        let mut voice = Voice::new();
+        voice.kon_delay = 5;
+        voice.mode = Mode::Sustain;
+        voice.env = 1234567890;
+        voice.hidden_env = 987654321;
+        voice.addr = 0xABCD;
+        voice.block_header = 0x4F;
+        voice.group_in_block = 3;
+        for i in 0..12 {
+            voice.buf[i] = (i as i32) * 100 + 7;
+        }
+        voice.buf_pos = 9;
+        voice.interp_pos = 0x5678;
+        voice.out = -42;
+        voice.p1 = 111111;
+        voice.p2 = 222222;
+
+        // Save.
+        let mut writer = StateWriter::new();
+        voice.save(&mut writer);
+        let data = writer.finish();
+
+        // Load into fresh instance.
+        let mut loaded = Voice::new();
+        let mut reader = StateReader::new(&data);
+        loaded.load(&mut reader).unwrap();
+
+        // Verify bytes match on re-save.
+        let mut writer2 = StateWriter::new();
+        loaded.save(&mut writer2);
+        let data2 = writer2.finish();
+        assert_eq!(data, data2, "re-saved bytes must match original");
+
+        // Verify hash matches.
+        assert_eq!(voice_hash(&voice), voice_hash(&loaded), "hashes must match after roundtrip");
+    }
+
+    #[test]
+    fn e08_10_voice_bad_mode() {
+        let mut writer = StateWriter::new();
+        writer.u8(5); // kon_delay
+        writer.u8(9); // bad mode value
+        let data = writer.finish();
+
+        let mut voice = Voice::new();
+        let mut reader = StateReader::new(&data);
+        let result = voice.load(&mut reader);
+        assert!(matches!(result, Err(StateError::Mismatch("voice mode"))),
+            "bad mode byte should fail with Mismatch(\"voice mode\")");
+    }
+
+    #[test]
+    fn e08_10_truncated_voice() {
+        let mut voice = Voice::new();
+        voice.kon_delay = 5;
+        voice.mode = Mode::Sustain;
+        voice.env = 1234567890;
+
+        let mut writer = StateWriter::new();
+        voice.save(&mut writer);
+        let data = writer.finish();
+
+        // Test truncation at various points.
+        for n in [0, data.len() / 2, data.len() - 1] {
+            let mut loaded = Voice::new();
+            let mut reader = StateReader::new(&data[..n]);
+            let result = loaded.load(&mut reader);
+            assert!(matches!(result, Err(StateError::Truncated)),
+                "truncation at {} should fail with Truncated", n);
+        }
     }
 }

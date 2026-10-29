@@ -3,6 +3,7 @@
 //! Implements the SNES OAM write/read protocol per spec 05_PPU.md section 2.1.
 
 use crate::hash::Fnv64;
+use crate::savestate::{State, StateError, StateReader, StateWriter};
 
 #[derive(Clone)]
 pub struct Oam {
@@ -129,5 +130,67 @@ impl Oam {
         h.write_u16(self.internal);
         h.write_u8(self.latch);
         h.write_u8(if self.rotation { 1 } else { 0 });
+    }
+}
+
+impl State for Oam {
+    fn save(&self, w: &mut StateWriter) {
+        // not saved: none (all fields are stateful)
+        w.bytes(&self.mem);
+        w.u16(self.oamadd_reg);
+        w.u16(self.internal);
+        w.u8(self.latch);
+        w.bool(self.rotation);
+    }
+
+    fn load(&mut self, r: &mut StateReader) -> Result<(), StateError> {
+        r.bytes_into(&mut self.mem)?;
+        self.oamadd_reg = r.u16()?;
+        self.internal = r.u16()?;
+        self.latch = r.u8()?;
+        self.rotation = r.bool()?;
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::savestate::{StateWriter, StateReader};
+
+    #[test]
+    fn e08_06_oam_roundtrip() {
+        let mut original = Oam::new();
+        for i in 0..544 {
+            original.mem[i] = (i as u8) ^ 0x3C;
+        }
+        original.oamadd_reg = 0x1FF;
+        original.internal = 0x200;
+        original.latch = 0xEE;
+        original.rotation = true;
+
+        let mut w = StateWriter::new();
+        original.save(&mut w);
+        let data = w.finish();
+
+        let mut restored = Oam::new();
+        let mut r = StateReader::new(&data);
+        restored.load(&mut r).unwrap();
+
+        assert_eq!(original.mem, restored.mem);
+        assert_eq!(original.oamadd_reg, restored.oamadd_reg);
+        assert_eq!(original.internal, restored.internal);
+        assert_eq!(original.latch, restored.latch);
+        assert_eq!(original.rotation, restored.rotation);
+
+        let mut h1 = Fnv64::new();
+        original.hash_into(&mut h1);
+        let mut h2 = Fnv64::new();
+        restored.hash_into(&mut h2);
+        assert_eq!(h1.finish(), h2.finish());
+
+        let mut w2 = StateWriter::new();
+        restored.save(&mut w2);
+        assert_eq!(data, w2.finish());
     }
 }

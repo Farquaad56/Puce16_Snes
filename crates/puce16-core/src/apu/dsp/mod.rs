@@ -310,8 +310,247 @@ impl Dsp {
     }
 }
 
+use crate::savestate::{State, StateWriter, StateReader, StateError};
+
+impl State for Dsp {
+    fn save(&self, w: &mut StateWriter) {
+        // Save all fields in declaration order. The pipeline-timing fields (pend_*, phase,
+        // lat_adsr1, use_lat, envx_buf, outx_buf) are not hashed but they steer the next
+        // clocks, so they ARE saved.
+        // not saved: ref_order (configuration flag set by the owner, not machine state)
+        w.bytes(&self.regs);
+        for v in &self.voices {
+            v.save(w);
+        }
+        w.u16(self.counter);
+        w.u16(self.noise);
+        w.bool(self.every_other);
+        w.u8(self.new_kon);
+        w.u8(self.kon);
+        w.u8(self.endx);
+        w.u16(self.echo_offset);
+        w.u16(self.echo_length);
+        for &v in &self.hist_l {
+            w.i32(v);
+        }
+        for &v in &self.hist_r {
+            w.i32(v);
+        }
+        // audio: Vec<i16> -> write as vec_u16 with conversion.
+        let audio_u16: Vec<u16> = self.audio.iter().map(|&x| x as u16).collect();
+        w.vec_u16(&audio_u16);
+        w.bytes(&self.pend_envx);
+        w.bytes(&self.pend_outx);
+        w.u8(self.phase);
+        w.bytes(&self.lat_adsr1);
+        w.bool(self.use_lat);
+        w.u8(self.envx_buf);
+        w.u8(self.outx_buf);
+    }
+
+    fn load(&mut self, r: &mut StateReader) -> Result<(), StateError> {
+        // Load all fields in declaration order.
+        r.bytes_into(&mut self.regs)?;
+        for v in &mut self.voices {
+            v.load(r)?;
+        }
+        self.counter = r.u16()?;
+        self.noise = r.u16()?;
+        self.every_other = r.bool()?;
+        self.new_kon = r.u8()?;
+        self.kon = r.u8()?;
+        self.endx = r.u8()?;
+        self.echo_offset = r.u16()?;
+        self.echo_length = r.u16()?;
+        for slot in &mut self.hist_l {
+            *slot = r.i32()?;
+        }
+        for slot in &mut self.hist_r {
+            *slot = r.i32()?;
+        }
+        // audio: read as vec_u16 and convert back to i16.
+        let audio_u16 = r.vec_u16()?;
+        self.audio = audio_u16.into_iter().map(|x| x as i16).collect();
+        r.bytes_into(&mut self.pend_envx)?;
+        r.bytes_into(&mut self.pend_outx)?;
+        self.phase = r.u8()?;
+        r.bytes_into(&mut self.lat_adsr1)?;
+        self.use_lat = r.bool()?;
+        self.envx_buf = r.u8()?;
+        self.outx_buf = r.u8()?;
+        Ok(())
+    }
+}
+
 impl Default for Dsp {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::savestate::{State, StateWriter, StateReader};
+    use crate::hash::Fnv64;
+    use crate::apu::Apu;
+
+    fn dsp_hash(d: &Dsp) -> u64 {
+        let mut h = Fnv64::new();
+        d.hash_into(&mut h);
+        h.finish()
+    }
+
+    #[test]
+    fn e08_10_dsp_roundtrip() {
+        // Set up a Dsp with non-trivial state including audio output.
+        let mut apu = Apu::new();
+        // Directory at 0x0200: start=loop=0x0300
+        apu.debug_poke(0x0200, &[0x00, 0x03, 0x00, 0x03]);
+        // BRR block at 0x0300: shift 12, filter 0, loop+end flags, all nibbles 7 (constant)
+        apu.debug_poke(0x0300, &[0xC3, 0x77, 0x77, 0x77, 0x77, 0x77, 0x77, 0x77, 0x77]);
+        // Infinite loop program at 0x0400: BRA -2
+        apu.debug_poke(0x0400, &[0x2F, 0xFE]);
+        apu.debug_set_pc(0x0400);
+
+        let pairs = [
+            (0x5D, 0x02), // DIR: directory at 0x0200
+            (0x04, 0x00), // SRCN: sample channel 0
+            (0x02, 0x00), // PITCHL
+            (0x03, 0x10), // PITCHH: pitch = 0x1000
+            (0x05, 0x00), // ADSR1: direct gain, no envelope
+            (0x07, 0x7F), // GAIN: max -> env value 2032
+            (0x00, 0x7F), // VOLL: full left volume
+            (0x01, 0x7F), // VOLR: full right volume
+            (0x0C, 0x7F), // MVOLL: master left volume
+            (0x1C, 0x7F), // MVOLR: master right volume
+            (0x6C, 0x20), // FLG: flags
+        ];
+        for &(r, v) in &pairs {
+            apu.debug_dsp_write(r, v);
+        }
+        apu.debug_dsp_write(0x4C, 1); // KON: key on
+
+        // Run some samples to get non-trivial state with audio.
+        apu.step_to(50_000);
+        let _audio = apu.take_audio();
+
+        // Save DSP state directly via the Apu's internal Dsp.
+        let dsp = &apu.io.dsp;
+        let mut writer = StateWriter::new();
+        dsp.save(&mut writer);
+        let data = writer.finish();
+
+        // Load into fresh Dsp instance.
+        let mut loaded_dsp = Dsp::new();
+        let mut reader = StateReader::new(&data);
+        loaded_dsp.load(&mut reader).unwrap();
+
+        // Verify bytes match on re-save.
+        let mut writer2 = StateWriter::new();
+        loaded_dsp.save(&mut writer2);
+        let data2 = writer2.finish();
+        assert_eq!(data, data2, "re-saved bytes must match original");
+
+        // Verify hash matches.
+        assert_eq!(dsp_hash(dsp), dsp_hash(&loaded_dsp), "hashes must match after roundtrip");
+    }
+
+    #[test]
+    fn e08_10_dsp_behaves_identically() {
+        // BRR note (DIR $0200 -> sample $0300 looping on itself), KON, 100 samples, then
+        // save/restore into a fresh Dsp and run 200 more samples on both with identical RAM.
+        let mut ram = [0u8; 65536];
+        ram[0x200..0x204].copy_from_slice(&[0x00, 0x03, 0x00, 0x03]);
+        ram[0x300..0x309].copy_from_slice(&[0xC3, 0x77, 0x77, 0x77, 0x77, 0x77, 0x77, 0x77, 0x77]);
+
+        let mut a = Dsp::new();
+        let pairs = [
+            (0x5D, 0x02), (0x04, 0x00), (0x02, 0x00), (0x03, 0x10),
+            (0x05, 0x00), (0x07, 0x7F), (0x00, 0x7F), (0x01, 0x7F),
+            (0x0C, 0x7F), (0x1C, 0x7F), (0x6C, 0x20),
+        ];
+        for &(r, v) in &pairs {
+            a.write(r, v);
+        }
+        a.write(0x4C, 1); // KON
+        for _ in 0..100 {
+            a.run_sample(&mut ram);
+        }
+        let _ = a.take_audio();
+
+        let mut writer = StateWriter::new();
+        a.save(&mut writer);
+        let data = writer.finish();
+        let mut b = Dsp::new();
+        b.load(&mut StateReader::new(&data)).unwrap();
+        assert_eq!(dsp_hash(&a), dsp_hash(&b));
+
+        let mut ram_b = ram;
+        for _ in 0..200 {
+            a.run_sample(&mut ram);
+            b.run_sample(&mut ram_b);
+        }
+        let audio_a = a.take_audio();
+        assert!(audio_a.iter().any(|&x| x != 0), "the note must produce sound");
+        assert_eq!(audio_a, b.take_audio(), "audio must match after save/restore");
+        assert_eq!(dsp_hash(&a), dsp_hash(&b));
+    }
+
+    /// Truncation for both E08-10 types (also covered by `e08_10_truncated_voice` / `_dsp`).
+    #[test]
+    fn e08_10_truncated_each() {
+        use crate::apu::dsp::voice::Voice;
+        use crate::savestate::StateError;
+
+        let mut w = StateWriter::new();
+        Voice::new().save(&mut w);
+        let data = w.finish();
+        for n in [0, data.len() / 2, data.len() - 1] {
+            let mut v = Voice::new();
+            assert_eq!(v.load(&mut StateReader::new(&data[..n])), Err(StateError::Truncated), "voice n={n}");
+        }
+
+        let mut d = Dsp::new();
+        d.write(0x6C, 0x20);
+        let mut w = StateWriter::new();
+        d.save(&mut w);
+        let data = w.finish();
+        for n in [0, data.len() / 2, data.len() - 1] {
+            let mut d2 = Dsp::new();
+            assert_eq!(d2.load(&mut StateReader::new(&data[..n])), Err(StateError::Truncated), "dsp n={n}");
+        }
+    }
+
+    #[test]
+    fn e08_10_truncated_dsp() {
+        let mut apu = Apu::new();
+        apu.debug_poke(0x0200, &[0x00, 0x03, 0x00, 0x03]);
+        apu.debug_poke(0x0300, &[0xC3, 0x77, 0x77, 0x77, 0x77, 0x77, 0x77, 0x77, 0x77]);
+        apu.debug_poke(0x0400, &[0x2F, 0xFE]);
+        apu.debug_set_pc(0x0400);
+
+        let pairs = [
+            (0x5D, 0x02), (0x04, 0x00), (0x02, 0x00), (0x03, 0x10),
+            (0x05, 0x00), (0x07, 0x7F), (0x00, 0x7F), (0x01, 0x7F),
+            (0x0C, 0x7F), (0x1C, 0x7F), (0x6C, 0x20),
+        ];
+        for &(r, v) in &pairs {
+            apu.debug_dsp_write(r, v);
+        }
+
+        let dsp = &apu.io.dsp;
+        let mut writer = StateWriter::new();
+        dsp.save(&mut writer);
+        let data = writer.finish();
+
+        // Test truncation at various points.
+        for n in [0, data.len() / 2, data.len() - 1] {
+            let mut loaded_dsp = Dsp::new();
+            let mut reader = StateReader::new(&data[..n]);
+            let result = loaded_dsp.load(&mut reader);
+            assert!(matches!(result, Err(StateError::Truncated)),
+                "truncation at {} should fail with Truncated", n);
+        }
     }
 }

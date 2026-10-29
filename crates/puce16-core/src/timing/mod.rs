@@ -179,3 +179,224 @@ impl Timing {
         }
     }
 }
+
+impl crate::savestate::State for Timing {
+    fn save(&self, w: &mut crate::savestate::StateWriter) {
+        // Save all fields in declaration order. All are covered by hash_into.
+        w.u64(self.line_start);
+        w.bool(self.refreshed_this_line);
+        w.bool(self.nmi_edge);
+        w.bool(self.nmi_line_prev);
+        w.u64(self.autoread_start);
+        match self.autoread_end {
+            Some(e) => {
+                w.bool(true);
+                w.u64(e);
+            }
+            None => w.bool(false),
+        }
+    }
+
+    fn load(&mut self, r: &mut crate::savestate::StateReader) -> Result<(), crate::savestate::StateError> {
+        // Load all fields in declaration order.
+        self.line_start = r.u64()?;
+        self.refreshed_this_line = r.bool()?;
+        self.nmi_edge = r.bool()?;
+        self.nmi_line_prev = r.bool()?;
+        self.autoread_start = r.u64()?;
+        let has_end = r.bool()?;
+        if has_end {
+            self.autoread_end = Some(r.u64()?);
+        } else {
+            self.autoread_end = None;
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::savestate::{State, StateWriter, StateReader};
+    use crate::hash::Fnv64;
+
+    fn timing_hash(timing: &Timing) -> u64 {
+        let mut h = Fnv64::new();
+        timing.hash_into(&mut h);
+        h.finish()
+    }
+
+    #[test]
+    fn e08_04_timing_roundtrip() {
+        // Set every saved field to a distinct non-zero value, autoread_end = Some(12345)
+        let mut timing = Timing::new();
+        timing.line_start = 98765;
+        timing.refreshed_this_line = true;
+        timing.nmi_edge = true;
+        timing.nmi_line_prev = true;
+        timing.autoread_start = 123456;
+        timing.autoread_end = Some(12345);
+
+        // Save
+        let mut writer = StateWriter::new();
+        timing.save(&mut writer);
+        let data = writer.finish();
+
+        // Load into fresh instance
+        let mut loaded = Timing::new();
+        let mut reader = StateReader::new(&data);
+        loaded.load(&mut reader).unwrap();
+
+        // Verify bytes match on re-save
+        let mut writer2 = StateWriter::new();
+        loaded.save(&mut writer2);
+        let data2 = writer2.finish();
+        assert_eq!(data, data2, "re-saved bytes must match original");
+
+        // Verify hash matches
+        assert_eq!(timing_hash(&timing), timing_hash(&loaded), "hashes must match after roundtrip");
+    }
+
+    #[test]
+    fn e08_04_timing_roundtrip_autoread_none() {
+        // Same as above but with autoread_end = None
+        let mut timing = Timing::new();
+        timing.line_start = 98765;
+        timing.refreshed_this_line = true;
+        timing.nmi_edge = true;
+        timing.nmi_line_prev = true;
+        timing.autoread_start = 123456;
+        timing.autoread_end = None;
+
+        // Save
+        let mut writer = StateWriter::new();
+        timing.save(&mut writer);
+        let data = writer.finish();
+
+        // Load into fresh instance
+        let mut loaded = Timing::new();
+        let mut reader = StateReader::new(&data);
+        loaded.load(&mut reader).unwrap();
+
+        // Verify bytes match on re-save
+        let mut writer2 = StateWriter::new();
+        loaded.save(&mut writer2);
+        let data2 = writer2.finish();
+        assert_eq!(data, data2, "re-saved bytes must match original");
+
+        // Verify hash matches
+        assert_eq!(timing_hash(&timing), timing_hash(&loaded), "hashes must match after roundtrip");
+    }
+
+    #[test]
+    fn e08_04_timing_truncated() {
+        let mut timing = Timing::new();
+        timing.line_start = 98765;
+        timing.refreshed_this_line = true;
+        timing.nmi_edge = true;
+        timing.nmi_line_prev = true;
+        timing.autoread_start = 123456;
+        timing.autoread_end = Some(12345);
+
+        let mut writer = StateWriter::new();
+        timing.save(&mut writer);
+        let data = writer.finish();
+
+        // Test truncation at various points
+        for n in [0, data.len() / 2, data.len() - 1] {
+            let mut loaded = Timing::new();
+            let mut reader = StateReader::new(&data[..n]);
+            let result = loaded.load(&mut reader);
+            assert!(matches!(result, Err(crate::savestate::StateError::Truncated)), 
+                "truncation at {} should fail with Truncated", n);
+        }
+    }
+
+    /// Truncation for both E08-04 types (also covered individually by `e08_04_*_truncated`).
+    #[test]
+    fn e08_04_truncated_each() {
+        use crate::bus::mmio::Mmio;
+        use crate::savestate::StateError;
+
+        let mut w = StateWriter::new();
+        Mmio::new().save(&mut w);
+        let data = w.finish();
+        for n in [0, data.len() / 2, data.len() - 1] {
+            let mut m = Mmio::new();
+            assert_eq!(m.load(&mut StateReader::new(&data[..n])), Err(StateError::Truncated), "mmio n={n}");
+        }
+
+        let mut w = StateWriter::new();
+        Timing::new().save(&mut w);
+        let data = w.finish();
+        for n in [0, data.len() / 2, data.len() - 1] {
+            let mut t = Timing::new();
+            assert_eq!(t.load(&mut StateReader::new(&data[..n])), Err(StateError::Truncated), "timing n={n}");
+        }
+    }
+    #[test]
+    fn e08_04_timing_behaves_identically() {
+        // Two Timing instances (original and restored) fed the same sequence of on_dot calls
+        // produce identical TimingOut over 2000 dots.
+        
+        use crate::region::Region;
+
+        // Create two rigs with identical initial state
+        let mut rig1 = Rig::new(Region::Ntsc);
+        let mut rig2 = Rig::new(Region::Ntsc);
+
+        // Run both in lockstep for some initial dots to get into non-trivial state
+        for _ in 0..500 {
+            let out1 = rig1.step();
+            let out2 = rig2.step();
+            assert_eq!(out1, out2, "rigs should be identical before save/load");
+        }
+
+        // Save timing from rig1
+        let mut writer = StateWriter::new();
+        rig1.timing.save(&mut writer);
+        let data = writer.finish();
+
+        // Load saved timing into rig2's timing (replacing it)
+        let mut reader = StateReader::new(&data);
+        rig2.timing.load(&mut reader).unwrap();
+
+        // Now run both rigs for 2000 more dots, collecting TimingOut from each
+        for i in 0..2000 {
+            let out1 = rig1.step();
+            let out2 = rig2.step();
+            assert_eq!(out1, out2, "TimingOut mismatch at step {}", i);
+        }
+    }
+}
+
+// Minimal test rig for unit tests (avoids #[path] import issues)
+#[cfg(test)]
+struct Rig {
+    ppu: crate::ppu::Ppu,
+    timing: Timing,
+    mmio: Mmio,
+    joy: Joypads,
+    t: u64,
+}
+
+#[cfg(test)]
+impl Rig {
+    fn new(region: crate::region::Region) -> Rig {
+        Rig {
+            ppu: crate::ppu::Ppu::new(region),
+            timing: Timing::new(),
+            mmio: Mmio::new(),
+            joy: Joypads::new(),
+            t: 0,
+        }
+    }
+
+    fn step(&mut self) -> TimingOut {
+        let c = self.ppu.dot_clocks();
+        self.ppu.step_dot();
+        self.t += c as u64;
+        self.timing.on_dot(&mut self.mmio, &mut self.joy, &self.ppu, self.t)
+    }
+
+}
