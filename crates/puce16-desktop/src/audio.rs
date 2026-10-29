@@ -211,6 +211,33 @@ impl Playback {
         let mut written = 0;
 
         while written < frames {
+            // First use the frames left over from the previous call / iteration: dropping
+            // them would punch a hole in the signal (audible crackle).
+            while written < frames {
+                match self.pending.pop_front() {
+                    Some(frame) => {
+                        self.last = frame;
+                        let l = if muted { 0.0f32 } else { frame[0] * volume };
+                        let r = if muted { 0.0f32 } else { frame[1] * volume };
+                        match channels {
+                            1 => out[written] = (l + r) / 2.0,
+                            2 => {
+                                out[written * 2] = l;
+                                out[written * 2 + 1] = r;
+                            }
+                            _ => {
+                                out[written * channels] = l;
+                                out[written * channels + 1] = r;
+                            }
+                        }
+                        written += 1;
+                    }
+                    None => break,
+                }
+            }
+            if written >= frames {
+                break;
+            }
             // Estimate how many source frames we need for remaining output
             let needed = frames - written;
             let src_needed = ((needed as u32 * SRC_RATE) / self.device_rate).max(16);
@@ -251,30 +278,8 @@ impl Playback {
             let mut resampled = Vec::new();
             self.rs.process(&input_f32, &mut resampled);
 
-            // Write resampled frames to output with volume/mute/channel conversion
-            for frame in resampled {
-                if written >= frames {
-                    break;
-                }
-                self.last = frame;
-
-                let l = if muted { 0.0f32 } else { frame[0] * volume };
-                let r = if muted { 0.0f32 } else { frame[1] * volume };
-
-                match channels {
-                    1 => out[written] = (l + r) / 2.0,
-                    2 => {
-                        out[written * 2] = l;
-                        out[written * 2 + 1] = r;
-                    }
-                    _ if channels > 2 => {
-                        out[written * channels] = l;
-                        out[written * channels + 1] = r;
-                    }
-                    _ => {}
-                }
-                written += 1;
-            }
+            // Queue the resampled frames; the top of the loop writes them out.
+            self.pending.extend(resampled);
         }
     }
 }
