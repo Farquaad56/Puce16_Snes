@@ -8,6 +8,7 @@ use puce16_core::joypad::filter_opposites;
 
 use crate::audio::{AudioOut, SharedRing};
 use crate::config::{self, Config};
+use crate::debugger::DebuggerUi;
 use crate::emu_thread::{Command, EmuHandle, Event, FrameData};
 use crate::files;
 use crate::input::{self, Hotkey, PadPoller};
@@ -55,6 +56,8 @@ pub struct App {
     poller: PadPoller,
     /// Last joypad bits sent for port 1 (gamepad only).
     last_joypad_1: u16,
+    /// Debugger UI state.
+    debugger: DebuggerUi,
 }
 
 impl App {
@@ -88,6 +91,7 @@ impl App {
             first_frame: true,
             poller: PadPoller::new(),
             last_joypad_1: 0,
+            debugger: DebuggerUi::new(),
         }
     }
 
@@ -268,8 +272,12 @@ impl App {
                         }
                     }
                     Hotkey::Debugger => {
-                        // Not implemented yet (later task).
-                        self.status = "hotkey not implemented".to_string();
+                        self.debugger.open = !self.debugger.open;
+                        if self.debugger.open {
+                            self.send(Command::RequestDebug(true));
+                        } else {
+                            self.send(Command::RequestDebug(false));
+                        }
                     }
                     Hotkey::Quit => {
                         if self.cfg.fullscreen {
@@ -309,6 +317,7 @@ impl App {
     fn menu_bar(&mut self, ui: &mut egui::Ui) {
         let mut to_open: Option<String> = None;
         let mut changed = false;
+        let mut debug_toggled = false;
         egui::MenuBar::new().ui(ui, |ui| {
             ui.menu_button("Fichier", |ui| {
                 if ui.button("Ouvrir une ROM... (Ctrl+O)").clicked() {
@@ -401,6 +410,11 @@ impl App {
                     self.apply_audio_settings();
                 }
             });
+            ui.menu_button("Debug", |ui| {
+                if ui.checkbox(&mut self.debugger.open, "Debugger (F10)").changed() {
+                    debug_toggled = true;
+                }
+            });
             ui.menu_button("Entrees", |ui| {
                 ui.label("Fleches: croix directionnelle");
                 ui.label("X / S: A / B   (Z / A selon le clavier: voir spec 08 section 2)");
@@ -416,6 +430,9 @@ impl App {
         });
         if changed {
             self.touch_cfg();
+        }
+        if debug_toggled {
+            self.send(Command::RequestDebug(self.debugger.open));
         }
         if let Some(rom) = to_open {
             self.open_path(std::path::Path::new(&rom));
@@ -466,7 +483,7 @@ impl eframe::App for App {
                 Event::Status(text) => self.status = text,
                 Event::Error(e) => self.status = format!("ERROR: {}", e),
                 Event::SramSaved(path) => self.status = format!("SRAM saved to {}", path.display()),
-                Event::Debug(_) => { /* handled by debugger window */ }
+                Event::Debug(data) => self.debugger.last = Some(data),
             }
         }
         if let Some(frame) = latest { self.last = Some(frame); }
@@ -541,6 +558,11 @@ impl eframe::App for App {
             egui::Panel::top("menu_bar").show(ui, |panel_ui| self.menu_bar(panel_ui));
         }
         egui::Panel::bottom("status_bar").show(ui, |panel_ui| self.status_bar(panel_ui));
+        self.debugger.show(ui.ctx(), &self.handle.tx, self.paused);
+        if let Some(p) = self.debugger.pause_request.take() {
+            self.paused = p;
+            self.send(Command::Pause(p));
+        }
 
         egui::CentralPanel::default().show(ui, |panel_ui| {
             if let (Some(texture), Some(frame)) = (&self.texture, &self.last) {
