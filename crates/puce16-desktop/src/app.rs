@@ -6,6 +6,7 @@ use eframe::egui;
 
 use puce16_core::joypad::filter_opposites;
 
+use crate::audio::{AudioOut, SharedRing};
 use crate::config::{self, Config};
 use crate::emu_thread::{Command, EmuHandle, Event, FrameData};
 use crate::files;
@@ -42,10 +43,23 @@ pub struct App {
     fast_forward: bool,
     /// ROM path for SRAM/save states/screenshots.
     rom_path: Option<std::path::PathBuf>,
+    /// Audio output stream (None if no device or error).
+    audio: Option<AudioOut>,
+    /// Shared ring buffer between emulation thread and audio callback.
+    ring: SharedRing,
+    /// Last time the mouse moved (for cursor hiding in fullscreen).
+    last_mouse_move: std::time::Instant,
+    /// True until the first UI frame has been drawn (used to apply initial fullscreen).
+    first_frame: bool,
 }
 
 impl App {
-    pub fn new(_cc: &eframe::CreationContext<'_>, handle: EmuHandle, cfg: Config) -> Self {
+    pub fn new(_cc: &eframe::CreationContext<'_>, handle: EmuHandle, cfg: Config, audio: Option<AudioOut>, ring: SharedRing) -> Self {
+        // Apply initial volume and mute from config.
+        if let Some(ref a) = audio {
+            a.set_volume(cfg.volume as f32 / 100.0);
+            a.set_muted(cfg.muted);
+        }
         Self {
             handle,
             texture: None,
@@ -64,6 +78,18 @@ impl App {
             slot: 0,
             fast_forward: false,
             rom_path: None,
+            audio,
+            ring,
+            last_mouse_move: std::time::Instant::now(),
+            first_frame: true,
+        }
+    }
+
+    /// Apply current volume and mute settings to the audio output stream.
+    fn apply_audio_settings(&self) {
+        if let Some(ref a) = self.audio {
+            a.set_volume(self.cfg.volume as f32 / 100.0);
+            a.set_muted(self.muted);
         }
     }
 
@@ -95,6 +121,10 @@ impl App {
     pub fn open_path(&mut self, path: &std::path::Path) {
         match files::load_rom_file(path) {
             Ok((name, bytes)) => {
+                // Clear the audio ring to avoid leftover sound from the previous ROM.
+                if let Ok(mut r) = self.ring.lock() {
+                    r.clear();
+                }
                 // Send the ROM path first so SRAM can be loaded/saved.
                 let _ = self.handle.tx.send(Command::SetRomPath(path.to_path_buf()));
                 self.rom_path = Some(path.to_path_buf());
@@ -183,7 +213,8 @@ impl App {
                     }
                     Hotkey::Mute => {
                         self.muted = !self.muted;
-                        self.touch_cfg(); // the real audio effect comes in E08-27
+                        self.touch_cfg();
+                        self.apply_audio_settings();
                     }
                     Hotkey::Screenshot => {
                         if let Some(frame) = &self.last {
@@ -198,11 +229,30 @@ impl App {
                             }
                         }
                     }
-                    Hotkey::Fullscreen | Hotkey::Debugger => {
-                        // Not implemented yet (later tasks).
+                    Hotkey::Fullscreen => {
+                        self.cfg.fullscreen = !self.cfg.fullscreen;
+                        self.touch_cfg();
+                        ui.ctx().send_viewport_cmd(egui::ViewportCommand::Fullscreen(self.cfg.fullscreen));
+                        if self.cfg.fullscreen {
+                            ui.ctx().set_cursor_icon(egui::CursorIcon::None);
+                        } else {
+                            ui.ctx().set_cursor_icon(egui::CursorIcon::Default);
+                        }
+                    }
+                    Hotkey::Debugger => {
+                        // Not implemented yet (later task).
                         self.status = "hotkey not implemented".to_string();
                     }
-                    Hotkey::Quit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
+                    Hotkey::Quit => {
+                        if self.cfg.fullscreen {
+                            // In fullscreen, Escape exits fullscreen first.
+                            self.cfg.fullscreen = false;
+                            ui.ctx().send_viewport_cmd(egui::ViewportCommand::Fullscreen(false));
+                            ui.ctx().set_cursor_icon(egui::CursorIcon::Default);
+                        } else {
+                            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                        }
+                    }
                     Hotkey::OpenRom => self.pick_and_open(),
                     _ => {} // FastForward handled above via held state.
                 }
@@ -301,15 +351,26 @@ impl App {
                 changed |= ui.radio_value(&mut self.filter, Filter::Nearest, "Filtre: nearest").changed();
                 changed |= ui.radio_value(&mut self.filter, Filter::Linear, "Filtre: linear").changed();
                 changed |= ui.radio_value(&mut self.filter, Filter::Scanlines, "Filtre: scanlines (echelle >= 2)").changed();
+                ui.separator();
+                if ui.checkbox(&mut self.cfg.fullscreen, "Plein ecran (F11)").changed() {
+                    ui.ctx().send_viewport_cmd(egui::ViewportCommand::Fullscreen(self.cfg.fullscreen));
+                    if self.cfg.fullscreen {
+                        ui.ctx().set_cursor_icon(egui::CursorIcon::None);
+                    } else {
+                        ui.ctx().set_cursor_icon(egui::CursorIcon::Default);
+                    }
+                }
             });
             ui.menu_button("Audio", |ui| {
                 let mut vol = self.cfg.volume as u32;
                 if ui.add(egui::Slider::new(&mut vol, 0..=100).text("Volume")).changed() {
                     self.cfg.volume = vol as u8;
                     changed = true;
+                    self.apply_audio_settings();
                 }
                 if ui.checkbox(&mut self.muted, "Muet (M)").changed() {
                     changed = true;
+                    self.apply_audio_settings();
                 }
             });
             ui.menu_button("Entrees", |ui| {
@@ -333,9 +394,21 @@ impl App {
         }
     }
 
-    /// Bottom status line: status text, frame number, scale, slot.
+    /// Bottom status line: status text, frame number, scale, slot, audio info.
     fn status_bar(&mut self, ui: &mut egui::Ui) {
         let frame_no = self.last.as_ref().map(|f| f.frame_no).unwrap_or(0);
+        // Audio ring fill percentage.
+        let audio_info = match &self.audio {
+            Some(_) => {
+                if let Ok(r) = self.ring.lock() {
+                    let pct = (r.len() * 100) / r.capacity();
+                    format!("audio {}%", pct)
+                } else {
+                    "audio error".to_string()
+                }
+            }
+            None => "audio off".to_string(),
+        };
         ui.horizontal(|ui| {
             ui.label(self.status.as_str());
             ui.separator();
@@ -344,11 +417,20 @@ impl App {
             ui.label(format!("x{}", self.scale));
             ui.separator();
             ui.label(format!("slot {}", self.slot));
+            ui.separator();
+            ui.label(audio_info);
         });
     }
 }
 impl eframe::App for App {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        // Apply initial fullscreen on first frame if configured.
+        if self.first_frame && self.cfg.fullscreen {
+            ui.ctx().send_viewport_cmd(egui::ViewportCommand::Fullscreen(true));
+            ui.ctx().set_cursor_icon(egui::CursorIcon::None);
+        }
+        self.first_frame = false;
+
         let mut latest = None;
         while let Ok(event) = self.handle.rx.try_recv() {
             match event {
@@ -406,14 +488,34 @@ impl eframe::App for App {
             }
         }
 
+        // Cursor hiding: in fullscreen, hide after 2s of no mouse movement.
+        if self.cfg.fullscreen {
+            let pos = ui.ctx().input(|i| i.pointer.hover_pos());
+            if pos.is_some() {
+                // Check for recent pointer events (movement or clicks).
+                let has_recent_event = ui.ctx().input(|i| {
+                    i.events.iter().any(|e| matches!(e, egui::Event::PointerMoved(_) | egui::Event::PointerButton { .. }))
+                });
+                if has_recent_event {
+                    self.last_mouse_move = std::time::Instant::now();
+                    ui.ctx().set_cursor_icon(egui::CursorIcon::Default);
+                } else if self.last_mouse_move.elapsed().as_secs_f32() >= 2.0 {
+                    ui.ctx().set_cursor_icon(egui::CursorIcon::None);
+                }
+            }
+        }
+
         // Side panels must be added BEFORE the CentralPanel: it takes all the space left, so a
         // menu or status bar drawn after it has no room and stays invisible.
-        egui::Panel::top("menu_bar").show(ui, |panel_ui| self.menu_bar(panel_ui));
+        let show_menu = !self.cfg.fullscreen || ui.ctx().input(|i| i.pointer.hover_pos().map_or(false, |p| p.y < 8.0));
+        if show_menu {
+            egui::Panel::top("menu_bar").show(ui, |panel_ui| self.menu_bar(panel_ui));
+        }
         egui::Panel::bottom("status_bar").show(ui, |panel_ui| self.status_bar(panel_ui));
 
         egui::CentralPanel::default().show(ui, |panel_ui| {
             if let (Some(texture), Some(frame)) = (&self.texture, &self.last) {
-                if self.cfg.fit_window {
+                if self.cfg.fit_window || self.cfg.fullscreen {
                     let avail = panel_ui.available_size();
                     self.scale = video::fit_scale(frame.width, frame.height, avail.x.max(0.0) as usize, avail.y.max(0.0) as usize).clamp(1, 8);
                 }

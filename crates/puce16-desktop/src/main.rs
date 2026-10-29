@@ -2,11 +2,26 @@
 
 use puce16_core::Region;
 use puce16_desktop::app::{App, rom_arg};
+use puce16_desktop::audio::{new_shared_ring, AudioOut};
 use puce16_desktop::emu_thread::{spawn_with_audio, Command};
 
 fn main() -> eframe::Result {
     let cfg = puce16_desktop::config::load();
-    let handle = spawn_with_audio(Region::Ntsc, false, None);
+    let ring = new_shared_ring();
+
+    // Try to open audio output; fall back to timer sync if it fails.
+    let (handle, audio) = match AudioOut::new(ring.clone()) {
+        Ok(out) => {
+            let h = spawn_with_audio(Region::Ntsc, false, Some(ring.clone()));
+            (h, Some(out))
+        }
+        Err(e) => {
+            let h = spawn_with_audio(Region::Ntsc, false, None);
+            eprintln!("No audio: {} (timer sync)", e);
+            (h, None)
+        }
+    };
+
     let options = eframe::NativeOptions {
         viewport: eframe::egui::ViewportBuilder::default().with_inner_size([768.0, 740.0]),
         ..Default::default()
@@ -17,7 +32,7 @@ fn main() -> eframe::Result {
     let rom_path: Option<String> = rom_arg(&args).map(|s| s.to_string());
 
     eframe::run_native("Puce16", options, Box::new(move |cc| {
-        let mut app = App::new(cc, handle, cfg);
+        let mut app = App::new(cc, handle, cfg, audio, ring);
         if let Some(path) = rom_path {
             app.open_path(std::path::Path::new(&path));
         }
