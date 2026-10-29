@@ -26,6 +26,14 @@ pub struct App {
     status: String,
     /// Last joypad bits sent to the emulation thread (port 0).
     last_joypad: u16,
+    /// Current save state slot (0..=9).
+    slot: u8,
+    /// Mute toggle.
+    muted: bool,
+    /// Fast forward toggle (held Tab).
+    fast_forward: bool,
+    /// ROM path for SRAM/save states/screenshots.
+    rom_path: Option<std::path::PathBuf>,
 }
 
 impl App {
@@ -39,6 +47,10 @@ impl App {
             paused: false,
             status: "test pattern (NTSC)".to_string(),
             last_joypad: 0,
+            slot: 0,
+            muted: false,
+            fast_forward: false,
+            rom_path: None,
         }
     }
 
@@ -52,6 +64,7 @@ impl App {
             Ok((name, bytes)) => {
                 // Send the ROM path first so SRAM can be loaded/saved.
                 let _ = self.handle.tx.send(Command::SetRomPath(path.to_path_buf()));
+                self.rom_path = Some(path.to_path_buf());
                 self.send(Command::LoadRom(bytes, name));
             }
             Err(e) => {
@@ -74,6 +87,15 @@ impl App {
     /// port 0 (opposite directions filtered), key presses trigger hotkeys.
     fn poll_keyboard(&mut self, ui: &egui::Ui) {
         let ctx = ui.ctx();
+
+        // Fast forward: Tab held -> send SetFastForward only on change.
+        let tab_down = ctx.input(|i| i.key_down(egui::Key::Tab));
+        if tab_down != self.fast_forward {
+            self.fast_forward = tab_down;
+            self.send(Command::SetFastForward(tab_down));
+        }
+
+        // Joypad buttons from held keys.
         let (held, presses) = ctx.input(|i| {
             let mut held = Vec::new();
             for k in input::MAPPED_KEYS {
@@ -90,10 +112,14 @@ impl App {
             (held, presses)
         });
 
-        let bits = filter_opposites(input::default_buttons(&held));
-        if bits != self.last_joypad {
-            self.last_joypad = bits;
-            self.send(Command::SetJoypad(0, bits));
+        // Don't send joypad input when a dialog has keyboard focus.
+        let wants_keyboard = ctx.egui_wants_keyboard_input();
+        if !wants_keyboard {
+            let bits = filter_opposites(input::default_buttons(&held));
+            if bits != self.last_joypad {
+                self.last_joypad = bits;
+                self.send(Command::SetJoypad(0, bits));
+            }
         }
 
         for (key, ctrl) in presses {
@@ -105,12 +131,60 @@ impl App {
                     }
                     Hotkey::FrameAdvance => self.send(Command::FrameAdvance),
                     Hotkey::Reset => self.send(Command::Reset),
+                    Hotkey::SaveState => self.send(Command::SaveState(self.slot)),
+                    Hotkey::LoadState => self.send(Command::LoadState(self.slot)),
+                    Hotkey::SlotPrev => {
+                        self.slot = (self.slot + 9) % 10;
+                        self.status = format!("slot {}", self.slot);
+                    }
+                    Hotkey::SlotNext => {
+                        self.slot = (self.slot + 1) % 10;
+                        self.status = format!("slot {}", self.slot);
+                    }
+                    Hotkey::Mute => {
+                        self.muted = !self.muted;
+                        // audio.set_muted will be handled in E08-25 when AudioOut is available.
+                    }
+                    Hotkey::Screenshot => {
+                        if let Some(frame) = &self.last {
+                            let path = match &self.rom_path {
+                                Some(p) => files::screenshot_path(&p, &|path: &std::path::Path| path.exists()),
+                                None => std::path::PathBuf::from("screenshot_0.ppm"),
+                            };
+                            if let Err(e) = self.write_ppm(frame, &path) {
+                                self.status = format!("ERROR: {}", e);
+                            } else {
+                                self.status = format!("Screenshot saved: {}", path.display());
+                            }
+                        }
+                    }
+                    Hotkey::Fullscreen | Hotkey::Debugger => {
+                        // Not implemented yet (later tasks).
+                        self.status = "hotkey not implemented".to_string();
+                    }
                     Hotkey::Quit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
                     Hotkey::OpenRom => self.pick_and_open(),
-                    _ => self.status = "hotkey not implemented".to_string(),
+                    _ => {} // FastForward handled above via held state.
                 }
             }
         }
+    }
+
+    /// Write the last frame as a PPM file (P6 format, same encoding as puce16-cli).
+    fn write_ppm(&self, frame: &Arc<FrameData>, path: &std::path::Path) -> Result<(), String> {
+        let rgba = video::xrgb_to_rgba(&frame.pixels);
+        // PPM is RGB only (no alpha), 3 bytes per pixel.
+        let mut rgb = Vec::with_capacity(frame.width * frame.height * 3);
+        for i in 0..rgba.len() {
+            if i % 4 != 3 {
+                rgb.push(rgba[i]);
+            }
+        }
+        let header = format!("P6\n{} {}\n255\n", frame.width, frame.height);
+        let mut data = Vec::with_capacity(header.len() + rgb.len());
+        data.extend_from_slice(header.as_bytes());
+        data.extend_from_slice(&rgb);
+        files::write_atomic(path, &data)
     }
 
     /// Top menu bar: File, Emulation, Video.
@@ -125,14 +199,35 @@ impl App {
                 }
             });
             ui.menu_button("Emulation", |ui| {
-                if ui.checkbox(&mut self.paused, "Pause").changed() {
+                if ui.checkbox(&mut self.paused, "Pause (P)").changed() {
                     self.send(Command::Pause(self.paused));
                 }
-                if ui.add_enabled(self.paused, egui::Button::new("Image suivante")).clicked() {
+                if ui.add_enabled(self.paused, egui::Button::new("Image suivante (N)")).clicked() {
                     self.send(Command::FrameAdvance);
                 }
-                if ui.button("Reset").clicked() {
+                if ui.button("Reset (F12)").clicked() {
                     self.send(Command::Reset);
+                }
+                ui.separator();
+                // Save state submenu.
+                ui.menu_button(format!("Etat (slot {})...", self.slot), |ui| {
+                    if ui.button(format!("Sauvegarder (F5)")).clicked() {
+                        self.send(Command::SaveState(self.slot));
+                    }
+                    if ui.button(format!("Charger (F7)")).clicked() {
+                        self.send(Command::LoadState(self.slot));
+                    }
+                    ui.separator();
+                    for s in 0..10u8 {
+                        let label = format!("Slot {}", s);
+                        if ui.selectable_value(&mut self.slot, s, &label).changed() {
+                            self.status = format!("slot {}", self.slot);
+                        }
+                    }
+                });
+                // Fast forward toggle.
+                if ui.checkbox(&mut self.fast_forward, "Avance rapide (Tab)").changed() {
+                    self.send(Command::SetFastForward(self.fast_forward));
                 }
             });
             ui.menu_button("Video", |ui| {
@@ -143,7 +238,7 @@ impl App {
         });
     }
 
-    /// Bottom status line: status text, frame number, scale.
+    /// Bottom status line: status text, frame number, scale, slot.
     fn status_bar(&mut self, ui: &mut egui::Ui) {
         let frame_no = self.last.as_ref().map(|f| f.frame_no).unwrap_or(0);
         ui.horizontal(|ui| {
@@ -152,6 +247,8 @@ impl App {
             ui.label(format!("frame {}", frame_no));
             ui.separator();
             ui.label(format!("x{}", self.scale));
+            ui.separator();
+            ui.label(format!("slot {}", self.slot));
         });
     }
 }
@@ -187,6 +284,11 @@ impl eframe::App for App {
             }
         }
 
+        // Side panels must be added BEFORE the CentralPanel: it takes all the space left, so a
+        // menu or status bar drawn after it has no room and stays invisible.
+        egui::Panel::top("menu_bar").show(ui, |panel_ui| self.menu_bar(panel_ui));
+        egui::Panel::bottom("status_bar").show(ui, |panel_ui| self.status_bar(panel_ui));
+
         egui::CentralPanel::default().show(ui, |panel_ui| {
             if let (Some(texture), Some(frame)) = (&self.texture, &self.last) {
                 let (w, h) = video::display_size(frame.width, frame.height, self.scale, self.ratio);
@@ -196,8 +298,6 @@ impl eframe::App for App {
             }
         });
 
-        self.menu_bar(ui);
-        self.status_bar(ui);
         ui.ctx().request_repaint();
     }
 }
