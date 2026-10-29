@@ -10,7 +10,7 @@ use crate::audio::{AudioOut, SharedRing};
 use crate::config::{self, Config};
 use crate::emu_thread::{Command, EmuHandle, Event, FrameData};
 use crate::files;
-use crate::input::{self, Hotkey};
+use crate::input::{self, Hotkey, PadPoller};
 use crate::video::{self, Filter, Ratio};
 
 /// Return the first command-line argument that is not a flag (does not start with '-').
@@ -51,6 +51,10 @@ pub struct App {
     last_mouse_move: std::time::Instant,
     /// True until the first UI frame has been drawn (used to apply initial fullscreen).
     first_frame: bool,
+    /// Gamepad poller (gilrs).
+    poller: PadPoller,
+    /// Last joypad bits sent for port 1 (gamepad only).
+    last_joypad_1: u16,
 }
 
 impl App {
@@ -82,6 +86,8 @@ impl App {
             ring,
             last_mouse_move: std::time::Instant::now(),
             first_frame: true,
+            poller: PadPoller::new(),
+            last_joypad_1: 0,
         }
     }
 
@@ -152,8 +158,8 @@ impl App {
         }
     }
 
-    /// Poll the keyboard each frame (spec 08 section 2): held keys drive joypad
-    /// port 0 (opposite directions filtered), key presses trigger hotkeys.
+    /// Poll keyboard and gamepads each frame (spec 08 sections 2 & 3): held keys drive joypad
+    /// port 0 (OR'd with gamepad 0, opposite directions filtered), key presses trigger hotkeys.
     fn poll_keyboard(&mut self, ui: &egui::Ui) {
         let ctx = ui.ctx();
 
@@ -162,6 +168,19 @@ impl App {
         if tab_down != self.fast_forward {
             self.fast_forward = tab_down;
             self.send(Command::SetFastForward(tab_down));
+        }
+
+        // Poll gamepads.
+        let pads = self.poller.poll();
+
+        // Check connection state changes for status messages.
+        let conn = self.poller.connected();
+        if conn[0] {
+            if !self.status.contains("Pad 1 connected") && !self.status.starts_with("ERROR:") {
+                self.status = "Pad 1 connected".to_string();
+            }
+        } else if self.status == "Pad 1 connected" {
+            self.status = "Pad 1 disconnected".to_string();
         }
 
         // Joypad buttons from held keys.
@@ -184,11 +203,20 @@ impl App {
         // Don't send joypad input when a dialog has keyboard focus.
         let wants_keyboard = ctx.egui_wants_keyboard_input();
         if !wants_keyboard {
-            let raw = input::default_buttons(&held);
+            // Port 0: keyboard OR gamepad 0.
+            let kb_bits = input::keyboard_buttons_mapped(&held, &self.cfg.keymap);
+            let raw = kb_bits | pads[0];
             let bits = if self.cfg.block_opposite_dirs { filter_opposites(raw) } else { raw };
             if bits != self.last_joypad {
                 self.last_joypad = bits;
                 self.send(Command::SetJoypad(0, bits));
+            }
+
+            // Port 1: gamepad only.
+            let pad1_bits = pads[1];
+            if pad1_bits != self.last_joypad_1 {
+                self.last_joypad_1 = pad1_bits;
+                self.send(Command::SetJoypad(1, pad1_bits));
             }
         }
 

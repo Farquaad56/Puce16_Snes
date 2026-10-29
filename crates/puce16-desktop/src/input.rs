@@ -161,3 +161,380 @@ pub fn hotkey_for(k: egui::Key, ctrl: bool) -> Option<Hotkey> {
     }
 }
 
+// === Pad button mapping (spec 08 section 3) ===
+
+/// Physical pad buttons (gilrs naming convention).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum PadButton {
+    South,
+    East,
+    West,
+    North,
+    LeftTrigger,
+    RightTrigger,
+    Start,
+    Select,
+    DPadUp,
+    DPadDown,
+    DPadLeft,
+    DPadRight,
+    Other,
+}
+
+/// SNES button bits for one pad button (0 if unmapped).
+fn pad_button_bit(b: PadButton) -> u16 {
+    match b {
+        PadButton::South => BTN_B,
+        PadButton::East => BTN_A,
+        PadButton::West => BTN_Y,
+        PadButton::North => BTN_X,
+        PadButton::LeftTrigger => BTN_L,
+        PadButton::RightTrigger => BTN_R,
+        PadButton::Start => BTN_START,
+        PadButton::Select => BTN_SELECT,
+        PadButton::DPadUp => BTN_UP,
+        PadButton::DPadDown => BTN_DOWN,
+        PadButton::DPadLeft => BTN_LEFT,
+        PadButton::DPadRight => BTN_RIGHT,
+        PadButton::Other => 0,
+    }
+}
+
+/// OR of SNES button bits for every pressed pad button.
+pub fn pad_buttons(pressed: &[PadButton]) -> u16 {
+    let mut bits = 0u16;
+    for &b in pressed {
+        bits |= pad_button_bit(b);
+    }
+    bits
+}
+
+/// Left stick axes to D-pad buttons (threshold abs > 0.5).
+pub fn stick_buttons(x: f32, y: f32) -> u16 {
+    let mut bits = 0u16;
+    if x > 0.5 {
+        bits |= BTN_RIGHT;
+    } else if x < -0.5 {
+        bits |= BTN_LEFT;
+    }
+    if y > 0.5 {
+        bits |= BTN_UP;
+    } else if y < -0.5 {
+        bits |= BTN_DOWN;
+    }
+    bits
+}
+
+/// SNES button bit for a canonical name (exact case).
+pub fn snes_button_bit(name: &str) -> Option<u16> {
+    match name {
+        "B" => Some(BTN_B),
+        "A" => Some(BTN_A),
+        "Y" => Some(BTN_Y),
+        "X" => Some(BTN_X),
+        "L" => Some(BTN_L),
+        "R" => Some(BTN_R),
+        "Start" => Some(BTN_START),
+        "Select" => Some(BTN_SELECT),
+        "Up" => Some(BTN_UP),
+        "Down" => Some(BTN_DOWN),
+        "Left" => Some(BTN_LEFT),
+        "Right" => Some(BTN_RIGHT),
+        _ => None,
+    }
+}
+
+/// Canonical name for a pad button.
+pub fn pad_button_name(b: PadButton) -> &'static str {
+    match b {
+        PadButton::South => "South",
+        PadButton::East => "East",
+        PadButton::West => "West",
+        PadButton::North => "North",
+        PadButton::LeftTrigger => "LeftTrigger",
+        PadButton::RightTrigger => "RightTrigger",
+        PadButton::Start => "Start",
+        PadButton::Select => "Select",
+        PadButton::DPadUp => "DPadUp",
+        PadButton::DPadDown => "DPadDown",
+        PadButton::DPadLeft => "DPadLeft",
+        PadButton::DPadRight => "DPadRight",
+        PadButton::Other => "Other",
+    }
+}
+
+/// Custom pad mapping: map SNES button name -> pad button name.
+pub fn pad_buttons_mapped(
+    pressed: &[PadButton],
+    map: &std::collections::BTreeMap<String, String>,
+) -> u16 {
+    if map.is_empty() {
+        return pad_buttons(pressed);
+    }
+
+    // Compute default bits and mask out SNES buttons that are in the custom map.
+    let mut bits = 0u16;
+    for &b in pressed {
+        bits |= pad_button_bit(b);
+    }
+    let mut override_mask = 0u16;
+    for (snes_name, _) in map {
+        if let Some(bit) = snes_button_bit(snes_name) {
+            override_mask |= bit;
+        }
+    }
+    bits &= !override_mask;
+
+    // Apply custom mappings.
+    for (snes_name, pad_name) in map {
+        if let Some(bit) = snes_button_bit(snes_name) {
+            for &b in pressed {
+                if pad_button_name(b) == pad_name.as_str() {
+                    bits |= bit;
+                    break;
+                }
+            }
+        }
+    }
+
+    bits
+}
+
+// === Keyboard name mapping (spec 08 section 2) ===
+
+/// Canonical name for a logical key.
+pub fn key_name(k: Key) -> &'static str {
+    match k {
+        Key::Up => "ArrowUp",
+        Key::Down => "ArrowDown",
+        Key::Left => "ArrowLeft",
+        Key::Right => "ArrowRight",
+        Key::Z => "Z",
+        Key::S => "S",
+        Key::Q => "Q",
+        Key::D => "D",
+        Key::X => "X",
+        Key::K => "K",
+        Key::C => "C",
+        Key::L => "L",
+        Key::W => "W",
+        Key::J => "J",
+        Key::V => "V",
+        Key::I => "I",
+        Key::A => "A",
+        Key::U => "U",
+        Key::E => "E",
+        Key::O => "O",
+        Key::Enter => "Enter",
+        Key::Backspace => "Backspace",
+        Key::ShiftRight => "ShiftRight",
+        Key::Other => "Other",
+    }
+}
+
+/// Custom keyboard mapping: map SNES button name -> list of key names.
+pub fn keyboard_buttons_mapped(
+    pressed: &[Key],
+    map: &std::collections::BTreeMap<String, Vec<String>>,
+) -> u16 {
+    if map.is_empty() {
+        return default_buttons(pressed);
+    }
+
+    // Compute default bits and mask out SNES buttons that are in the custom map.
+    let mut bits = 0u16;
+    for &k in pressed {
+        bits |= key_button(k);
+    }
+    let mut override_mask = 0u16;
+    for (snes_name, _) in map {
+        if let Some(bit) = snes_button_bit(snes_name) {
+            override_mask |= bit;
+        }
+    }
+    bits &= !override_mask;
+
+    // Apply custom mappings.
+    for (snes_name, key_names) in map {
+        if let Some(bit) = snes_button_bit(snes_name) {
+            for &k in pressed {
+                if key_names.contains(&key_name(k).to_string()) {
+                    bits |= bit;
+                    break;
+                }
+            }
+        }
+    }
+
+    bits
+}
+
+// === gilrs gamepad support (spec 08 section 3) ===
+
+/// Convert a gilrs button to our PadButton enum.
+pub fn pad_button_from_gilrs(b: gilrs::Button) -> PadButton {
+    match b {
+        gilrs::Button::South => PadButton::South,
+        gilrs::Button::East => PadButton::East,
+        gilrs::Button::West => PadButton::West,
+        gilrs::Button::North => PadButton::North,
+        gilrs::Button::LeftTrigger => PadButton::LeftTrigger,
+        gilrs::Button::RightTrigger => PadButton::RightTrigger,
+        gilrs::Button::Start => PadButton::Start,
+        gilrs::Button::Select => PadButton::Select,
+        gilrs::Button::DPadUp => PadButton::DPadUp,
+        gilrs::Button::DPadDown => PadButton::DPadDown,
+        gilrs::Button::DPadLeft => PadButton::DPadLeft,
+        gilrs::Button::DPadRight => PadButton::DPadRight,
+        _ => PadButton::Other,
+    }
+}
+
+/// Polls gamepads via gilrs and returns SNES button bits for each port.
+pub struct PadPoller {
+    gilrs: Option<gilrs::Gilrs>,
+    ports: [Option<gilrs::GamepadId>; 2],
+    pressed: [[PadButton; 16]; 2],
+    pressed_count: [usize; 2],
+    stick: [(f32, f32); 2],
+}
+
+impl PadPoller {
+    /// Create a new poller. If gilrs fails to initialize, returns an empty poller (no gamepads).
+    pub fn new() -> Self {
+        let gilrs = match gilrs::Gilrs::new() {
+            Ok(g) => Some(g),
+            Err(_) => None,
+        };
+
+        // Assign ports for already-connected gamepads.
+        let mut poller = Self {
+            gilrs: None,
+            ports: [None, None],
+            pressed: [[PadButton::Other; 16]; 2],
+            pressed_count: [0, 0],
+            stick: [(0.0, 0.0); 2],
+        };
+
+        if let Some(g) = gilrs {
+            // Collect gamepad IDs first to avoid borrow conflicts.
+            let ids: Vec<gilrs::GamepadId> = g.gamepads().map(|(id, _)| id).collect();
+            poller.gilrs = Some(g);
+            for id in ids {
+                poller.assign_port(id);
+            }
+        }
+
+        poller
+    }
+
+    /// Assign a gamepad to the lowest free port. Returns true if assigned.
+    fn assign_port(&mut self, id: gilrs::GamepadId) -> bool {
+        for i in 0..2 {
+            if self.ports[i].is_none() {
+                self.ports[i] = Some(id);
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Find which port a gamepad is on, or None if not connected.
+    fn port_for(&self, id: gilrs::GamepadId) -> Option<usize> {
+        for i in 0..2 {
+            if self.ports[i] == Some(id) {
+                return Some(i);
+            }
+        }
+        None
+    }
+
+    /// Poll all pending events and return SNES button bits for each port.
+    pub fn poll(&mut self) -> [u16; 2] {
+        let mut result = [0u16; 2];
+
+        // Collect all pending events first (to release gilrs borrow before processing).
+        let mut events = Vec::new();
+        if let Some(ref mut g) = self.gilrs {
+            while let Some(event) = g.next_event() {
+                events.push(event);
+            }
+        }
+
+        // Process collected events.
+        for event in events {
+            match event.event {
+                gilrs::EventType::ButtonPressed(button, _) => {
+                    if let Some(port) = self.port_for(event.id) {
+                        let pb = pad_button_from_gilrs(button);
+                        if !self.pressed[port].iter().take(self.pressed_count[port]).any(|&b| b == pb) {
+                            if self.pressed_count[port] < 16 {
+                                self.pressed[port][self.pressed_count[port]] = pb;
+                                self.pressed_count[port] += 1;
+                            }
+                        }
+                    }
+                }
+                gilrs::EventType::ButtonReleased(button, _) => {
+                    if let Some(port) = self.port_for(event.id) {
+                        let pb = pad_button_from_gilrs(button);
+                        for i in 0..self.pressed_count[port] {
+                            if self.pressed[port][i] == pb {
+                                let j = self.pressed_count[port] - 1;
+                                if i < j {
+                                    self.pressed[port][i] = self.pressed[port][j];
+                                }
+                                self.pressed_count[port] -= 1;
+                                break;
+                            }
+                        }
+                    }
+                }
+                gilrs::EventType::AxisChanged(axis, value, _) => {
+                    if let Some(port) = self.port_for(event.id) {
+                        match axis {
+                            gilrs::Axis::LeftStickX => {
+                                self.stick[port].0 = value;
+                            }
+                            gilrs::Axis::LeftStickY => {
+                                // gilrs Y is inverted (up is negative), SNES expects up positive.
+                                self.stick[port].1 = -value;
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                gilrs::EventType::Connected => {
+                    self.assign_port(event.id);
+                }
+                gilrs::EventType::Disconnected => {
+                    if let Some(port) = self.port_for(event.id) {
+                        self.ports[port] = None;
+                        self.pressed_count[port] = 0;
+                        self.stick[port] = (0.0, 0.0);
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // Compute button bits for each port.
+        for i in 0..2 {
+            let mut bits = pad_buttons(&self.pressed[i][..self.pressed_count[i]]);
+            bits |= stick_buttons(self.stick[i].0, self.stick[i].1);
+            result[i] = bits;
+        }
+
+        result
+    }
+
+    /// Return which ports have a gamepad connected.
+    pub fn connected(&self) -> [bool; 2] {
+        let mut result = [false; 2];
+        for i in 0..2 {
+            result[i] = self.ports[i].is_some();
+        }
+        result
+    }
+}
+
