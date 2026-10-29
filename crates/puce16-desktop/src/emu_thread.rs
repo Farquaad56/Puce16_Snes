@@ -35,6 +35,10 @@ pub enum Command {
     SetRomPath(PathBuf),
     /// Force an immediate SRAM save to disk.
     FlushSram,
+    /// Save emulator state to slot (0..9).
+    SaveState(u8),
+    /// Load emulator state from slot (0..9).
+    LoadState(u8),
 }
 
 /// One published frame: compact XRGB8888 pixels plus metadata.
@@ -171,6 +175,8 @@ fn emu_loop(
     let mut next: Option<std::time::Instant> = None;
     // SRAM sync state.
     let mut rom_path: Option<PathBuf> = None;
+    let mut rom_hash: u64 = 0;
+    let mut rom_bytes: Vec<u8> = Vec::new();
     let mut sync = SramSync::new(Instant::now());
 
     loop {
@@ -197,6 +203,17 @@ fn emu_loop(
                         save_sram(&snes, &Some(path.clone()), &mut sync, &tx_event);
                     }
                 }
+                Command::SaveState(slot) => {
+                    handle_save_state(&snes, slot, &rom_path, rom_hash, active_region, &tx_event);
+                }
+                Command::LoadState(slot) => {
+                    let result = handle_load_state(
+                        &mut snes, slot, &rom_path, rom_hash, active_region,
+                        &rom_bytes, &joy, &mut frame_no, &mut sync, &tx_event);
+                    if let Some(new_snes) = result {
+                        snes = new_snes;
+                    }
+                }
                 Command::LoadRom(bytes, name) => {
                     // Save SRAM for the previous ROM before loading a new one.
                     save_sram(&snes, &rom_path, &mut sync, &tx_event);
@@ -204,6 +221,8 @@ fn emu_loop(
                     match Snes::new(&bytes, None) {
                         Ok(new_snes) => {
                             snes = new_snes;
+                            rom_hash = files::rom_hash(&bytes);
+                            rom_bytes = bytes.clone();
                             // Re-apply last joypad settings.
                             for (port, buttons) in joy.iter().enumerate() {
                                 snes.set_joypad(port, *buttons);
@@ -411,4 +430,138 @@ fn publish_frame(snes: &Snes, frame_no: u64, tx_event: &Sender<Event>) {
     // The channel is unbounded and the UI consumes it; at most one event per
     // emulated frame. If the receiver was dropped there is nothing to do.
     let _ = tx_event.send(Event::Frame(Arc::new(data)));
+}
+
+/// Save emulator state to a slot file (.p16s container).
+fn handle_save_state(
+    snes: &Snes,
+    slot: u8,
+    rom_path: &Option<PathBuf>,
+    rom_hash: u64,
+    region: Region,
+    tx_event: &Sender<Event>,
+) {
+    let path = match rom_path {
+        Some(p) => files::state_path(&p, slot),
+        None => {
+            let _ = tx_event.send(Event::Error("no ROM loaded".to_string()));
+            return;
+        }
+    };
+
+    let blob = snes.save_state();
+
+    // Region byte: 0=Ntsc, 1=Pal.
+    let region_byte = match region {
+        Region::Ntsc => 0u8,
+        Region::Pal => 1u8,
+    };
+
+    let data = files::encode_state(rom_hash, region_byte, &blob);
+
+    match files::write_atomic(&path, &data) {
+        Ok(()) => {
+            let _ = tx_event.send(Event::Status(format!("State saved to slot {}", slot)));
+        }
+        Err(e) => {
+            let _ = tx_event.send(Event::Error(format!(
+                "cannot save state {}: {}", path.display(), e)));
+        }
+    }
+}
+
+/// Load emulator state from a slot file. Returns Some(new_snes) if the console
+/// was reloaded after an error; None otherwise.
+fn handle_load_state(
+    snes: &mut Snes,
+    slot: u8,
+    rom_path: &Option<PathBuf>,
+    rom_hash: u64,
+    region: Region,
+    rom_bytes: &[u8],
+    joy: &[u16; 2],
+    frame_no: &mut u64,
+    sync: &mut SramSync,
+    tx_event: &Sender<Event>,
+) -> Option<Snes> {
+    let path = match rom_path {
+        Some(p) => files::state_path(&p, slot),
+        None => {
+            let _ = tx_event.send(Event::Error("no ROM loaded".to_string()));
+            return None;
+        }
+    };
+
+    // Read the state file.
+    let data = match std::fs::read(&path) {
+        Ok(d) => d,
+        Err(_) => {
+            let _ = tx_event.send(Event::Error(format!("no state in slot {}", slot)));
+            return None;
+        }
+    };
+
+    // Decode and verify.
+    let (stored_region_byte, blob) = match files::decode_state(&data, rom_hash) {
+        Ok(r) => r,
+        Err(e) => {
+            let _ = tx_event.send(Event::Error(format!("cannot load state: {}", e)));
+            return None;
+        }
+    };
+
+    // Check region matches.
+    let expected_region_byte = match region {
+        Region::Ntsc => 0u8,
+        Region::Pal => 1u8,
+    };
+    if stored_region_byte != expected_region_byte {
+        let _ = tx_event.send(Event::Error("state has another region".to_string()));
+        return None;
+    }
+
+    // Load the state.
+    match snes.load_state(blob) {
+        Ok(()) => {
+            let _ = tx_event.send(Event::Status(format!("State loaded from slot {}", slot)));
+            // Publish current frame immediately (even if paused).
+            *frame_no = snes.frame_count();
+            publish_frame(snes, *frame_no, tx_event);
+            None
+        }
+        Err(e) => {
+            let _ = tx_event.send(Event::Error(format!(
+                "cannot load state: {}", e)));
+            // Reload console from ROM bytes + SRAM.
+            reload_console(rom_path, rom_bytes, joy, frame_no, sync, tx_event)
+        }
+    }
+}
+
+/// Rebuild the console from the ROM bytes kept in memory and reload its SRAM file
+/// (used after a failed `load_state`, whose partial writes may leave an incoherent state).
+fn reload_console(
+    rom_path: &Option<PathBuf>,
+    rom_bytes: &[u8],
+    joy: &[u16; 2],
+    frame_no: &mut u64,
+    sync: &mut SramSync,
+    tx_event: &Sender<Event>,
+) -> Option<Snes> {
+    match Snes::new(rom_bytes, None) {
+        Ok(mut new_snes) => {
+            for (port, buttons) in joy.iter().enumerate() {
+                new_snes.set_joypad(port, *buttons);
+            }
+            *frame_no = 0;
+            if let Some(path) = rom_path {
+                load_sram(&mut new_snes, path, sync, tx_event);
+            }
+            Some(new_snes)
+        }
+        Err(_) => {
+            let _ = tx_event.send(Event::Error("cannot reload ROM".to_string()));
+            None
+        }
+    }
 }
