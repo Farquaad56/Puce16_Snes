@@ -9,6 +9,86 @@ pub enum Ratio {
     Par87,
 }
 
+/// Video filter mode.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Filter {
+    Nearest,
+    Linear,
+    Scanlines,
+}
+
+impl Filter {
+    /// Parse a filter name string; unknown names default to Nearest.
+    pub fn from_name(s: &str) -> Filter {
+        match s {
+            "linear" => Filter::Linear,
+            "scanlines" => Filter::Scanlines,
+            _ => Filter::Nearest,
+        }
+    }
+
+    /// Return the canonical name of this filter.
+    pub fn name(self) -> &'static str {
+        match self {
+            Filter::Nearest => "nearest",
+            Filter::Linear => "linear",
+            Filter::Scanlines => "scanlines",
+        }
+    }
+
+    /// Cycle to the next filter: Nearest -> Linear -> Scanlines -> Nearest.
+    pub fn next(self) -> Filter {
+        match self {
+            Filter::Nearest => Filter::Linear,
+            Filter::Linear => Filter::Scanlines,
+            Filter::Scanlines => Filter::Nearest,
+        }
+    }
+}
+
+/// Parse a ratio name string; unknown names default to Square.
+pub fn ratio_from_name(s: &str) -> Ratio {
+    if s == "par87" {
+        Ratio::Par87
+    } else {
+        Ratio::Square
+    }
+}
+
+/// Return the canonical name of a ratio.
+pub fn ratio_name(r: Ratio) -> &'static str {
+    match r {
+        Ratio::Square => "square",
+        Ratio::Par87 => "par87",
+    }
+}
+
+/// True only when scanlines should be applied (filter is Scanlines and scale >= 2).
+pub fn scanlines_active(f: Filter, scale: usize) -> bool {
+    f == Filter::Scanlines && scale >= 2
+}
+
+/// Darken odd rows of an RGBA image to simulate CRT scanlines.
+/// Odd rows have R, G, B multiplied by 3/4 (integer division); alpha is unchanged.
+pub fn apply_scanlines(rgba: &mut [u8], width: usize) {
+    if rgba.is_empty() || width == 0 {
+        return;
+    }
+    let height = rgba.len() / (width * 4);
+    for y in 1..height {
+        if y % 2 != 0 {
+            let row_start = y * width * 4;
+            let row_end = row_start + width * 4;
+            let row = &mut rgba[row_start..row_end];
+            for i in (0..row.len()).step_by(4) {
+                row[i] = (row[i] as u16 * 3 / 4) as u8; // R
+                row[i + 1] = (row[i + 1] as u16 * 3 / 4) as u8; // G
+                row[i + 2] = (row[i + 2] as u16 * 3 / 4) as u8; // B
+            }
+        }
+    }
+}
+
 /// Convert an XRGB8888 frame to RGBA bytes.
 ///
 /// Each source pixel `p` produces `[R, G, B, 255]`: R = bits 23-16,

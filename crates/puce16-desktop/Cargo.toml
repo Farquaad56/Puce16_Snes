@@ -12,3 +12,6 @@ zip = "9.0.5"
 gilrs = "0.11.2"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
+
+[dev-dependencies]
+tempfile = "3.0"

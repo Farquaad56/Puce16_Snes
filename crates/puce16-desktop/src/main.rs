@@ -5,6 +5,7 @@ use puce16_desktop::app::{App, rom_arg};
 use puce16_desktop::emu_thread::{spawn_with_audio, Command};
 
 fn main() -> eframe::Result {
+    let cfg = puce16_desktop::config::load();
     let handle = spawn_with_audio(Region::Ntsc, false, None);
     let options = eframe::NativeOptions {
         viewport: eframe::egui::ViewportBuilder::default().with_inner_size([768.0, 740.0]),
@@ -16,7 +17,7 @@ fn main() -> eframe::Result {
     let rom_path: Option<String> = rom_arg(&args).map(|s| s.to_string());
 
     eframe::run_native("Puce16", options, Box::new(move |cc| {
-        let mut app = App::new(cc, handle);
+        let mut app = App::new(cc, handle, cfg);
         if let Some(path) = rom_path {
             app.open_path(std::path::Path::new(&path));
         }

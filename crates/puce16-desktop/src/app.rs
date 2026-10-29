@@ -6,10 +6,11 @@ use eframe::egui;
 
 use puce16_core::joypad::filter_opposites;
 
+use crate::config::{self, Config};
 use crate::emu_thread::{Command, EmuHandle, Event, FrameData};
 use crate::files;
 use crate::input::{self, Hotkey};
-use crate::video::{self, Ratio};
+use crate::video::{self, Filter, Ratio};
 
 /// Return the first command-line argument that is not a flag (does not start with '-').
 pub fn rom_arg(args: &[String]) -> Option<&str> {
@@ -22,6 +23,13 @@ pub struct App {
     last: Option<Arc<FrameData>>,
     scale: usize,
     ratio: Ratio,
+    filter: Filter,
+    /// Persistent configuration (spec 08 section 6) and its save bookkeeping.
+    cfg: Config,
+    cfg_dirty: bool,
+    last_cfg_change: Option<std::time::Instant>,
+    /// True when the pause was caused by the window losing focus.
+    auto_paused: bool,
     paused: bool,
     status: String,
     /// Last joypad bits sent to the emulation thread (port 0).
@@ -37,21 +45,46 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(_cc: &eframe::CreationContext<'_>, handle: EmuHandle) -> Self {
+    pub fn new(_cc: &eframe::CreationContext<'_>, handle: EmuHandle, cfg: Config) -> Self {
         Self {
             handle,
             texture: None,
             last: None,
-            scale: 3,
-            ratio: Ratio::Square,
+            scale: (cfg.scale as usize).clamp(1, 8),
+            ratio: video::ratio_from_name(&cfg.ratio),
+            filter: Filter::from_name(&cfg.filter),
+            muted: cfg.muted,
+            cfg,
+            cfg_dirty: false,
+            last_cfg_change: None,
+            auto_paused: false,
             paused: false,
             status: "test pattern (NTSC)".to_string(),
             last_joypad: 0,
             slot: 0,
-            muted: false,
             fast_forward: false,
             rom_path: None,
         }
+    }
+
+    /// Copy the UI state into the config and schedule a save (1 s after the last change).
+    fn touch_cfg(&mut self) {
+        if !self.cfg.fit_window {
+            self.cfg.scale = self.scale.clamp(1, 8) as u8;
+        }
+        self.cfg.ratio = video::ratio_name(self.ratio).to_string();
+        self.cfg.filter = self.filter.name().to_string();
+        self.cfg.muted = self.muted;
+        self.cfg_dirty = true;
+        self.last_cfg_change = Some(std::time::Instant::now());
+    }
+
+    /// Write the config to disk; a failure only sets the status line.
+    fn save_cfg(&mut self) {
+        if let Err(e) = config::save(&self.cfg) {
+            self.status = format!("ERROR: {}", e);
+        }
+        self.cfg_dirty = false;
     }
 
     fn send(&self, cmd: Command) {
@@ -65,6 +98,11 @@ impl App {
                 // Send the ROM path first so SRAM can be loaded/saved.
                 let _ = self.handle.tx.send(Command::SetRomPath(path.to_path_buf()));
                 self.rom_path = Some(path.to_path_buf());
+                self.cfg.add_recent(&path.to_string_lossy());
+                if let Some(dir) = path.parent() {
+                    self.cfg.last_dir = dir.to_string_lossy().to_string();
+                }
+                self.touch_cfg();
                 self.send(Command::LoadRom(bytes, name));
             }
             Err(e) => {
@@ -75,10 +113,11 @@ impl App {
 
     /// Show the ROM file picker dialog and open the selected file.
     fn pick_and_open(&mut self) {
-        if let Some(path) = rfd::FileDialog::new()
-            .add_filter("ROM SNES", &["sfc", "smc", "swc", "fig", "zip"])
-            .pick_file()
-        {
+        let mut dialog = rfd::FileDialog::new().add_filter("ROM SNES", &["sfc", "smc", "swc", "fig", "zip"]);
+        if !self.cfg.last_dir.is_empty() && std::path::Path::new(&self.cfg.last_dir).exists() {
+            dialog = dialog.set_directory(&self.cfg.last_dir);
+        }
+        if let Some(path) = dialog.pick_file() {
             self.open_path(&path);
         }
     }
@@ -115,7 +154,8 @@ impl App {
         // Don't send joypad input when a dialog has keyboard focus.
         let wants_keyboard = ctx.egui_wants_keyboard_input();
         if !wants_keyboard {
-            let bits = filter_opposites(input::default_buttons(&held));
+            let raw = input::default_buttons(&held);
+            let bits = if self.cfg.block_opposite_dirs { filter_opposites(raw) } else { raw };
             if bits != self.last_joypad {
                 self.last_joypad = bits;
                 self.send(Command::SetJoypad(0, bits));
@@ -143,7 +183,7 @@ impl App {
                     }
                     Hotkey::Mute => {
                         self.muted = !self.muted;
-                        // audio.set_muted will be handled in E08-25 when AudioOut is available.
+                        self.touch_cfg(); // the real audio effect comes in E08-27
                     }
                     Hotkey::Screenshot => {
                         if let Some(frame) = &self.last {
@@ -189,11 +229,24 @@ impl App {
 
     /// Top menu bar: File, Emulation, Video.
     fn menu_bar(&mut self, ui: &mut egui::Ui) {
+        let mut to_open: Option<String> = None;
+        let mut changed = false;
         egui::MenuBar::new().ui(ui, |ui| {
             ui.menu_button("Fichier", |ui| {
                 if ui.button("Ouvrir une ROM... (Ctrl+O)").clicked() {
                     self.pick_and_open();
                 }
+                ui.menu_button("ROM recentes", |ui| {
+                    if self.cfg.recent_roms.is_empty() {
+                        ui.label("(aucune)");
+                    }
+                    for rom in self.cfg.recent_roms.clone() {
+                        if ui.button(rom.as_str()).clicked() {
+                            to_open = Some(rom);
+                            ui.close();
+                        }
+                    }
+                });
                 if ui.button("Quitter").clicked() {
                     ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
                 }
@@ -225,17 +278,59 @@ impl App {
                         }
                     }
                 });
+                if ui.checkbox(&mut self.cfg.pause_on_focus_loss, "Pause si focus perdu").changed() {
+                    changed = true;
+                }
                 // Fast forward toggle.
                 if ui.checkbox(&mut self.fast_forward, "Avance rapide (Tab)").changed() {
                     self.send(Command::SetFastForward(self.fast_forward));
                 }
             });
             ui.menu_button("Video", |ui| {
-                ui.add(egui::Slider::new(&mut self.scale, 1..=6).text("Echelle"));
-                ui.radio_value(&mut self.ratio, Ratio::Square, "Pixels carres");
-                ui.radio_value(&mut self.ratio, Ratio::Par87, "Ratio 8:7");
+                if ui.checkbox(&mut self.cfg.fit_window, "Ajuster a la fenetre").changed() {
+                    changed = true;
+                }
+                ui.add_enabled_ui(!self.cfg.fit_window, |ui| {
+                    if ui.add(egui::Slider::new(&mut self.scale, 1..=8).text("Echelle")).changed() {
+                        changed = true;
+                    }
+                });
+                changed |= ui.radio_value(&mut self.ratio, Ratio::Square, "Pixels carres").changed();
+                changed |= ui.radio_value(&mut self.ratio, Ratio::Par87, "Ratio 8:7").changed();
+                ui.separator();
+                changed |= ui.radio_value(&mut self.filter, Filter::Nearest, "Filtre: nearest").changed();
+                changed |= ui.radio_value(&mut self.filter, Filter::Linear, "Filtre: linear").changed();
+                changed |= ui.radio_value(&mut self.filter, Filter::Scanlines, "Filtre: scanlines (echelle >= 2)").changed();
+            });
+            ui.menu_button("Audio", |ui| {
+                let mut vol = self.cfg.volume as u32;
+                if ui.add(egui::Slider::new(&mut vol, 0..=100).text("Volume")).changed() {
+                    self.cfg.volume = vol as u8;
+                    changed = true;
+                }
+                if ui.checkbox(&mut self.muted, "Muet (M)").changed() {
+                    changed = true;
+                }
+            });
+            ui.menu_button("Entrees", |ui| {
+                ui.label("Fleches: croix directionnelle");
+                ui.label("X / S: A / B   (Z / A selon le clavier: voir spec 08 section 2)");
+                ui.label("Entree: Start   Retour arriere: Select");
+                ui.label("F5 / F7: sauver / charger l'etat   F12: reset");
+                ui.label("P: pause   N: image suivante   Tab: avance rapide");
+                ui.label("F2: capture d'ecran   M: muet");
+                ui.separator();
+                if ui.checkbox(&mut self.cfg.block_opposite_dirs, "Bloquer les directions opposees").changed() {
+                    changed = true;
+                }
             });
         });
+        if changed {
+            self.touch_cfg();
+        }
+        if let Some(rom) = to_open {
+            self.open_path(std::path::Path::new(&rom));
+        }
     }
 
     /// Bottom status line: status text, frame number, scale, slot.
@@ -275,12 +370,39 @@ impl eframe::App for App {
 
         self.poll_keyboard(ui);
 
+        // Optional auto-pause when the window loses focus.
+        let focused = ui.ctx().input(|i| i.focused);
+        if self.cfg.pause_on_focus_loss && !focused && !self.paused {
+            self.paused = true;
+            self.auto_paused = true;
+            self.send(Command::Pause(true));
+        } else if focused && self.auto_paused {
+            self.auto_paused = false;
+            if self.paused {
+                self.paused = false;
+                self.send(Command::Pause(false));
+            }
+        }
+
+        // Debounced config save: 1 s after the last change.
+        if self.cfg_dirty && self.last_cfg_change.map_or(true, |t| t.elapsed().as_secs_f32() >= 1.0) {
+            self.save_cfg();
+        }
+
         if let Some(frame) = &self.last {
-            let rgba = video::xrgb_to_rgba(&frame.pixels);
+            let mut rgba = video::xrgb_to_rgba(&frame.pixels); // fresh copy, source untouched
+            if video::scanlines_active(self.filter, self.scale) {
+                video::apply_scanlines(&mut rgba, frame.width);
+            }
+            let options = if self.filter == Filter::Linear {
+                egui::TextureOptions::LINEAR
+            } else {
+                egui::TextureOptions::NEAREST
+            };
             let image = egui::ColorImage::from_rgba_unmultiplied([frame.width, frame.height], &rgba);
             match &mut self.texture {
-                Some(texture) => texture.set(image, egui::TextureOptions::NEAREST),
-                None => self.texture = Some(ui.ctx().load_texture("frame", image, egui::TextureOptions::NEAREST)),
+                Some(texture) => texture.set(image, options),
+                None => self.texture = Some(ui.ctx().load_texture("frame", image, options)),
             }
         }
 
@@ -291,6 +413,10 @@ impl eframe::App for App {
 
         egui::CentralPanel::default().show(ui, |panel_ui| {
             if let (Some(texture), Some(frame)) = (&self.texture, &self.last) {
+                if self.cfg.fit_window {
+                    let avail = panel_ui.available_size();
+                    self.scale = video::fit_scale(frame.width, frame.height, avail.x.max(0.0) as usize, avail.y.max(0.0) as usize).clamp(1, 8);
+                }
                 let (w, h) = video::display_size(frame.width, frame.height, self.scale, self.ratio);
                 let rect = egui::Rect::from_center_size(panel_ui.max_rect().center(), egui::vec2(w as f32, h as f32));
                 let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
@@ -302,4 +428,11 @@ impl eframe::App for App {
     }
 }
 
-impl Drop for App { fn drop(&mut self) { let _ = self.handle.tx.send(Command::Quit); } }
+impl Drop for App {
+    fn drop(&mut self) {
+        if self.cfg_dirty {
+            let _ = config::save(&self.cfg);
+        }
+        let _ = self.handle.tx.send(Command::Quit);
+    }
+}
