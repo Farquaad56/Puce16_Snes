@@ -13,6 +13,24 @@ use std::time::{Duration, Instant};
 
 use puce16_core::{Region, Snes};
 
+/// Debug data sent to the UI when debugging is active.
+#[derive(Debug)]
+pub struct DebugData {
+    pub snapshot: puce16_core::snes::DebugSnapshot,
+    pub vram: Vec<u16>,
+    pub cgram: Vec<u16>,
+    pub oam: Vec<u8>,
+    pub wram_page: Vec<u8>,
+    pub ppu_regs: Option<puce16_core::ppu::PpuRegsSnapshot>,
+    pub smp: Option<puce16_core::snes::SmpSnapshot>,
+    pub dma: Option<[puce16_core::snes::DmaChanSnapshot; 8]>,
+}
+
+/// Maximum instructions per block when running to a PC breakpoint.
+pub const RUN_TO_PC_BLOCK: u32 = 100_000;
+/// Maximum number of blocks for RunToPc before giving up.
+pub const RUN_TO_PC_MAX_BLOCKS: u32 = 100;
+
 use crate::files;
 
 /// Commands sent from the UI thread to the emulation thread.
@@ -39,9 +57,18 @@ pub enum Command {
     SaveState(u8),
     /// Load emulator state from slot (0..9).
     LoadState(u8),
+    /// Enable or disable debug data output.
+    RequestDebug(bool),
+    /// Set the WRAM page for debug inspection (0..255).
+    SetWramPage(u16),
+    /// Step one CPU instruction (only when paused).
+    StepInstruction,
+    /// Run until PC reaches address (pb << 16) | pc; only when paused.
+    RunToPc(u32),
 }
 
 /// One published frame: compact XRGB8888 pixels plus metadata.
+#[derive(Debug)]
 pub struct FrameData {
     pub width: usize,
     pub height: usize,
@@ -50,6 +77,7 @@ pub struct FrameData {
 }
 
 /// Events sent from the emulation thread to the UI thread.
+#[derive(Debug)]
 pub enum Event {
     /// A new frame was emulated (the UI displays the most recent one).
     Frame(Arc<FrameData>),
@@ -59,6 +87,8 @@ pub enum Event {
     Error(String),
     /// SRAM was saved to disk at this path.
     SramSaved(PathBuf),
+    /// Debug data (sent after each frame when debugging is active).
+    Debug(Box<DebugData>),
 }
 
 /// Interval between automatic SRAM saves (spec 08 section 6).
@@ -179,6 +209,11 @@ fn emu_loop(
     let mut rom_bytes: Vec<u8> = Vec::new();
     let mut sync = SramSync::new(Instant::now());
 
+    // Debug state.
+    let mut debug_active = false;
+    let mut wram_page = 0u16;
+    let mut rom_loaded = false;
+
     loop {
         // Drain every pending command before doing any work.
         while let Ok(cmd) = rx_cmd.try_recv() {
@@ -186,7 +221,7 @@ fn emu_loop(
                 Command::Pause(pause) => { paused = pause; next = None; }
                 Command::FrameAdvance => {
                     if paused {
-                        run_one_frame(&mut snes, &mut frame_no, &tx_event);
+                        run_one_frame(&mut snes, &mut frame_no, &tx_event, debug_active, wram_page, rom_loaded);
                     }
                 }
                 Command::SetJoypad(port, buttons) => {
@@ -214,6 +249,39 @@ fn emu_loop(
                         snes = new_snes;
                     }
                 }
+                Command::RequestDebug(on) => {
+                    debug_active = on;
+                }
+                Command::SetWramPage(page) => {
+                    wram_page = page;
+                    if debug_active && rom_loaded {
+                        send_debug_data(&snes, wram_page, true, &tx_event);
+                    }
+                }
+                Command::StepInstruction => {
+                    if paused {
+                        snes.step_instruction();
+                        if debug_active && rom_loaded {
+                            send_debug_data(&snes, wram_page, true, &tx_event);
+                        }
+                    } else {
+                        let _ = tx_event.send(Event::Status("pause first".to_string()));
+                    }
+                }
+                Command::RunToPc(addr) => {
+                    if !paused {
+                        let _ = tx_event.send(Event::Status("pause first".to_string()));
+                    } else {
+                        match run_to_pc(&mut snes, addr, &rx_cmd, &tx_event, debug_active, wram_page, rom_loaded) {
+                            RunToPcOutcome::Finished => {}
+                            RunToPcOutcome::Cancelled => { paused = false; next = None; }
+                            RunToPcOutcome::Quit => {
+                                save_sram(&snes, &rom_path, &mut sync, &tx_event);
+                                return;
+                            }
+                        }
+                    }
+                }
                 Command::LoadRom(bytes, name) => {
                     // Save SRAM for the previous ROM before loading a new one.
                     save_sram(&snes, &rom_path, &mut sync, &tx_event);
@@ -221,6 +289,7 @@ fn emu_loop(
                     match Snes::new(&bytes, None) {
                         Ok(new_snes) => {
                             snes = new_snes;
+                            rom_loaded = true;
                             rom_hash = files::rom_hash(&bytes);
                             rom_bytes = bytes.clone();
                             // Re-apply last joypad settings.
@@ -271,7 +340,7 @@ fn emu_loop(
         if paused {
             thread::sleep(Duration::from_millis(5));
         } else {
-            run_one_frame(&mut snes, &mut frame_no, &tx_event);
+            run_one_frame(&mut snes, &mut frame_no, &tx_event, debug_active, wram_page, rom_loaded);
 
             // Periodic SRAM save check.
             let now = Instant::now();
@@ -397,13 +466,39 @@ fn save_sram(
     }
 }
 
-/// Run one emulated frame with panic protection.
-fn run_one_frame(snes: &mut Snes, frame_no: &mut u64, tx_event: &Sender<Event>) {
+/// Run one emulated frame with panic protection. Sends debug data if active.
+fn run_one_frame(
+    snes: &mut Snes,
+    frame_no: &mut u64,
+    tx_event: &Sender<Event>,
+    debug_active: bool,
+    wram_page: u16,
+    rom_loaded: bool,
+) {
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| snes.run_frame()));
     match result {
         Ok(()) => {
             *frame_no += 1;
             publish_frame(snes, *frame_no, tx_event);
+            if debug_active && rom_loaded {
+                send_debug_data(snes, wram_page, true, tx_event);
+            } else if debug_active && !rom_loaded {
+                // Test pattern mode: send empty debug data.
+                let data = DebugData {
+                    snapshot: puce16_core::snes::DebugSnapshot {
+                        pc: 0, a: 0, x: 0, y: 0, s: 0, d: 0, db: 0, pb: 0, p: 0, e: false,
+                        v: 0, dot: 0, master: 0, frame: 0,
+                    },
+                    vram: Vec::new(),
+                    cgram: Vec::new(),
+                    oam: Vec::new(),
+                    wram_page: Vec::new(),
+                    ppu_regs: None,
+                    smp: None,
+                    dma: None,
+                };
+                let _ = tx_event.send(Event::Debug(Box::new(data)));
+            }
         }
         Err(payload) => {
             let msg = if let Some(s) = payload.downcast_ref::<String>() {
@@ -564,4 +659,103 @@ fn reload_console(
             None
         }
     }
+}
+
+/// Build and send debug data from the current SNES state.
+fn send_debug_data(snes: &Snes, wram_page: u16, rom_loaded: bool, tx_event: &Sender<Event>) {
+    if !rom_loaded {
+        // Test pattern mode: empty vectors and None options (spec).
+        let data = DebugData {
+            snapshot: puce16_core::snes::DebugSnapshot {
+                pc: 0, a: 0, x: 0, y: 0, s: 0, d: 0, db: 0, pb: 0, p: 0, e: false,
+                v: 0, dot: 0, master: 0, frame: 0,
+            },
+            vram: Vec::new(),
+            cgram: Vec::new(),
+            oam: Vec::new(),
+            wram_page: Vec::new(),
+            ppu_regs: None,
+            smp: None,
+            dma: None,
+        };
+        let _ = tx_event.send(Event::Debug(Box::new(data)));
+    } else {
+        let data = DebugData {
+            snapshot: snes.debug(),
+            vram: snes.debug_vram().to_vec(),
+            cgram: snes.debug_cgram().to_vec(),
+            oam: snes.debug_oam().to_vec(),
+            wram_page: snes.debug_wram_page(wram_page),
+            ppu_regs: snes.debug_ppu_regs(),
+            smp: snes.debug_smp(),
+            dma: snes.debug_dma(),
+        };
+        let _ = tx_event.send(Event::Debug(Box::new(data)));
+    }
+}
+
+/// How a RunToPc search ended.
+enum RunToPcOutcome {
+    /// Breakpoint reached or blocks exhausted: stay paused.
+    Finished,
+    /// A `Pause(false)` arrived: the search is cancelled and normal execution resumes.
+    Cancelled,
+    /// A `Quit` arrived: the emulation thread must terminate.
+    Quit,
+}
+
+/// Run until PC reaches the breakpoint address, or max blocks are exhausted.
+fn run_to_pc(
+    snes: &mut Snes,
+    addr: u32,
+    rx_cmd: &Receiver<Command>,
+    tx_event: &Sender<Event>,
+    debug_active: bool,
+    wram_page: u16,
+    rom_loaded: bool,
+) -> RunToPcOutcome {
+    let pb = (addr >> 16) as u8;
+    let pc = (addr & 0xFFFF) as u16;
+
+    for _ in 0..RUN_TO_PC_MAX_BLOCKS {
+        // Check for pending commands between blocks.
+        while let Ok(cmd) = rx_cmd.try_recv() {
+            match cmd {
+                Command::Quit => return RunToPcOutcome::Quit,
+                Command::Pause(false) => {
+                    let _ = tx_event.send(Event::Status("Breakpoint cancelled".to_string()));
+                    return RunToPcOutcome::Cancelled;
+                }
+                _ => {} // Ignore other commands during run-to-pc.
+            }
+        }
+
+        if snes.debug_run_until_pc(pb, pc, RUN_TO_PC_BLOCK) {
+            let _ = tx_event.send(Event::Status(format!("Breakpoint {:02X}:{:04X}", pb, pc)));
+            // Publish current frame and debug data.
+            publish_frame(snes, snes.frame_count(), tx_event);
+            if debug_active && rom_loaded {
+                send_debug_data(snes, wram_page, true, tx_event);
+            } else if debug_active && !rom_loaded {
+                let data = DebugData {
+                    snapshot: puce16_core::snes::DebugSnapshot {
+                        pc: 0, a: 0, x: 0, y: 0, s: 0, d: 0, db: 0, pb: 0, p: 0, e: false,
+                        v: 0, dot: 0, master: 0, frame: 0,
+                    },
+                    vram: Vec::new(),
+                    cgram: Vec::new(),
+                    oam: Vec::new(),
+                    wram_page: Vec::new(),
+                    ppu_regs: None,
+                    smp: None,
+                    dma: None,
+                };
+                let _ = tx_event.send(Event::Debug(Box::new(data)));
+            }
+            return RunToPcOutcome::Finished;
+        }
+    }
+
+    let _ = tx_event.send(Event::Status("Breakpoint not reached".to_string()));
+    RunToPcOutcome::Finished
 }

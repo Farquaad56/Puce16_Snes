@@ -466,6 +466,7 @@ impl eframe::App for App {
                 Event::Status(text) => self.status = text,
                 Event::Error(e) => self.status = format!("ERROR: {}", e),
                 Event::SramSaved(path) => self.status = format!("SRAM saved to {}", path.display()),
+                Event::Debug(_) => { /* handled by debugger window */ }
             }
         }
         if let Some(frame) = latest { self.last = Some(frame); }
