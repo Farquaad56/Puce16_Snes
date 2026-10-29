@@ -6,6 +6,7 @@ pub mod io;
 
 use crate::consts::{APU_RESONATOR_HZ, MASTER_HZ_NTSC};
 use crate::region::Region;
+use crate::savestate::{State, StateWriter, StateReader, StateError};
 use self::spc700::Spc700;
 use self::io::ApuIo;
 
@@ -138,5 +139,166 @@ impl Apu {
         h.write_u64(self.last_master);
         // I/O state
         self.io.hash_into(h);
+    }
+}
+
+impl State for Apu {
+    fn save(&self, w: &mut StateWriter) {
+        // Save all fields in declaration order.
+        // not saved: master_hz (derived from region via set_region())
+        self.spc.save(w);
+        self.io.save(w);
+        w.i64(self.acc);
+        w.u64(self.last_master);
+    }
+
+    fn load(&mut self, r: &mut StateReader) -> Result<(), StateError> {
+        // Load all fields in declaration order.
+        self.spc.load(r)?;
+        self.io.load(r)?;
+        self.acc = r.i64()?;
+        self.last_master = r.u64()?;
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::savestate::{State, StateWriter, StateReader};
+    use crate::hash::Fnv64;
+
+    fn apu_hash(apu: &Apu) -> u64 {
+        let mut h = Fnv64::new();
+        apu.hash_into(&mut h);
+        h.finish()
+    }
+
+    #[test]
+    fn e08_11_apu_roundtrip() {
+        // Set up Apu with non-trivial state.
+        let mut apu = Apu::new();
+        apu.acc = 1234567;
+        apu.last_master = 9876543;
+
+        // Save.
+        let mut writer = StateWriter::new();
+        apu.save(&mut writer);
+        let data = writer.finish();
+
+        // Load into fresh instance.
+        let mut loaded = Apu::new();
+        let mut reader = StateReader::new(&data);
+        loaded.load(&mut reader).unwrap();
+
+        // Verify bytes match on re-save.
+        let mut writer2 = StateWriter::new();
+        loaded.save(&mut writer2);
+        let data2 = writer2.finish();
+        assert_eq!(data, data2, "re-saved bytes must match original");
+
+        // Verify hash matches.
+        assert_eq!(apu_hash(&apu), apu_hash(&loaded), "hashes must match after roundtrip");
+    }
+
+    #[test]
+    fn e08_11_apu_behaves_identically() {
+        // Run to 100k, save/restore, then both advance to 300k.
+        let mut apu = Apu::new();
+        apu.step_to(100_000);
+
+        // Save state.
+        let mut writer = StateWriter::new();
+        apu.save(&mut writer);
+        let data = writer.finish();
+
+        // Load into fresh instance.
+        let mut loaded = Apu::new();
+        let mut reader = StateReader::new(&data);
+        loaded.load(&mut reader).unwrap();
+
+        // Both advance to 300k.
+        apu.step_to(300_000);
+        loaded.step_to(300_000);
+
+        assert_eq!(apu_hash(&apu), apu_hash(&loaded), "hashes must match after advancing");
+        for i in 0..4 {
+            assert_eq!(apu.port_read(i), loaded.port_read(i), "port {} must match", i);
+        }
+    }
+
+    #[test]
+    fn e08_11_ipl_handshake_survives() {
+        // Run to IPL handshake, save/restore, verify port values.
+        let mut apu = Apu::new();
+        apu.step_to(100_000);
+
+        // Save state.
+        let mut writer = StateWriter::new();
+        apu.save(&mut writer);
+        let data = writer.finish();
+
+        // Load into fresh instance.
+        let mut loaded = Apu::new();
+        let mut reader = StateReader::new(&data);
+        loaded.load(&mut reader).unwrap();
+
+        assert_eq!(loaded.port_read(0), 0xAA, "port 0 must be 0xAA after restore");
+        assert_eq!(loaded.port_read(1), 0xBB, "port 1 must be 0xBB after restore");
+    }
+
+    #[test]
+    fn e08_11_truncated_apu() {
+        let mut apu = Apu::new();
+        apu.acc = 1234567;
+        apu.last_master = 9876543;
+
+        let mut writer = StateWriter::new();
+        apu.save(&mut writer);
+        let data = writer.finish();
+
+        // Test truncation at various points.
+        for n in [0, data.len() / 2, data.len() - 1] {
+            let mut loaded = Apu::new();
+            let mut reader = StateReader::new(&data[..n]);
+            let result = loaded.load(&mut reader);
+            assert!(matches!(result, Err(StateError::Truncated)),
+                "truncation at {} should fail with Truncated", n);
+        }
+    }
+
+    #[test]
+    fn e08_11_truncated_each() {
+        // Combined truncation test for both ApuIo and Apu.
+        let mut io = ApuIo::new();
+        for i in 0..65536 {
+            io.ram[i] = (i & 0xFF) as u8;
+        }
+
+        let mut writer = StateWriter::new();
+        io.save(&mut writer);
+        let data = writer.finish();
+
+        for n in [0, data.len() / 2, data.len() - 1] {
+            let mut loaded = ApuIo::new();
+            let mut reader = StateReader::new(&data[..n]);
+            assert!(matches!(loaded.load(&mut reader), Err(StateError::Truncated)),
+                "io truncation at {} should fail", n);
+        }
+
+        let mut apu = Apu::new();
+        apu.acc = 1234567;
+        apu.last_master = 9876543;
+
+        let mut writer2 = StateWriter::new();
+        apu.save(&mut writer2);
+        let data2 = writer2.finish();
+
+        for n in [0, data2.len() / 2, data2.len() - 1] {
+            let mut loaded = Apu::new();
+            let mut reader = StateReader::new(&data2[..n]);
+            assert!(matches!(loaded.load(&mut reader), Err(StateError::Truncated)),
+                "apu truncation at {} should fail", n);
+        }
     }
 }

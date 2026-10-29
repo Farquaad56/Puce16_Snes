@@ -212,3 +212,53 @@ impl DmaBus for SysBus {
         self.master
     }
 }
+
+impl crate::savestate::State for SysBus {
+    fn save(&self, w: &mut crate::savestate::StateWriter) {
+        // Save bus-level state in declaration order.
+        w.u64(self.master);
+        w.u64(self.ppu_t);
+        w.u8(self.mdr);
+        w.bool(self.memsel);
+        w.u8(self.pending_dma);
+        w.bool(self.dma_wait);
+        w.bool(self.pending_hdma_init);
+        w.bool(self.pending_hdma_run);
+        w.bool(self.vblank_flag);
+        w.u64(self.vblank_count);
+        // region not saved (reconstructed from cart on load)
+        self.wram.save(w);
+        self.mmio.save(w);
+        self.dma.save(w);
+        self.timing.save(w);
+        self.ppu.save(w);
+        self.apu.save(w);
+        self.joy.save(w);
+        // Cart: SRAM only (ROM not saved)
+        self.cart.save(w);
+    }
+
+    fn load(&mut self, r: &mut crate::savestate::StateReader) -> Result<(), crate::savestate::StateError> {
+        self.master = r.u64()?;
+        self.ppu_t = r.u64()?;
+        self.mdr = r.u8()?;
+        self.memsel = r.bool()?;
+        self.pending_dma = r.u8()?;
+        self.dma_wait = r.bool()?;
+        self.pending_hdma_init = r.bool()?;
+        self.pending_hdma_run = r.bool()?;
+        self.vblank_flag = r.bool()?;
+        self.vblank_count = r.u64()?;
+        // region not loaded (reconstructed from cart on load)
+        self.wram.load(r)?;
+        self.mmio.load(r)?;
+        self.dma.load(r)?;
+        self.timing.load(r)?;
+        self.ppu.load(r)?;
+        self.apu.load(r)?;
+        self.joy.load(r)?;
+        // Cart: SRAM only (ROM not loaded)
+        self.cart.load(r)?;
+        Ok(())
+    }
+}

@@ -9,6 +9,7 @@ use crate::hash::Fnv64;
 use crate::ppu::output::{make_view, FrameBuf, FrameView};
 use crate::region::Region;
 use crate::bus::SysBus;
+use crate::savestate::{State, StateWriter, StateReader, STATE_VERSION, StateError};
 
 /// Audio sample rate (D-004): APU_RESONATOR_HZ / 768 = 32040 Hz.
 pub const AUDIO_SAMPLE_RATE: u32 = 32_040;
@@ -375,5 +376,66 @@ impl Snes {
             Inner::Pattern { .. } => 0,
             Inner::Real { sys, .. } => sys.apu.port_read(i),
         }
+    }
+
+    /// Save the full emulator state to a binary blob.
+    pub fn save_state(&self) -> Vec<u8> {
+        let mut w = StateWriter::new();
+        // Header: version, region, frame count, master clock
+        w.u32(STATE_VERSION);
+        if self.region == Region::Ntsc {
+            w.u8(0);
+        } else {
+            w.u8(1);
+        }
+        match &self.inner {
+            Inner::Pattern { .. } => {
+                w.u64(self.frame);
+                w.u64(0); // no master clock for pattern variant
+            }
+            Inner::Real { cpu, sys, .. } => {
+                w.u64(sys.vblank_count());
+                w.u64(sys.master);
+                cpu.save(&mut w);
+                sys.save(&mut w);
+            }
+        }
+        w.finish()
+    }
+
+    /// Load emulator state from a binary blob.
+    pub fn load_state(&mut self, data: &[u8]) -> Result<(), StateError> {
+        let mut r = StateReader::new(data);
+        // Read and validate header first (Snes not modified until body is read)
+        let version = r.u32()?;
+        if version != STATE_VERSION {
+            return Err(StateError::Version(version));
+        }
+        let region_byte = r.u8()?;
+        let loaded_region = if region_byte == 0 { Region::Ntsc } else { Region::Pal };
+        if loaded_region != self.region {
+            return Err(StateError::Mismatch("region"));
+        }
+        let frame_count = r.u64()?;
+        let master_clocks = r.u64()?;
+
+        match &mut self.inner {
+            Inner::Pattern { .. } => {
+                // Pattern variant: just restore frame count, no body to read
+                self.frame = frame_count;
+                // Consume any remaining data (should be none for pattern saves)
+                r.finish()?;
+            }
+            Inner::Real { cpu, sys, .. } => {
+                // Load CPU and bus state. If the body is corrupt, the emulator
+                // state may become inconsistent - the desktop should reload the ROM.
+                cpu.load(&mut r)?;
+                sys.load(&mut r)?;
+                self.frame = frame_count;
+                // Verify no trailing data
+                r.finish()?;
+            }
+        }
+        Ok(())
     }
 }
