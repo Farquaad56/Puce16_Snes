@@ -384,7 +384,8 @@ T("E07-14", "GATE J6: Super Mario World demarre et se joue",
 1. `tests/roms/games/smw.sfc` demarre jusqu'a l'ecran titre sans plantage.
 2. Une partie commence; le niveau 1 est jouable (marcher, sauter, ramasser, ennemis).
 3. Aucun glitch graphique majeur (sprites manquants, fond decale, palette fausse) sur ces ecrans.
-4. Si un bug: remplir la colonne `Bug visible`; Claude cree les taches de correction; ne pas approuver avant correction.""",
+4. Si un bug: remplir la colonne `Bug visible`; Claude cree les taches de correction; ne pas approuver avant correction.
+5. DEFAUT CONNU ACCEPTE: de petits debris de sprites sur la ligne 0 (tout en haut de l'image) dans les niveaux et la carte; correction reportee a la tache `E09-00` (decision de l'utilisateur). Ne bloque pas ce gate.""",
   user_cmds=["cargo run --release -p puce16-desktop -- tests/roms/games/smw.sfc", "python docs/tools/task.py approve E07-14"], accept=[])
 
 T("E07-15", "GATE J7: ALttP et Super Mario All-Stars jouables",

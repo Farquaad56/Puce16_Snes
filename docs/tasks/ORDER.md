@@ -273,10 +273,11 @@ D-020: UNE seule tache a la fois, dans cet ordre. Une tache n'est prete que quan
 253. E08-39 GATE J8: save states, SRAM et debugger valides (jalon desktop final)  [GATE]
 
 ## E09
-254. E09-01 Coprocesseur DSP-1 (Super Mario Kart, Pilotwings)
-255. E09-02 Coprocesseur Super FX / GSU (Star Fox, Yoshi's Island)
-256. E09-03 Coprocesseur SA-1 (Super Mario RPG, Kirby Super Star)
-257. E09-04 Decompresseur S-DD1 (Star Ocean, Street Fighter Alpha 2)
-258. E09-05 Decompresseur SPC7110 (Far East of Eden Zero, Momotaro Dentetsu Happy)
-259. E09-06 Coprocesseur Cx4 (Mega Man X2, X3)
-260. E09-07 Autres puces: OBC1, S-RTC, ST010/ST011/ST018, MSU-1, BS-X
+254. E09-00 TUNE: sprites decales d'une ligne (SMW: debris colores sur la ligne 0 en haut de l'image) - reporte apres la v1
+255. E09-01 Coprocesseur DSP-1 (Super Mario Kart, Pilotwings)
+256. E09-02 Coprocesseur Super FX / GSU (Star Fox, Yoshi's Island)
+257. E09-03 Coprocesseur SA-1 (Super Mario RPG, Kirby Super Star)
+258. E09-04 Decompresseur S-DD1 (Star Ocean, Street Fighter Alpha 2)
+259. E09-05 Decompresseur SPC7110 (Far East of Eden Zero, Momotaro Dentetsu Happy)
+260. E09-06 Coprocesseur Cx4 (Mega Man X2, X3)
+261. E09-07 Autres puces: OBC1, S-RTC, ST010/ST011/ST018, MSU-1, BS-X

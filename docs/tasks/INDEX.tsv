@@ -252,7 +252,8 @@ E08-36	debugger.rs / app.rs: fenetre du debugger (F10), registres et commandes d
 E08-37	debugger.rs: onglets Tuiles, Cartes et Palettes	E08	E08-36	0	ui	140	hermes
 E08-38	debugger.rs: onglets OAM et Memoire, parse_pc (+ tests purs)	E08	E08-37	0	code	130	hermes
 E08-39	GATE J8: save states, SRAM et debugger valides (jalon desktop final)	E08	E08-38	1	gate	0	user
-E09-01	Coprocesseur DSP-1 (Super Mario Kart, Pilotwings)	E09	E08-39	0	doc	0	none
+E09-00	TUNE: sprites decales d'une ligne (SMW: debris colores sur la ligne 0 en haut de l'image) - reporte apres la v1	E09	E08-39	0	code	60	hermes
+E09-01	Coprocesseur DSP-1 (Super Mario Kart, Pilotwings)	E09	E09-00	0	doc	0	none
 E09-02	Coprocesseur Super FX / GSU (Star Fox, Yoshi's Island)	E09	E09-01	0	doc	0	none
 E09-03	Coprocesseur SA-1 (Super Mario RPG, Kirby Super Star)	E09	E09-02	0	doc	0	none
 E09-04	Decompresseur S-DD1 (Star Ocean, Street Fighter Alpha 2)	E09	E09-03	0	doc	0	none

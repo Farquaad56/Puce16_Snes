@@ -361,6 +361,14 @@ impl Snes {
         }
     }
 
+    /// Copy of the PPU OAM (544 bytes; real variant only; zeros for pattern). Debug aid.
+    pub fn peek_oam(&self) -> [u8; 544] {
+        match &self.inner {
+            Inner::Pattern { .. } => [0; 544],
+            Inner::Real { sys, .. } => *sys.ppu.oam(),
+        }
+    }
+
     /// Read APU port $2140-$2143 (mirrored every 4). Returns byte written by SPC700.
     pub fn apu_port(&self, i: usize) -> u8 {
         match &self.inner {

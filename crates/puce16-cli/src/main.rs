@@ -111,6 +111,36 @@ struct RunArgs {
     /// Write the PPM (P6) of the last frame to this file.
     #[arg(long)]
     dump_ppm: Option<PathBuf>,
+
+    /// Scripted joypad 1 input, e.g. `300-305:start,500-510:right+b` (frame ranges, inclusive).
+    #[arg(long)]
+    input: Option<String>,
+}
+
+/// Parse `--input` into (first, last, buttons) ranges; unknown button names are an error.
+fn parse_input_script(s: &str) -> Result<Vec<(u64, u64, u16)>, String> {
+    use puce16_core::joypad::*;
+    let mut out = Vec::new();
+    for part in s.split(',').filter(|p| !p.trim().is_empty()) {
+        let (range, btns) = part.split_once(':').ok_or_else(|| format!("bad entry '{part}'"))?;
+        let (a, b) = match range.split_once('-') {
+            Some((a, b)) => (a, b),
+            None => (range, range),
+        };
+        let a: u64 = a.trim().parse().map_err(|_| format!("bad frame '{a}'"))?;
+        let b: u64 = b.trim().parse().map_err(|_| format!("bad frame '{b}'"))?;
+        let mut m = 0u16;
+        for n in btns.split('+') {
+            m |= match n.trim().to_ascii_lowercase().as_str() {
+                "b" => BTN_B, "y" => BTN_Y, "select" => BTN_SELECT, "start" => BTN_START,
+                "up" => BTN_UP, "down" => BTN_DOWN, "left" => BTN_LEFT, "right" => BTN_RIGHT,
+                "a" => BTN_A, "x" => BTN_X, "l" => BTN_L, "r" => BTN_R,
+                other => return Err(format!("unknown button '{other}'")),
+            };
+        }
+        out.push((a, b, m));
+    }
+    Ok(out)
 }
 
 /// CLI spelling of mapper mode.
@@ -200,7 +230,18 @@ fn run_command(args: &RunArgs) -> ExitCode {
     };
 
     // Run frames with panic catching.
-    for _ in 0..args.frames {
+    let script = match args.input.as_deref().map(parse_input_script).transpose() {
+        Ok(s) => s.unwrap_or_default(),
+        Err(e) => {
+            eprintln!("error: --input: {e}");
+            return ExitCode::from(2);
+        }
+    };
+    for frame_no in 0..args.frames {
+        if !script.is_empty() {
+            let buttons = script.iter().filter(|(a, b, _)| frame_no >= *a && frame_no <= *b).fold(0u16, |m, (_, _, v)| m | v);
+            snes.set_joypad(0, buttons);
+        }
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| snes.run_frame()));
         if let Err(_) = result {
             eprintln!("emulator panic");
