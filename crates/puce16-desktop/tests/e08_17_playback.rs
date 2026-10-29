@@ -1,7 +1,7 @@
-use puce16_desktop::audio::{AudioRing, Playback, SRC_RATE};
+use puce16_desktop::audio::{AudioRing, Playback};
 
 fn fill_ring(ring: &mut AudioRing, frames: usize, l: i16, r: i16) {
-    let mut data = vec![[l, r]; frames];
+    let data = vec![[l, r]; frames];
     ring.push(&data);
 }
 
@@ -124,12 +124,6 @@ fn e08_17_underrun_repeats_last() {
 
     // Find the last non-underrun value (should be around frame 100)
     // After underrun starts, all values should equal that last value
-    let mut last_good = None;
-    for i in 0..frames {
-        if out[i * 2] != 0.0 || out[i * 2 + 1] != 0.0 {
-            last_good = Some((out[i * 2], out[i * 2 + 1]));
-        }
-    }
 
     // Check that the last 50 frames are all equal to each other (repeated)
     let last_50_start = frames - 50;

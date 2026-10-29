@@ -200,7 +200,7 @@ fn e08_33_step_instruction() {
         handle.tx.send(Command::StepInstruction).unwrap();
         let ev = recv_event(&handle.rx, 2000);
         match ev {
-            Some(Event::Debug(data)) => {
+            Some(Event::Debug(_)) => {
                 // Record PC after each step.
             }
             other => panic!("expected Event::Debug during step, got {:?}", other),

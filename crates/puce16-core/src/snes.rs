@@ -537,7 +537,7 @@ impl Snes {
             return Err(StateError::Mismatch("region"));
         }
         let frame_count = r.u64()?;
-        let master_clocks = r.u64()?;
+        let _master_clocks = r.u64()?; // informational: restored from the CPU/bus state
 
         match &mut self.inner {
             Inner::Pattern { .. } => {

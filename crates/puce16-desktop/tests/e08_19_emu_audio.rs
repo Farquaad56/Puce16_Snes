@@ -1,11 +1,10 @@
 //! E08-19: emu_thread audio sync, PAL/NTSC cadence, fast forward.
 
-use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 use puce16_core::Region;
 use puce16_desktop::audio::{new_shared_ring, RING_WAIT_ABOVE};
-use puce16_desktop::emu_thread::{Command, Event, frame_period_ns, spawn_with_audio};
+use puce16_desktop::emu_thread::{Command, frame_period_ns, spawn_with_audio};
 
 /// Minimal LoROM (32 KiB) that loops forever at 0x8000.
 fn tiny_rom() -> Vec<u8> {

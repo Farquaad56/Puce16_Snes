@@ -3,7 +3,7 @@
 use puce16_core::Region;
 use puce16_desktop::app::{App, rom_arg};
 use puce16_desktop::audio::{new_shared_ring, AudioOut};
-use puce16_desktop::emu_thread::{spawn_with_audio, Command};
+use puce16_desktop::emu_thread::spawn_with_audio;
 
 fn main() -> eframe::Result {
     let cfg = puce16_desktop::config::load();

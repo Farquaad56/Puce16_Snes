@@ -1,12 +1,11 @@
 //! E08-21: SRAM loading, periodic saving (every 5s), and save on close.
 
 use std::fs;
-use std::path::PathBuf;
 use std::sync::mpsc::RecvTimeoutError;
 use std::time::{Duration, Instant};
 
 use puce16_core::Region;
-use puce16_desktop::emu_thread::{Command, Event, SramSync, SRAM_SAVE_INTERVAL};
+use puce16_desktop::emu_thread::{Command, Event, SramSync};
 
 fn sram_rom(code: &[u8]) -> Vec<u8> {
     let mut r = vec![0u8; 0x8000];

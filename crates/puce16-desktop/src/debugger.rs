@@ -28,7 +28,6 @@ pub fn tile_words(bpp: u8) -> usize {
 /// word_addr is the starting VRAM word address (modulo 0x8000).
 /// Output: 64 bytes, row-major, left-to-right within each row.
 pub fn decode_tile(vram: &[u16], word_addr: usize, bpp: u8, out: &mut [u8; 64]) {
-    let words = tile_words(bpp);
     // For empty VRAM, fill with zeros (black)
     if vram.is_empty() {
         out.fill(0);
@@ -337,7 +336,6 @@ pub fn render_bg_map(
     }
 
     let words_per_tile = tile_words(bpp);
-    let palette_size = if bpp == 8 { 1 } else { 1 << bpp };
 
     for screen_y in 0..screens_v {
         for screen_x in 0..screens_h {
@@ -469,25 +467,55 @@ pub fn render_bg_map(
     (width, height, pixels)
 }
 
-/// Parse a PC address from text. Accepts "BBPPPP" (6 hex digits) or "PPPP" (4 hex digits = bank 00).
+/// Parse a PC address from text. Accepts "BBPPPP" (6 hex digits), "PPPP" (4 hex digits = bank 00),
+/// or fewer than 4 digits (bank 00). Optional "0x" or "$" prefix. Whitespace is trimmed.
 pub fn parse_pc(text: &str) -> Option<u32> {
     let s = text.trim();
     if s.is_empty() {
         return None;
     }
-    // Try 6-digit form first (bank + offset).
-    if s.len() == 6 {
-        if let Ok(val) = u32::from_str_radix(s, 16) {
-            return Some(val);
+    // Strip optional prefix.
+    let digits = if s.starts_with("0x") || s.starts_with("0X") {
+        &s[2..]
+    } else if s.starts_with('$') {
+        &s[1..]
+    } else {
+        s
+    };
+    if digits.is_empty() {
+        return None;
+    }
+    // Validate all characters are hex.
+    for c in digits.chars() {
+        if !c.is_ascii_hexdigit() {
+            return None;
         }
     }
-    // Try 4-digit form (offset only, bank 00).
-    if s.len() == 4 {
-        if let Ok(offset) = u16::from_str_radix(s, 16) {
-            return Some(offset as u32);
-        }
+    // More than 6 digits is invalid.
+    if digits.len() > 6 {
+        return None;
     }
-    None
+    // Parse as u32 (bank << 16 | pc). For <4 digits, bank is 0.
+    let val = u32::from_str_radix(digits, 16).ok()?;
+    Some(val)
+}
+
+/// Format a single sprite as a debugger line.
+pub fn sprite_line(s: &SpriteInfo, obj_size: u8) -> String {
+    let (w, h) = sprite_dims(obj_size, s.large);
+    format!(
+        "{:03} x={:4} y={:3} t={:03X} p={} pr={} {}{} {}x{}",
+        s.index,
+        s.x,
+        s.y,
+        s.tile,
+        s.palette,
+        s.priority,
+        if s.hflip { 'H' } else { '-' },
+        if s.vflip { 'V' } else { '-' },
+        w,
+        h
+    )
 }
 
 /// Debugger UI state.
@@ -500,7 +528,14 @@ pub struct DebuggerUi {
     pub tab: usize,
     /// Pause state requested by the window; the `App` applies it (it owns the `paused` flag).
     pub pause_request: Option<bool>,
-    // Future panel fields (E08-37 / E08-38).
+    // Tile panel settings.
+    tile_bpp: u8,
+    tile_palette: u8,
+    tile_base: usize,
+    tile_zoom: u8,
+    // Map panel settings.
+    map_bg: u8,
+    map_mode7: bool,
 }
 
 impl DebuggerUi {
@@ -513,6 +548,12 @@ impl DebuggerUi {
             pc_text: String::new(),
             tab: 0,
             pause_request: None,
+            tile_bpp: 4,
+            tile_palette: 0,
+            tile_base: 0,
+            tile_zoom: 1,
+            map_bg: 1,
+            map_mode7: false,
         }
     }
 
@@ -573,6 +614,10 @@ impl DebuggerUi {
 
                 egui::ScrollArea::vertical().show(ui, |ui| match self.tab {
                     0 => self.show_registers(ui, last.as_ref()),
+                    1 => self.show_tiles(ui, ctx, last.as_ref()),
+                    2 => self.show_maps(ui, ctx, last.as_ref()),
+                    3 => self.show_palettes(ui, last.as_ref()),
+                    4 => self.show_oam(ui, last.as_ref()),
                     5 => self.show_memory(ui, tx, last.as_ref()),
                     _ => {
                         ui.label("(a venir)");
@@ -640,17 +685,245 @@ impl DebuggerUi {
         }
     }
 
+    /// Show the Tiles tab.
+    fn show_tiles(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, data: Option<&Box<crate::emu_thread::DebugData>>) {
+        if let Some(d) = data {
+            // Settings row.
+            ui.horizontal(|ui| {
+                ui.label("bpp:");
+                for bpp in [2u8, 4, 8] {
+                    ui.selectable_value(&mut self.tile_bpp, bpp, format!("{}", bpp));
+                }
+                ui.separator();
+                let palette_max = (256 >> self.tile_bpp) - 1;
+                ui.label("palette:");
+                if ui.add(egui::DragValue::new(&mut self.tile_palette).range(0..=palette_max)).changed() {
+                    // Palette changed, will re-render below.
+                }
+                ui.separator();
+                ui.label("base (words):");
+                if ui.button("-0x400").clicked() {
+                    self.tile_base = (self.tile_base + 0x7C00) & 0x7FFF;
+                }
+                let base_text = format!("{:04X}", self.tile_base);
+                ui.label(base_text);
+                if ui.button("+0x400").clicked() {
+                    self.tile_base = (self.tile_base + 0x400) & 0x7FFF;
+                }
+                ui.separator();
+                ui.label("zoom:");
+                for z in [1u8, 2, 3, 4] {
+                    ui.selectable_value(&mut self.tile_zoom, z, format!("x{}", z));
+                }
+            });
+
+            // Render tiles.
+            let (w, h, pixels) = render_tiles(
+                &d.vram,
+                &d.cgram,
+                self.tile_base,
+                self.tile_bpp,
+                self.tile_palette,
+                16,
+                16,
+            );
+
+            // Scale up for zoom.
+            let scale = self.tile_zoom as usize;
+            let scaled_w = w * scale;
+            let scaled_h = h * scale;
+            let mut scaled_pixels = vec![0u8; scaled_w * scaled_h * 4];
+            for y in 0..h {
+                for x in 0..w {
+                    let src_idx = (y * w + x) * 4;
+                    for sy in 0..scale {
+                        for sx in 0..scale {
+                            let dst_x = x * scale + sx;
+                            let dst_y = y * scale + sy;
+                            let dst_idx = (dst_y * scaled_w + dst_x) * 4;
+                            scaled_pixels[dst_idx] = pixels[src_idx];
+                            scaled_pixels[dst_idx + 1] = pixels[src_idx + 1];
+                            scaled_pixels[dst_idx + 2] = pixels[src_idx + 2];
+                            scaled_pixels[dst_idx + 3] = pixels[src_idx + 3];
+                        }
+                    }
+                }
+            }
+
+            let image = egui::ColorImage::from_rgba_unmultiplied([scaled_w, scaled_h], &scaled_pixels);
+            let texture = ctx.load_texture("debug_tiles", image, egui::TextureOptions::NEAREST);
+            ui.image(&texture);
+        } else {
+            ui.label("(pas de donnees: pause + ouvrir une ROM)");
+        }
+    }
+
+    /// Show the Maps tab.
+    fn show_maps(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, data: Option<&Box<crate::emu_thread::DebugData>>) {
+        if let Some(d) = data {
+            // BG selection and settings.
+            ui.horizontal(|ui| {
+                ui.label("BG:");
+                for bg in [1u8, 2, 3, 4] {
+                    ui.selectable_value(&mut self.map_bg, bg, format!("{}", bg));
+                }
+                ui.separator();
+                if ui.checkbox(&mut self.map_mode7, "Mode 7").changed() {
+                    // Mode 7 changed.
+                }
+            });
+
+            let ppu = d.ppu_regs.as_ref();
+
+            if self.map_mode7 {
+                // Render mode 7 map (128x128 tiles -> 1024x1024).
+                let (w, h, pixels) = render_mode7_map(&d.vram, &d.cgram);
+                let image = egui::ColorImage::from_rgba_unmultiplied([w, h], &pixels);
+                let texture = ctx.load_texture("debug_mode7", image, egui::TextureOptions::NEAREST);
+
+                // Show with scrolling and zoom.
+                ui.horizontal(|ui| {
+                    ui.label("zoom:");
+                    for z in [1u8, 2] {
+                        if ui.selectable_value(&mut self.tile_zoom, z, format!("x{}", z)).clicked() {
+                            // Zoom changed - re-render with new zoom.
+                        }
+                    }
+                });
+
+                let scale = self.tile_zoom as f32;
+                egui::ScrollArea::both().show(ui, |ui| {
+                    ui.add_sized([w as f32 * scale, h as f32 * scale], egui::Image::new(&texture));
+                });
+            } else if let Some(ppu) = ppu {
+                // Render BG map for selected layer.
+                let bg_idx = (self.map_bg - 1) as usize;
+
+                // Determine default bpp based on bg_mode.
+                let default_bpp = match ppu.bg_mode {
+                    0 => [2, 2, 2, 2][bg_idx],
+                    1 => if bg_idx < 3 { [4, 4, 2][bg_idx] } else { 0 },
+                    2 => if bg_idx < 2 { [4, 4][bg_idx] } else { 0 },
+                    3 => if bg_idx == 0 { 8 } else if bg_idx == 1 { 4 } else { 0 },
+                    4 => if bg_idx == 0 { 8 } else if bg_idx == 1 { 2 } else { 0 },
+                    5 => if bg_idx == 0 { 4 } else if bg_idx == 1 { 2 } else { 0 },
+                    6 => if bg_idx == 0 { 4 } else { 0 },
+                    _ => 4,
+                };
+
+                // Map size menu (not in snapshot).
+                let mut map_size = 0u8; // Default to 32x32.
+                ui.horizontal(|ui| {
+                    ui.label("taille:");
+                    if ui.selectable_value(&mut map_size, 0, "32x32").clicked() {}
+                    if ui.selectable_value(&mut map_size, 1, "64x32").clicked() {}
+                    if ui.selectable_value(&mut map_size, 2, "32x64").clicked() {}
+                    if ui.selectable_value(&mut map_size, 3, "64x64").clicked() {}
+                });
+
+                let tile16 = ppu.tile16[bg_idx];
+                let map_base = ppu.map_base[bg_idx] as usize;
+                let chr_base = ppu.chr_base[bg_idx] as usize;
+
+                // Render the map.
+                let (w, h, pixels) = render_bg_map(
+                    &d.vram,
+                    &d.cgram,
+                    map_base,
+                    chr_base,
+                    map_size,
+                    tile16,
+                    default_bpp,
+                );
+
+                let image = egui::ColorImage::from_rgba_unmultiplied([w, h], &pixels);
+                let texture = ctx.load_texture("debug_bg_map", image, egui::TextureOptions::NEAREST);
+
+                // Show with scrolling and zoom.
+                ui.horizontal(|ui| {
+                    ui.label("zoom:");
+                    for z in [1u8, 2] {
+                        if ui.selectable_value(&mut self.tile_zoom, z, format!("x{}", z)).clicked() {
+                            // Zoom changed.
+                        }
+                    }
+                });
+
+                let scale = self.tile_zoom as f32;
+                egui::ScrollArea::both().show(ui, |ui| {
+                    ui.add_sized([w as f32 * scale, h as f32 * scale], egui::Image::new(&texture));
+                });
+            } else {
+                ui.label("No PPU registers available");
+            }
+        } else {
+            ui.label("(pas de donnees: pause + ouvrir une ROM)");
+        }
+    }
+
+    /// Show the Palettes tab.
+    fn show_palettes(&mut self, ui: &mut egui::Ui, data: Option<&Box<crate::emu_thread::DebugData>>) {
+        if let Some(d) = data {
+            let colors = palette_rgba(&d.cgram);
+
+            // Render 256 swatches in a 16x16 grid.
+            for row in 0..16 {
+                ui.horizontal(|ui| {
+                    for col in 0..16 {
+                        let idx = row * 16 + col;
+                        let c = colors[idx];
+                        let color = egui::Color32::from_rgba_unmultiplied(c[0], c[1], c[2], c[3]);
+
+                        // Allocate space and paint the swatch.
+                        let size = egui::vec2(16.0, 16.0);
+                        let (rect, response) = ui.allocate_exact_size(size, egui::Sense::hover());
+                        ui.painter().rect_filled(rect, 0.0, color);
+
+                        // Hover tooltip with index and raw value.
+                        if response.hovered() {
+                            let raw = d.cgram[idx];
+                            response.on_hover_text(format!("index 0x{:02X}  valeur 0x{:04X}", idx, raw));
+                        }
+                    }
+                });
+            }
+        } else {
+            ui.label("(pas de donnees: pause + ouvrir une ROM)");
+        }
+    }
+
+    /// Show the OAM tab (sprite list).
+    fn show_oam(&mut self, ui: &mut egui::Ui, data: Option<&Box<crate::emu_thread::DebugData>>) {
+        if let Some(d) = data {
+            let obj_size = d.ppu_regs.as_ref().map(|p| p.obj_size).unwrap_or(0);
+            let sprites = decode_oam(&d.oam);
+
+            for s in &sprites {
+                let line = sprite_line(s, obj_size);
+                // Off-screen sprites shown in gray.
+                if s.y >= 224 && s.y < 240 || s.x <= -(sprite_dims(obj_size, s.large).0 as i16) {
+                    ui.colored_label(egui::Color32::GRAY, line);
+                } else {
+                    ui.monospace(line);
+                }
+            }
+        } else {
+            ui.label("(pas de donnees: pause + ouvrir une ROM)");
+        }
+    }
+
     /// Show the Memory tab (WRAM page viewer).
     fn show_memory(&mut self, ui: &mut egui::Ui, tx: &std::sync::mpsc::Sender<crate::emu_thread::Command>, data: Option<&Box<crate::emu_thread::DebugData>>) {
         if let Some(d) = data {
-            // Page navigation.
+            // Page navigation with -256/+256 buttons and hex page field.
             ui.horizontal(|ui| {
-                if ui.button("Prev").clicked() {
+                if ui.button("-256").clicked() {
                     self.wram_page = (self.wram_page + 511) % 512;
                     let _ = tx.send(crate::emu_thread::Command::SetWramPage(self.wram_page));
                 }
-                ui.label(format!("WRAM page {:03X}", self.wram_page));
-                if ui.button("Next").clicked() {
+                let page_text = format!("{:03X}", self.wram_page);
+                ui.label(format!("WRAM page {}", page_text));
+                if ui.button("+256").clicked() {
                     self.wram_page = (self.wram_page + 1) % 512;
                     let _ = tx.send(crate::emu_thread::Command::SetWramPage(self.wram_page));
                 }

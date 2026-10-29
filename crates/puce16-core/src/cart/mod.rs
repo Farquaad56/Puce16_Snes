@@ -251,7 +251,7 @@ mod tests {
         assert_eq!(original_c3_sram, c3.sram);
 
         // Test cart with no SRAM: save writes empty vec_u8, load Ok
-        let mut c4 = make_cart_with_sram(0);
+        let c4 = make_cart_with_sram(0);
         let mut w4 = StateWriter::new();
         c4.save(&mut w4);
         let data4 = w4.finish();
