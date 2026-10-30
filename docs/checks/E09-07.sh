@@ -3,4 +3,7 @@
 set -e
 cd "$(dirname "$0")/../.."
 python docs/tools/task.py scope E09-07
+cargo test -p puce16-core e09_07_
+cargo test -p puce16-core e03_05_
+cargo test -p puce16-core e03_34_
 echo "CHECK OK E09-07"

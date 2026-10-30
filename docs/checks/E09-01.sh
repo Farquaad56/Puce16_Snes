@@ -3,4 +3,6 @@
 set -e
 cd "$(dirname "$0")/../.."
 python docs/tools/task.py scope E09-01
+cargo test -p puce16-core e09_01_
+python docs/tools/check_sdd1.py --rust crates/puce16-core/src/coprocessor/sdd1/tables.rs
 echo "CHECK OK E09-01"

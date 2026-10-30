@@ -253,10 +253,21 @@ E08-37	debugger.rs: onglets Tuiles, Cartes et Palettes	E08	E08-36	0	ui	140	herme
 E08-38	debugger.rs: onglets OAM et Memoire, parse_pc (+ tests purs)	E08	E08-37	0	code	130	hermes
 E08-39	GATE J8: save states, SRAM et debugger valides (jalon desktop final)	E08	E08-38	1	gate	0	user
 E09-00	TUNE: sprites decales d'une ligne (SMW: debris colores sur la ligne 0 en haut de l'image) - reporte apres la v1	E09	E08-39	0	code	60	hermes
-E09-01	Coprocesseur DSP-1 (Super Mario Kart, Pilotwings)	E09	E09-00	0	doc	0	none
-E09-02	Coprocesseur Super FX / GSU (Star Fox, Yoshi's Island)	E09	E09-01	0	doc	0	none
-E09-03	Coprocesseur SA-1 (Super Mario RPG, Kirby Super Star)	E09	E09-02	0	doc	0	none
-E09-04	Decompresseur S-DD1 (Star Ocean, Street Fighter Alpha 2)	E09	E09-03	0	doc	0	none
-E09-05	Decompresseur SPC7110 (Far East of Eden Zero, Momotaro Dentetsu Happy)	E09	E09-04	0	doc	0	none
-E09-06	Coprocesseur Cx4 (Mega Man X2, X3)	E09	E09-05	0	doc	0	none
-E09-07	Autres puces: OBC1, S-RTC, ST010/ST011/ST018, MSU-1, BS-X	E09	E09-06	0	doc	0	none
+E09-01	S-DD1: module coprocessor/sdd1 et tables.rs (RUNCOUNT, EVOLUTION)	E09	E09-00	0	code	90	hermes
+E09-02	S-DD1: Decompressor (struct, init) et etages IM + GCD	E09	E09-01	0	code	120	hermes
+E09-03	S-DD1: etages BG (generateurs de bits) et PEM (estimation de probabilite)	E09	E09-02	0	code	100	hermes
+E09-04	S-DD1: etages CM (contexte) et OL (sortie) + vecteurs d'or	E09	E09-03	0	code	130	hermes
+E09-05	S-DD1: registres $4800-$4807 et fonctions de mappage (Sdd1)	E09	E09-04	0	code	120	hermes
+E09-06	S-DD1: espionnage DMA et lecture decompressee en flux	E09	E09-05	0	code	110	hermes
+E09-07	S-DD1: acceptation de l'en-tete et integration dans Cart (ROM, SRAM)	E09	E09-06	0	code	140	hermes
+E09-08	S-DD1: routage du bus ($4800-$480F, espionnage $4300-$437F, lectures C0-FF)	E09	E09-07	0	code	80	hermes
+E09-09	S-DD1: sauvegarde d'etat et hash	E09	E09-08	0	code	80	hermes
+E09-10	S-DD1: test de bout en bout (ROM synthetique, DMA vers la WRAM)	E09	E09-09	0	code	120	hermes
+E09-11	S-DD1: entrees optionnelles du manifeste pour les jeux (Street Fighter Alpha 2, Star Ocean)	E09	E09-10	0	data	0	hermes
+E09-12	GATE S-DD1: Street Fighter Alpha 2 et Star Ocean valides par l'utilisateur	E09	E09-11	1	gate	0	user
+E09-13	Coprocesseur DSP-1 (Super Mario Kart, Pilotwings)	E09	E09-12	0	doc	0	none
+E09-14	Coprocesseur Super FX / GSU (Star Fox, Yoshi's Island)	E09	E09-13	0	doc	0	none
+E09-15	Coprocesseur SA-1 (Super Mario RPG, Kirby Super Star)	E09	E09-14	0	doc	0	none
+E09-16	Decompresseur SPC7110 (Far East of Eden Zero, Momotaro Dentetsu Happy)	E09	E09-15	0	doc	0	none
+E09-17	Coprocesseur Cx4 (Mega Man X2, X3)	E09	E09-16	0	doc	0	none
+E09-18	Autres puces: OBC1, S-RTC, ST010/ST011/ST018, MSU-1, BS-X	E09	E09-17	0	doc	0	none

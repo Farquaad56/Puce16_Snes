@@ -274,10 +274,21 @@ D-020: UNE seule tache a la fois, dans cet ordre. Une tache n'est prete que quan
 
 ## E09
 254. E09-00 TUNE: sprites decales d'une ligne (SMW: debris colores sur la ligne 0 en haut de l'image) - reporte apres la v1
-255. E09-01 Coprocesseur DSP-1 (Super Mario Kart, Pilotwings)
-256. E09-02 Coprocesseur Super FX / GSU (Star Fox, Yoshi's Island)
-257. E09-03 Coprocesseur SA-1 (Super Mario RPG, Kirby Super Star)
-258. E09-04 Decompresseur S-DD1 (Star Ocean, Street Fighter Alpha 2)
-259. E09-05 Decompresseur SPC7110 (Far East of Eden Zero, Momotaro Dentetsu Happy)
-260. E09-06 Coprocesseur Cx4 (Mega Man X2, X3)
-261. E09-07 Autres puces: OBC1, S-RTC, ST010/ST011/ST018, MSU-1, BS-X
+255. E09-01 S-DD1: module coprocessor/sdd1 et tables.rs (RUNCOUNT, EVOLUTION)
+256. E09-02 S-DD1: Decompressor (struct, init) et etages IM + GCD
+257. E09-03 S-DD1: etages BG (generateurs de bits) et PEM (estimation de probabilite)
+258. E09-04 S-DD1: etages CM (contexte) et OL (sortie) + vecteurs d'or
+259. E09-05 S-DD1: registres $4800-$4807 et fonctions de mappage (Sdd1)
+260. E09-06 S-DD1: espionnage DMA et lecture decompressee en flux
+261. E09-07 S-DD1: acceptation de l'en-tete et integration dans Cart (ROM, SRAM)
+262. E09-08 S-DD1: routage du bus ($4800-$480F, espionnage $4300-$437F, lectures C0-FF)
+263. E09-09 S-DD1: sauvegarde d'etat et hash
+264. E09-10 S-DD1: test de bout en bout (ROM synthetique, DMA vers la WRAM)
+265. E09-11 S-DD1: entrees optionnelles du manifeste pour les jeux (Street Fighter Alpha 2, Star Ocean)
+266. E09-12 GATE S-DD1: Street Fighter Alpha 2 et Star Ocean valides par l'utilisateur  [GATE]
+267. E09-13 Coprocesseur DSP-1 (Super Mario Kart, Pilotwings)
+268. E09-14 Coprocesseur Super FX / GSU (Star Fox, Yoshi's Island)
+269. E09-15 Coprocesseur SA-1 (Super Mario RPG, Kirby Super Star)
+270. E09-16 Decompresseur SPC7110 (Far East of Eden Zero, Momotaro Dentetsu Happy)
+271. E09-17 Coprocesseur Cx4 (Mega Man X2, X3)
+272. E09-18 Autres puces: OBC1, S-RTC, ST010/ST011/ST018, MSU-1, BS-X
