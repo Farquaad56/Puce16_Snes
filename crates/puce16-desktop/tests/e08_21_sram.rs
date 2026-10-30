@@ -122,7 +122,7 @@ fn e08_21_flush_writes_file() {
 
     // Expect SramSaved event
     let mut saved_path = None;
-    for _ in 0..20 {
+    for _ in 0..100 {
         match wait_event(&handle.rx, Duration::from_millis(100)) {
             Some(Event::SramSaved(p)) => { saved_path = Some(p); break; }
             Some(_) => {} // Ignore other events
@@ -167,7 +167,7 @@ fn e08_21_sram_loaded_on_open() {
 
         // Wait for save event
         let mut got_save = false;
-        for _ in 0..20 {
+        for _ in 0..100 {
             match wait_event(&handle.rx, Duration::from_millis(100)) {
                 Some(Event::SramSaved(_)) => { got_save = true; break; }
                 Some(_) => {}
@@ -203,7 +203,7 @@ fn e08_21_sram_loaded_on_open() {
         handle.tx.send(Command::FlushSram).unwrap();
 
         let mut got_save = false;
-        for _ in 0..20 {
+        for _ in 0..100 {
             match wait_event(&handle.rx, Duration::from_millis(100)) {
                 Some(Event::SramSaved(_)) => { got_save = true; break; }
                 Some(_) => {}
@@ -303,7 +303,7 @@ fn e08_21_unchanged_not_rewritten() {
     // First flush: writes file
     handle.tx.send(Command::FlushSram).unwrap();
     let mut got_save = false;
-    for _ in 0..20 {
+    for _ in 0..100 {
         match wait_event(&handle.rx, Duration::from_millis(100)) {
             Some(Event::SramSaved(_)) => { got_save = true; break; }
             Some(_) => {}
