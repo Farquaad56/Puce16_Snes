@@ -189,6 +189,9 @@ pub struct Playback {
     last: [f32; 2],
     scratch: Vec<[i16; 2]>,
     device_rate: u32,
+    /// SNES GPM-02 low-pass filter (applied after resampling when `lpf_on`).
+    lpf: crate::audio_lpf::Gpm02Lpf,
+    lpf_on: bool,
 }
 
 impl Playback {
@@ -199,7 +202,17 @@ impl Playback {
             last: [0.0f32, 0.0f32],
             scratch: Vec::with_capacity(16),
             device_rate,
+            lpf: crate::audio_lpf::Gpm02Lpf::new(device_rate),
+            lpf_on: false,
         }
+    }
+
+    /// Enable or disable the SNES GPM-02 low-pass filter.
+    pub fn set_lpf(&mut self, on: bool) {
+        if on && !self.lpf_on {
+            self.lpf.reset();
+        }
+        self.lpf_on = on;
     }
 
     pub fn render(&mut self, ring: &mut AudioRing, volume: f32, muted: bool, channels: usize, out: &mut [f32]) {
@@ -216,6 +229,7 @@ impl Playback {
             while written < frames {
                 match self.pending.pop_front() {
                     Some(frame) => {
+                        let frame = if self.lpf_on { self.lpf.process(frame) } else { frame };
                         self.last = frame;
                         let l = if muted { 0.0f32 } else { frame[0] * volume };
                         let r = if muted { 0.0f32 } else { frame[1] * volume };
@@ -290,6 +304,7 @@ pub struct AudioOut {
     _stream: cpal::Stream,
     volume: std::sync::Arc<std::sync::atomic::AtomicU32>,
     muted: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    lpf: std::sync::Arc<std::sync::atomic::AtomicBool>,
     pub device_rate: u32,
     pub channels: usize,
 }
@@ -313,12 +328,14 @@ impl AudioOut {
 
         let volume = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(1.0f32.to_bits()));
         let muted = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let lpf = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
 
         let stream = match format {
             cpal::SampleFormat::F32 => {
                 let ring_cb = ring.clone();
                 let vol_cb = volume.clone();
                 let mut_cb = muted.clone();
+                let lpf_cb = lpf.clone();
                 // One Playback per stream: its resampler history must survive between callbacks.
                 let mut playback = Playback::new(sample_rate);
                 device.build_output_stream(
@@ -335,6 +352,7 @@ impl AudioOut {
                             Ok(g) => g,
                             Err(poisoned) => poisoned.into_inner(),
                         };
+                        playback.set_lpf(lpf_cb.load(std::sync::atomic::Ordering::Relaxed));
                         playback.render(&mut *ring_guard, vol, mute, channels, data);
                     },
                     move |err| eprintln!("audio stream error: {}", err),
@@ -345,6 +363,7 @@ impl AudioOut {
                 let ring_cb = ring.clone();
                 let vol_cb = volume.clone();
                 let mut_cb = muted.clone();
+                let lpf_cb = lpf.clone();
                 // One Playback per stream: its resampler history must survive between callbacks.
                 let mut playback = Playback::new(sample_rate);
                 device.build_output_stream(
@@ -362,6 +381,7 @@ impl AudioOut {
                             Ok(g) => g,
                             Err(poisoned) => poisoned.into_inner(),
                         };
+                        playback.set_lpf(lpf_cb.load(std::sync::atomic::Ordering::Relaxed));
                         playback.render(&mut *ring_guard, vol, mute, channels, &mut f32_buf[..]);
                         for i in 0..frames {
                             let l = (f32_buf[i * channels] * 32767.0) as i16;
@@ -384,6 +404,7 @@ impl AudioOut {
                 let ring_cb = ring.clone();
                 let vol_cb = volume.clone();
                 let mut_cb = muted.clone();
+                let lpf_cb = lpf.clone();
                 // One Playback per stream: its resampler history must survive between callbacks.
                 let mut playback = Playback::new(sample_rate);
                 device.build_output_stream(
@@ -401,6 +422,7 @@ impl AudioOut {
                             Ok(g) => g,
                             Err(poisoned) => poisoned.into_inner(),
                         };
+                        playback.set_lpf(lpf_cb.load(std::sync::atomic::Ordering::Relaxed));
                         playback.render(&mut *ring_guard, vol, mute, channels, &mut f32_buf[..]);
                         for i in 0..frames {
                             let l = (f32_buf[i * channels] * 32767.0 + 32768.0) as u16;
@@ -435,6 +457,7 @@ impl AudioOut {
             _stream: stream,
             volume,
             muted,
+            lpf,
             device_rate: sample_rate,
             channels,
         })
@@ -446,5 +469,10 @@ impl AudioOut {
 
     pub fn set_muted(&self, m: bool) {
         self.muted.store(m, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// Enable or disable the SNES GPM-02 low-pass filter.
+    pub fn set_lpf(&self, on: bool) {
+        self.lpf.store(on, std::sync::atomic::Ordering::Relaxed);
     }
 }

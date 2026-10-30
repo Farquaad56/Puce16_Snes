@@ -23,7 +23,7 @@ fn main() -> eframe::Result {
     };
 
     let options = eframe::NativeOptions {
-        viewport: eframe::egui::ViewportBuilder::default().with_inner_size([768.0, 740.0]),
+        viewport: eframe::egui::ViewportBuilder::default().with_title("Puce16 - Snes").with_inner_size([768.0, 740.0]),
         ..Default::default()
     };
 
@@ -31,7 +31,7 @@ fn main() -> eframe::Result {
     let args: Vec<String> = std::env::args().collect();
     let rom_path: Option<String> = rom_arg(&args).map(|s| s.to_string());
 
-    eframe::run_native("Puce16", options, Box::new(move |cc| {
+    eframe::run_native("Puce16 - Snes", options, Box::new(move |cc| {
         let mut app = App::new(cc, handle, cfg, audio, ring);
         if let Some(path) = rom_path {
             app.open_path(std::path::Path::new(&path));

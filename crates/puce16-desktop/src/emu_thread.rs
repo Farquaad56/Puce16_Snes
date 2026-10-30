@@ -85,6 +85,8 @@ pub enum Event {
     Status(String),
     /// Error message (ROM load failure, emulator panic).
     Error(String),
+    /// ROM header title and region of the cartridge just loaded.
+    RomInfo(String, Region),
     /// SRAM was saved to disk at this path.
     SramSaved(PathBuf),
     /// Debug data (sent after each frame when debugging is active).
@@ -301,6 +303,7 @@ fn emu_loop(
                             next = None;
                             if let Some(info) = snes.cart_info() {
                                 active_region = info.region;
+                                let _ = tx_event.send(Event::RomInfo(info.title.trim().to_string(), info.region));
                                 let _ = tx_event.send(Event::Status(format!(
                                     "Loaded {} ({:?}, {:?})", name, info.map, info.region)));
                             } else {

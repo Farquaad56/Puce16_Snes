@@ -5,6 +5,7 @@ use std::sync::Arc;
 use eframe::egui;
 
 use puce16_core::joypad::filter_opposites;
+use puce16_core::Region;
 
 use crate::audio::{AudioOut, SharedRing};
 use crate::config::{self, Config};
@@ -12,7 +13,8 @@ use crate::debugger::DebuggerUi;
 use crate::emu_thread::{Command, EmuHandle, Event, FrameData};
 use crate::files;
 use crate::input::{self, Hotkey, PadPoller};
-use crate::video::{self, Filter, Ratio};
+use crate::presets::{self, Preset};
+use crate::video::{self, Filter, Interp, Ratio};
 
 /// Return the first command-line argument that is not a flag (does not start with '-').
 pub fn rom_arg(args: &[String]) -> Option<&str> {
@@ -26,6 +28,12 @@ pub struct App {
     scale: usize,
     ratio: Ratio,
     filter: Filter,
+    /// Scanline darkness in percent (0 = off), used when the filter is Scanlines.
+    scan_strength: u32,
+    /// SNES interpolation applied when scaling (needs scale >= 2).
+    interp: Interp,
+    /// MiSTer display preset (replaces filter/interpolation when active, scale >= 2).
+    preset: Preset,
     /// Persistent configuration (spec 08 section 6) and its save bookkeeping.
     cfg: Config,
     cfg_dirty: bool,
@@ -34,6 +42,9 @@ pub struct App {
     auto_paused: bool,
     paused: bool,
     status: String,
+    /// Title read from the ROM header (empty = no ROM).
+    rom_title: String,
+    region: Region,
     /// Last joypad bits sent to the emulation thread (port 0).
     last_joypad: u16,
     /// Current save state slot (0..=9).
@@ -58,6 +69,10 @@ pub struct App {
     last_joypad_1: u16,
     /// Debugger UI state.
     debugger: DebuggerUi,
+    /// Emulated frames per second, measured over ~0.5 s windows.
+    fps: f32,
+    fps_last_frame: u64,
+    fps_last_time: std::time::Instant,
 }
 
 impl App {
@@ -66,6 +81,7 @@ impl App {
         if let Some(ref a) = audio {
             a.set_volume(cfg.volume as f32 / 100.0);
             a.set_muted(cfg.muted);
+            a.set_lpf(cfg.audio_lpf);
         }
         Self {
             handle,
@@ -74,6 +90,9 @@ impl App {
             scale: (cfg.scale as usize).clamp(1, 8),
             ratio: video::ratio_from_name(&cfg.ratio),
             filter: Filter::from_name(&cfg.filter),
+            scan_strength: cfg.scan_strength as u32,
+            interp: Interp::from_name(&cfg.interp),
+            preset: Preset::from_name(&cfg.preset),
             muted: cfg.muted,
             cfg,
             cfg_dirty: false,
@@ -81,6 +100,8 @@ impl App {
             auto_paused: false,
             paused: false,
             status: "test pattern (NTSC)".to_string(),
+            rom_title: String::new(),
+            region: Region::Ntsc,
             last_joypad: 0,
             slot: 0,
             fast_forward: false,
@@ -92,6 +113,9 @@ impl App {
             poller: PadPoller::new(),
             last_joypad_1: 0,
             debugger: DebuggerUi::new(),
+            fps: 0.0,
+            fps_last_frame: 0,
+            fps_last_time: std::time::Instant::now(),
         }
     }
 
@@ -100,6 +124,7 @@ impl App {
         if let Some(ref a) = self.audio {
             a.set_volume(self.cfg.volume as f32 / 100.0);
             a.set_muted(self.muted);
+            a.set_lpf(self.cfg.audio_lpf);
         }
     }
 
@@ -110,6 +135,9 @@ impl App {
         }
         self.cfg.ratio = video::ratio_name(self.ratio).to_string();
         self.cfg.filter = self.filter.name().to_string();
+        self.cfg.scan_strength = self.scan_strength.min(90) as u8;
+        self.cfg.interp = self.interp.name().to_string();
+        self.cfg.preset = self.preset.name().to_string();
         self.cfg.muted = self.muted;
         self.cfg_dirty = true;
         self.last_cfg_change = Some(std::time::Instant::now());
@@ -388,6 +416,28 @@ impl App {
                 changed |= ui.radio_value(&mut self.filter, Filter::Nearest, "Filtre: nearest").changed();
                 changed |= ui.radio_value(&mut self.filter, Filter::Linear, "Filtre: linear").changed();
                 changed |= ui.radio_value(&mut self.filter, Filter::Scanlines, "Filtre: scanlines (echelle >= 2)").changed();
+                ui.add_enabled_ui(self.filter == Filter::Scanlines, |ui| {
+                    changed |= ui
+                        .add(
+                            egui::Slider::new(&mut self.scan_strength, 0..=video::SCAN_STRENGTH_MAX)
+                                .step_by(5.0)
+                                .suffix(" %")
+                                .text("Scanlines"),
+                        )
+                        .changed();
+                });
+                ui.label("Interpolation SNES (echelle >= 2)");
+                changed |= ui.radio_value(&mut self.interp, Interp::Off, "   Aucune").changed();
+                changed |= ui.radio_value(&mut self.interp, Interp::Soft, "   Douce (soft)").changed();
+                changed |= ui.radio_value(&mut self.interp, Interp::Medium, "   Moyenne (medium)").changed();
+                changed |= ui.radio_value(&mut self.interp, Interp::Sharp, "   Nette (sharp)").changed();
+                ui.label("Preset ecran MiSTer (echelle >= 2, remplace les filtres)");
+                changed |= ui.radio_value(&mut self.preset, Preset::None, "   Aucun").changed();
+                changed |= ui.radio_value(&mut self.preset, Preset::SonyTrinitron, "   Sony Trinitron").changed();
+                changed |= ui.radio_value(&mut self.preset, Preset::FadedTube, "   Faded Tube").changed();
+                ui.add_enabled_ui(self.preset == Preset::SonyTrinitron, |ui| {
+                    changed |= ui.checkbox(&mut self.cfg.preset_mask, "   Masque d'ombre (affichage 1:1 uniquement)").changed();
+                });
                 ui.separator();
                 if ui.checkbox(&mut self.cfg.fullscreen, "Plein ecran (F11)").changed() {
                     ui.ctx().send_viewport_cmd(egui::ViewportCommand::Fullscreen(self.cfg.fullscreen));
@@ -406,6 +456,10 @@ impl App {
                     self.apply_audio_settings();
                 }
                 if ui.checkbox(&mut self.muted, "Muet (M)").changed() {
+                    changed = true;
+                    self.apply_audio_settings();
+                }
+                if ui.checkbox(&mut self.cfg.audio_lpf, "Filtre SNES GPM-02 LPF").changed() {
                     changed = true;
                     self.apply_audio_settings();
                 }
@@ -439,31 +493,77 @@ impl App {
         }
     }
 
-    /// Bottom status line: status text, frame number, scale, slot, audio info.
-    fn status_bar(&mut self, ui: &mut egui::Ui) {
+    /// Update the FPS estimate from the emulation frame counter (called every UI update).
+    fn update_fps(&mut self) {
         let frame_no = self.last.as_ref().map(|f| f.frame_no).unwrap_or(0);
-        // Audio ring fill percentage.
-        let audio_info = match &self.audio {
-            Some(_) => {
-                if let Ok(r) = self.ring.lock() {
-                    let pct = (r.len() * 100) / r.capacity();
-                    format!("audio {}%", pct)
-                } else {
-                    "audio error".to_string()
+        let now = std::time::Instant::now();
+        if frame_no < self.fps_last_frame {
+            // Counter restarted (ROM loaded or reset): start a new window.
+            self.fps_last_frame = frame_no;
+            self.fps_last_time = now;
+            self.fps = 0.0;
+            return;
+        }
+        let dt = now.duration_since(self.fps_last_time).as_secs_f32();
+        if dt >= 0.5 {
+            self.fps = (frame_no - self.fps_last_frame) as f32 / dt;
+            self.fps_last_frame = frame_no;
+            self.fps_last_time = now;
+        }
+    }
+
+    /// Bottom status line: status text, FPS, scale, slot, audio buffer level.
+    fn status_bar(&mut self, ui: &mut egui::Ui) {
+        // Audio ring fill: the colour shows how close the buffer is to running dry.
+        // Steady state is RING_TARGET frames: green >= half of it, yellow >= 1/8, red below.
+        let stopped = self.paused || self.auto_paused;
+        let (audio_text, audio_color) = match &self.audio {
+            Some(_) => match self.ring.lock() {
+                Ok(r) => {
+                    let frames = r.len();
+                    let ms = frames * 1000 / 32000;
+                    let color = if stopped {
+                        egui::Color32::GRAY
+                    } else if frames >= crate::audio::RING_TARGET / 2 {
+                        egui::Color32::from_rgb(60, 200, 60)
+                    } else if frames >= crate::audio::RING_TARGET / 8 {
+                        egui::Color32::from_rgb(230, 190, 30)
+                    } else {
+                        egui::Color32::from_rgb(220, 50, 50)
+                    };
+                    (format!("audio {} ms", ms), color)
                 }
-            }
-            None => "audio off".to_string(),
+                Err(_) => ("audio error".to_string(), egui::Color32::from_rgb(220, 50, 50)),
+            },
+            None => ("audio off".to_string(), egui::Color32::GRAY),
         };
+        let fps_text = if stopped { "pause".to_string() } else { format!("{:.0} FPS", self.fps) };
+        let title = if self.rom_title.is_empty() { "Aucune ROM" } else { self.rom_title.as_str() };
+        let region = if self.region == Region::Pal { "PAL" } else { "NTSC" };
+        let control = if self.poller.connected()[0] { "Pad" } else { "Clavier" };
+        // Transient messages (errors, save states, screenshots) go at the end of the bar.
+        let message = ["ERROR", "State", "Screenshot", "SRAM", "pause first"]
+            .iter()
+            .any(|p| self.status.starts_with(p))
+            .then(|| self.status.clone());
         ui.horizontal(|ui| {
-            ui.label(self.status.as_str());
+            ui.label(title);
             ui.separator();
-            ui.label(format!("frame {}", frame_no));
+            ui.label(region);
+            ui.separator();
+            ui.label(control);
+            ui.separator();
+            ui.label(fps_text);
             ui.separator();
             ui.label(format!("x{}", self.scale));
             ui.separator();
             ui.label(format!("slot {}", self.slot));
             ui.separator();
-            ui.label(audio_info);
+            ui.colored_label(audio_color, audio_text);
+            if let Some(m) = message {
+                ui.separator();
+                ui.label(m);
+            }
         });
     }
 }
@@ -482,11 +582,16 @@ impl eframe::App for App {
                 Event::Frame(frame) => latest = Some(frame),
                 Event::Status(text) => self.status = text,
                 Event::Error(e) => self.status = format!("ERROR: {}", e),
+                Event::RomInfo(title, region) => {
+                    self.rom_title = title;
+                    self.region = region;
+                }
                 Event::SramSaved(path) => self.status = format!("SRAM saved to {}", path.display()),
                 Event::Debug(data) => self.debugger.last = Some(data),
             }
         }
         if let Some(frame) = latest { self.last = Some(frame); }
+        self.update_fps();
 
         // Handle drag-and-drop (spec 08 section 6): open the first dropped file.
         ui.ctx().input(|i| {
@@ -519,15 +624,34 @@ impl eframe::App for App {
 
         if let Some(frame) = &self.last {
             let mut rgba = video::xrgb_to_rgba(&frame.pixels); // fresh copy, source untouched
-            if video::scanlines_active(self.filter, self.scale) {
-                video::apply_scanlines(&mut rgba, frame.width);
+            let (mut tex_width, mut tex_height) = (frame.width, frame.height);
+            if self.scale >= 2 {
+                // MiSTer-style filters on the CPU: interpolation on both axes, scanlines
+                // (when enabled) replace the vertical coefficients.
+                let h_table = self.interp.table();
+                let v_table = if video::scanlines_active(self.filter, self.scale) {
+                    video::scanline_table(self.scan_strength).or(h_table)
+                } else {
+                    h_table
+                };
+                if self.preset != Preset::None {
+                    let (scaled, w, h) = presets::apply_preset(&rgba, frame.width, self.scale as usize, self.preset, self.cfg.preset_mask);
+                    rgba = scaled;
+                    tex_width = w;
+                    tex_height = h;
+                } else if h_table.is_some() || v_table.is_some() {
+                    let (scaled, w, h) = video::filter_scale(&rgba, frame.width, self.scale, h_table, v_table);
+                    rgba = scaled;
+                    tex_width = w;
+                    tex_height = h;
+                }
             }
             let options = if self.filter == Filter::Linear {
                 egui::TextureOptions::LINEAR
             } else {
                 egui::TextureOptions::NEAREST
             };
-            let image = egui::ColorImage::from_rgba_unmultiplied([frame.width, frame.height], &rgba);
+            let image = egui::ColorImage::from_rgba_unmultiplied([tex_width, tex_height], &rgba);
             match &mut self.texture {
                 Some(texture) => texture.set(image, options),
                 None => self.texture = Some(ui.ctx().load_texture("frame", image, options)),

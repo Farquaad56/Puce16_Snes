@@ -9,8 +9,18 @@ pub struct Config {
     pub fit_window: bool,
     pub ratio: String,
     pub filter: String,
+    /// Scanline darkness in percent (0 = off, 5..=90 in steps of 5).
+    pub scan_strength: u8,
+    /// SNES interpolation: off | soft | medium | sharp.
+    pub interp: String,
+    /// Display preset: none | trinitron | faded_tube.
+    pub preset: String,
+    /// Shadow mask of the preset (only accurate when the image is shown 1:1).
+    pub preset_mask: bool,
     pub volume: u8,
     pub muted: bool,
+    /// SNES GPM-02 output low-pass filter.
+    pub audio_lpf: bool,
     pub fullscreen: bool,
     pub block_opposite_dirs: bool,
     pub pause_on_focus_loss: bool,
@@ -27,8 +37,13 @@ impl Default for Config {
             fit_window: false,
             ratio: "square".to_string(),
             filter: "nearest".to_string(),
+            scan_strength: 55,
+            interp: "off".to_string(),
+            preset: "none".to_string(),
+            preset_mask: false,
             volume: 100,
             muted: false,
+            audio_lpf: false,
             fullscreen: false,
             block_opposite_dirs: true,
             pause_on_focus_loss: false,
@@ -53,6 +68,15 @@ impl Config {
         }
         if self.filter != "nearest" && self.filter != "linear" && self.filter != "scanlines" {
             self.filter = "nearest".to_string();
+        }
+        if self.scan_strength > 90 {
+            self.scan_strength = 90;
+        }
+        if !["off", "soft", "medium", "sharp"].contains(&self.interp.as_str()) {
+            self.interp = "off".to_string();
+        }
+        if !["none", "trinitron", "faded_tube"].contains(&self.preset.as_str()) {
+            self.preset = "none".to_string();
         }
         // Truncate recent_roms to 8, remove duplicates (keep first occurrence)
         let mut seen = std::collections::HashSet::new();

@@ -1,8 +1,12 @@
 pub mod app;
 pub mod audio;
+pub mod audio_lpf;
 pub mod config;
 pub mod debugger;
 pub mod emu_thread;
 pub mod files;
+pub mod filters_data;
 pub mod input;
+pub mod presets;
+pub mod presets_data;
 pub mod video;
