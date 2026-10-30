@@ -1,6 +1,7 @@
 pub mod header;
 pub mod mapper;
 
+use crate::coprocessor::sdd1::Sdd1;
 use crate::region::Region;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -21,6 +22,7 @@ pub struct Cart {
     has_battery: bool,
     header: Header,
     region: Region,
+    sdd1: Option<Box<Sdd1>>,
 }
 
 impl Cart {
@@ -69,6 +71,13 @@ impl Cart {
             None => header::region_from_country(hdr.country),
         };
 
+        // Step 7: create S-DD1 state if chipset indicates it
+        let sdd1 = if header::has_sdd1(hdr.chipset) {
+            Some(Box::new(Sdd1::new()))
+        } else {
+            None
+        };
+
         Ok(Cart {
             rom,
             rom_mask,
@@ -77,6 +86,7 @@ impl Cart {
             has_battery: battery,
             header: hdr,
             region: cart_region,
+            sdd1,
         })
     }
 
@@ -110,8 +120,63 @@ impl Cart {
         self.rom.len()
     }
 
+    /// Whether this cartridge has S-DD1 compression.
+    pub fn has_sdd1(&self) -> bool {
+        self.sdd1.is_some()
+    }
+
+    /// Read an S-DD1 register. Returns None if no S-DD1 or unused register.
+    pub fn io_read(&self, reg: u16) -> Option<u8> {
+        self.sdd1.as_ref().and_then(|s| s.io_read(reg))
+    }
+
+    /// Write an S-DD1 register. No effect if no S-DD1.
+    pub fn io_write(&mut self, reg: u16, v: u8) {
+        if let Some(ref mut s) = self.sdd1 {
+            s.io_write(reg, v);
+        }
+    }
+
+    /// Intercept a DMA register write for S-DD1. No effect if no S-DD1.
+    pub fn dma_write(&mut self, reg: u16, v: u8) {
+        if let Some(ref mut s) = self.sdd1 {
+            s.dma_write(reg, v);
+        }
+    }
+
+    /// Get the DMA channel's current address and size for S-DD1. No effect if no S-DD1.
+    pub fn dma_channel(&self, n: usize) -> (u32, u16) {
+        self.sdd1.as_ref().map(|s| s.dma_channel(n)).unwrap_or((0, 0))
+    }
+
     /// CPU read from cartridge. SRAM is checked first, then ROM. None = open bus.
     pub fn read(&self, bank: u8, addr: u16) -> Option<u8> {
+        let addr24 = ((bank as u32) << 16) | (addr as u32);
+
+        // S-DD1 SRAM mapping takes precedence when present
+        if self.sdd1.is_some() && !self.sram.is_empty() {
+            if let Some(o) = mapper::sdd1_sram_offset(bank, addr, self.sram.len()) {
+                return Some(self.sram[o]);
+            }
+        }
+
+        // S-DD1 ROM mapping when present
+        if let Some(ref s) = self.sdd1 {
+            // LoROM window: banks 00-3F/80-BF, offsets $8000-$FFFF
+            if (bank <= 0x3F || bank >= 0x80) && addr >= 0x8000 {
+                let offset = s.lorom_offset(addr24);
+                return Some(self.rom[offset & self.rom_mask]);
+            }
+            // MMC window: banks C0-FF, all offsets (no decompression in read())
+            if bank >= 0xC0 {
+                let offset = s.mmc_offset(addr24);
+                return Some(self.rom[offset & self.rom_mask]);
+            }
+            // Banks 40-7D: no ROM (open bus)
+            return None;
+        }
+
+        // Non-S-DD1 path: use existing mapper logic
         if !self.sram.is_empty() {
             if let Some(o) = mapper::sram_offset(self.map, bank, addr, self.sram.len()) {
                 return Some(self.sram[o]);
@@ -123,8 +188,47 @@ impl Cart {
         None
     }
 
+    /// CPU read from cartridge bus (with S-DD1 decompression on C0-FF window).
+    pub fn read_bus(&mut self, bank: u8, addr: u16) -> Option<u8> {
+        let addr24 = ((bank as u32) << 16) | (addr as u32);
+
+        // S-DD1 SRAM mapping takes precedence when present
+        if self.sdd1.is_some() && !self.sram.is_empty() {
+            if let Some(o) = mapper::sdd1_sram_offset(bank, addr, self.sram.len()) {
+                return Some(self.sram[o]);
+            }
+        }
+
+        // S-DD1 ROM mapping when present
+        if let Some(ref mut s) = self.sdd1 {
+            // LoROM window: banks 00-3F/80-BF, offsets $8000-$FFFF
+            if (bank <= 0x3F || bank >= 0x80) && addr >= 0x8000 {
+                let offset = s.lorom_offset(addr24);
+                return Some(self.rom[offset & self.rom_mask]);
+            }
+            // MMC window: banks C0-FF, all offsets (with decompression via mcu_read)
+            if bank >= 0xC0 {
+                return Some(s.mcu_read(addr24, &self.rom));
+            }
+            // Banks 40-7D: no ROM (open bus)
+            return None;
+        }
+
+        // Non-S-DD1 path: identical to read()
+        self.read(bank, addr)
+    }
+
     /// CPU write to cartridge. Only SRAM is writable; ROM writes are ignored.
     pub fn write(&mut self, bank: u8, addr: u16, v: u8) -> bool {
+        // S-DD1 SRAM mapping when present
+        if self.sdd1.is_some() && !self.sram.is_empty() {
+            if let Some(o) = mapper::sdd1_sram_offset(bank, addr, self.sram.len()) {
+                self.sram[o] = v;
+                return true;
+            }
+        }
+
+        // Non-S-DD1 path: use existing mapper logic
         if !self.sram.is_empty() {
             if let Some(o) = mapper::sram_offset(self.map, bank, addr, self.sram.len()) {
                 self.sram[o] = v;
@@ -146,6 +250,10 @@ impl Cart {
         if !self.sram.is_empty() {
             h.write(&self.sram);
         }
+        // Include S-DD1 state in hash when present.
+        if let Some(ref s) = self.sdd1 {
+            s.hash_into(h);
+        }
     }
 }
 
@@ -155,6 +263,10 @@ impl crate::savestate::State for Cart {
         // not saved: rom (reconstructed from file), header (derived from ROM),
         // map (derived from ROM/header), region (derived from header), has_battery (derived from header)
         w.vec_u8(&self.sram);
+        // Save S-DD1 state after SRAM, only if present.
+        if let Some(ref s) = self.sdd1 {
+            s.save(w);
+        }
     }
 
     fn load(&mut self, r: &mut crate::savestate::StateReader) -> Result<(), crate::savestate::StateError> {
@@ -167,6 +279,10 @@ impl crate::savestate::State for Cart {
         for i in 0..len {
             let b = r.u8()?;
             self.sram[i] = b;
+        }
+        // Load S-DD1 state after SRAM, only if present.
+        if let Some(ref mut s) = self.sdd1 {
+            s.load(r)?;
         }
         Ok(())
     }
@@ -206,6 +322,7 @@ mod tests {
                 complement: 0xFFFF,
             },
             region: Region::Ntsc,
+            sdd1: None,
         }
     }
 

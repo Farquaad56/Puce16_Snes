@@ -36,7 +36,8 @@ impl SysBus {
                     self.mmio.read(a, self.mdr, self.master, Some(st))
                 }
                 0x4300..=0x437F => self.dma.read(a).unwrap_or(self.mdr),
-                0x6000..=0xFFFF => self.cart.read(bank, a).unwrap_or(self.mdr),
+                0x4800..=0x480F => self.cart.io_read(a).unwrap_or(self.mdr),
+                0x6000..=0xFFFF => self.cart.read_bus(bank, a).unwrap_or(self.mdr),
                 _ => self.mdr, // open bus
             }
         } else if bank == 0x7E || bank == 0x7F {
@@ -45,7 +46,7 @@ impl SysBus {
             self.wram.read(idx)
         } else {
             // Cart ROM area (banks 40-7D, C0-FF)
-            self.cart.read(bank, a).unwrap_or(self.mdr)
+            self.cart.read_bus(bank, a).unwrap_or(self.mdr)
         }
     }
 
@@ -85,7 +86,8 @@ impl SysBus {
                         MmioEffect::None => {}
                     }
                 }
-                0x4300..=0x437F => self.dma.write(a, v),
+                0x4300..=0x437F => { self.dma.write(a, v); self.cart.dma_write(a, v); }
+                0x4800..=0x480F => self.cart.io_write(a, v),
                 0x6000..=0xFFFF => {
                     let _ = self.cart.write(bank, a, v);
                 }

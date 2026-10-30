@@ -5,6 +5,7 @@ pub mod region;
 pub mod snes;
 pub mod scheduler;
 pub mod cart;
+pub mod coprocessor;
 pub mod bus;
 pub mod cpu;
 pub mod dma;

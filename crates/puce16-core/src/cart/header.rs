@@ -104,11 +104,21 @@ pub fn sram_bytes(ram_log2: u8) -> usize {
     (1024 << ram_log2) as usize
 }
 
+/// Check if chipset indicates S-DD1 ($43 or $45).
+pub fn has_sdd1(chipset: u8) -> bool {
+    chipset >> 4 == 4 && chipset & 0xF >= 3
+}
+
 pub fn chipset_info(chipset: u8) -> (bool, Option<&'static str>) {
     let low = chipset & 0xF;
     let has_battery = matches!(low, 2 | 5 | 6);
 
     if low < 3 {
+        return (has_battery, None);
+    }
+
+    // S-DD1 chipsets ($43/$45) are handled by the cart layer, not refused here.
+    if has_sdd1(chipset) {
         return (has_battery, None);
     }
 
@@ -118,7 +128,6 @@ pub fn chipset_info(chipset: u8) -> (bool, Option<&'static str>) {
         1 => "GSU",
         2 => "OBC1",
         3 => "SA-1",
-        4 => "S-DD1",
         5 => "S-RTC",
         0xE => "other",
         0xF => "custom",

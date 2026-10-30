@@ -77,3 +77,20 @@ fn hirom_sram(bank: u8, addr: u16, sram_len: usize) -> Option<usize> {
     }
 }
 
+/// S-DD1 SRAM mapping (Star Ocean style).
+pub fn sdd1_sram_offset(bank: u8, addr: u16, sram_len: usize) -> Option<usize> {
+    if sram_len == 0 {
+        return None;
+    }
+    // Banks 00-3F/80-BF offsets $6000-$7FFF
+    if (bank <= 0x3F || bank >= 0x80) && addr >= 0x6000 && addr <= 0x7FFF {
+        return Some((addr & 0x1FFF) as usize % sram_len);
+    }
+    // Banks 70-73 offsets $0000-$FFFF (mirror from ares cart)
+    if bank >= 0x70 && bank <= 0x73 {
+        let index = (((bank & 3) as usize) << 16) | addr as usize;
+        return Some(index % sram_len);
+    }
+    None
+}
+
