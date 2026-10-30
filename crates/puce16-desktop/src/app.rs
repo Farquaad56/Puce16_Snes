@@ -436,7 +436,7 @@ impl App {
                 changed |= ui.radio_value(&mut self.preset, Preset::SonyTrinitron, "   Sony Trinitron").changed();
                 changed |= ui.radio_value(&mut self.preset, Preset::FadedTube, "   Faded Tube").changed();
                 ui.add_enabled_ui(self.preset == Preset::SonyTrinitron, |ui| {
-                    changed |= ui.checkbox(&mut self.cfg.preset_mask, "   Masque d'ombre (affichage 1:1 uniquement)").changed();
+                    changed |= ui.checkbox(&mut self.cfg.preset_mask, "   Grille d'ouverture RGB (echelle 3 ideale)").changed();
                 });
                 ui.separator();
                 if ui.checkbox(&mut self.cfg.fullscreen, "Plein ecran (F11)").changed() {
@@ -690,12 +690,31 @@ impl eframe::App for App {
 
         egui::CentralPanel::default().show(ui, |panel_ui| {
             if let (Some(texture), Some(frame)) = (&self.texture, &self.last) {
+                // Pixel perfect: the image is always drawn on whole physical screen pixels
+                // (egui points x pixels_per_point), at an integer scale. Filters and presets
+                // need an undistorted image, so they force square pixels.
+                let ppp = panel_ui.ctx().pixels_per_point();
+                let filtered = texture.size()[0] != frame.width; // texture already scaled on the CPU
+                let square = filtered || self.ratio == Ratio::Square;
+                // Pixel aspect ratio of the source: 8:7 on NTSC, 11:8 on PAL (frame height differs too).
+                let (par_num, par_den) = if square { (1, 1) } else if self.region == Region::Pal { (11, 8) } else { (8, 7) };
                 if self.cfg.fit_window || self.cfg.fullscreen {
-                    let avail = panel_ui.available_size();
-                    self.scale = video::fit_scale(frame.width, frame.height, avail.x.max(0.0) as usize, avail.y.max(0.0) as usize).clamp(1, 8);
+                    let avail = panel_ui.available_size() * ppp;
+                    let unit_w = frame.width * par_num / par_den;
+                    self.scale = video::fit_scale(unit_w, frame.height, avail.x.max(0.0) as usize, avail.y.max(0.0) as usize).clamp(1, 8);
                 }
-                let (w, h) = video::display_size(frame.width, frame.height, self.scale, self.ratio);
-                let rect = egui::Rect::from_center_size(panel_ui.max_rect().center(), egui::vec2(w as f32, h as f32));
+                let (w, h) = if filtered {
+                    (texture.size()[0], texture.size()[1]) // already scale x source, 1:1
+                } else {
+                    (frame.width * self.scale * par_num / par_den, frame.height * self.scale)
+                };
+                let size = egui::vec2(w as f32, h as f32) / ppp;
+                let center = panel_ui.max_rect().center();
+                let min = egui::pos2(
+                    ((center.x - size.x / 2.0) * ppp).round() / ppp,
+                    ((center.y - size.y / 2.0) * ppp).round() / ppp,
+                );
+                let rect = egui::Rect::from_min_size(min, size);
                 let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
                 panel_ui.painter().image(texture.id(), rect, uv, egui::Color32::WHITE);
             }
