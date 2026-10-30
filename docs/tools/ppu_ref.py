@@ -491,7 +491,7 @@ class RefPpu:
         for k in range(128):
             i = (first + k) & 0x7F
             x, y, t, attr, w, h = info[i]
-            row = (r - y - 1) & 0xFF
+            row = (r - y) & 0xFF
             if row >= h:
                 continue
             if not (x == -256 or x > -w):
@@ -504,7 +504,7 @@ class RefPpu:
         done = False
         for i in reversed(lst):
             x, y, t, attr, w, h = info[i]
-            row = (r - y - 1) & 0xFF
+            row = (r - y) & 0xFF
             hflip = (attr >> 6) & 1
             vflip = (attr >> 7) & 1
             pal = (attr >> 1) & 7
@@ -852,7 +852,7 @@ def selftest():
     cs = p.compose(6, 1)
     ok(p.xrgb(cs[0]) == 0xFF000000, "pixel 6 transparent -> backdrop (cgram[0] = 0 -> black)")
 
-    # sprites: 8x8 at Y=255 visible at row 0 ; Y=0 not visible at row 0 (but at row 1)
+    # sprites: 8x8 at Y=0 visible at row 0 ; Y=1 not visible at row 0 (but at row 1)  [E09-00: row = (r - y) & 0xFF]
     p = RefPpu()
     for a in range(8):
         put_vram(p, 0x4000 + a, 0x00FF)    # obj tile 0 rows: plane0 = 0xFF -> index 1 everywhere
@@ -860,17 +860,17 @@ def selftest():
     p.write(0x01, 0x02); p.write(0x2C, 0x10); p.write(0x00, 0x0F)
     for i in range(1, 128):                    # hide sprites 1..127: x = -64 (low 0xC0, bit 8 set)
         p.oam[i * 4:i * 4 + 4] = [0xC0, 0xF0, 0, 0]
-    p.oam[0:4] = [10, 255, 0, 0]
+    p.oam[0:4] = [10, 0, 0, 0]
     for k in range(32):
         p.oam[512 + k] = 0x55                  # every sprite: x bit 8 = 1, small
     p.oam[512] = 0x54                          # sprite 0: x bit 8 = 0
     p.eval_sprites(0)
-    ok(p.line_obj[10] is not None and p.line_obj[17] is not None and p.line_obj[18] is None, "Y=255 visible at row 0")
-    p.oam[0:4] = [10, 0, 0, 0]
+    ok(p.line_obj[10] is not None and p.line_obj[17] is not None and p.line_obj[18] is None, "Y=0 visible at row 0")
+    p.oam[0:4] = [10, 1, 0, 0]
     p.eval_sprites(0)
-    ok(all(q is None for q in p.line_obj), "Y=0 not visible at row 0")
+    ok(all(q is None for q in p.line_obj), "Y=1 not visible at row 0")
     p.eval_sprites(1)
-    ok(p.line_obj[10] is not None, "Y=0 visible at row 1")
+    ok(p.line_obj[10] is not None, "Y=1 visible at row 1")
 
     # windows: left > right = empty ; inversion ; logic truth table
     p = RefPpu()

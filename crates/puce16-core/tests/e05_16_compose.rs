@@ -101,7 +101,7 @@ fn e05_16_obj_over_bg() {
     for i in 0..128 {
         spr(&mut img, i, -200, 0, 0, 0);
     }
-    spr(&mut img, 0, 0, 255, 0, 0x30);
+    spr(&mut img, 0, 0, 0, 0, 0x30);
     load_oam(&mut p, &img);
     put_vram(&mut p, 0, 0x0080);
     put_cgram(&mut p, 129, 0x03E0);
@@ -230,7 +230,7 @@ fn e05_16_sprites_evaluated_each_line() {
     for i in 0..128 {
         spr(&mut img, i, -200, 0, 0, 0);
     }
-    spr(&mut img, 0, 0, 9, 0, 0x30);
+    spr(&mut img, 0, 0, 10, 0, 0x30);
     load_oam(&mut p, &img);
     put_vram(&mut p, 0, 0x0080);
     put_cgram(&mut p, 129, 0x03E0);

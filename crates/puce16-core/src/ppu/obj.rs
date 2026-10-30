@@ -4,6 +4,14 @@
 use super::Ppu;
 use super::bg::Pix;
 
+/// Compute the row within a sprite for output row r given sprite Y position y.
+/// Hardware evaluates sprites one line early, so the +1 offset is absorbed by
+/// using r = v - 1 (output row). A sprite at Y=0 starts on the first visible
+/// line; a 16x16 sprite at Y=240 does NOT reach line 0.
+pub fn sprite_row(r: u16, y: u8) -> i32 {
+    ((r as i32) - (y as i32)) & 0xFF
+}
+
 /// Return sprite dimensions in pixels for the given size code and large flag.
 /// obj_size values > 7 are treated as 7 (largest).
 pub fn obj_dims(obj_size: u8, large: bool) -> (u8, u8) {
@@ -89,8 +97,8 @@ impl Ppu {
             let s = self.sprite(i);
             let (w, h) = obj_dims(self.regs.obj_size, s.large);
 
-            // Sprite appears one row below Y: Y=255 -> first visible row
-            let row = ((r as i32) - (s.y as i32) - 1) & 0xFF;
+            // Sprite appears on output row r when row = (r - y) & 0xFF < h
+            let row = sprite_row(r, s.y);
             if row >= h as i32 {
                 continue;
             }
@@ -131,7 +139,7 @@ impl Ppu {
         for &i in list.iter().rev() {
             let s = self.sprite(i as usize);
             let (w, _h) = obj_dims(self.regs.obj_size, s.large);
-            let row = ((r as i32) - (s.y as i32) - 1) & 0xFF;
+            let row = sprite_row(r, s.y);
 
             // Process columns left to right
             for c in 0..(w / 8) {

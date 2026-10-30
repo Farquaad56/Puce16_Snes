@@ -39,7 +39,7 @@
     },
     "higan_lidnariq_ppu_bus_activity_ppubusact": {
       "frames": 120,
-      "frame_hash": "0xe676e6cd9a4c7ce8",
+      "frame_hash": "0x2fcda4b704e5676d",
       "state_hash": "0x7e345f9ac05a1286",
       "audio_hash": "0x69a53d5a0a363c15"
     },
@@ -57,37 +57,37 @@
     },
     "higan_undisbeliever_inidisp_hdma_2100_glitch": {
       "frames": 120,
-      "frame_hash": "0xaf7f252c53939c69",
+      "frame_hash": "0x196f5654f649255f",
       "state_hash": "0x9280d5d67d9a5ab3",
       "audio_hash": "0x5a9123c141aa9535"
     },
     "higan_undisbeliever_inidisp_hdma_2100_glitch_2ch_0a": {
       "frames": 120,
-      "frame_hash": "0x4de48c1a88c8ddb0",
+      "frame_hash": "0x0093acc8388a88ee",
       "state_hash": "0x68e6c5c91fd36d21",
       "audio_hash": "0x5a9123c141aa9535"
     },
     "higan_undisbeliever_inidisp_hdma_2100_glitch_2ch_81": {
       "frames": 120,
-      "frame_hash": "0x59d3856ff4d06bf9",
+      "frame_hash": "0x882331273b755736",
       "state_hash": "0x468be5aa65f78fc8",
       "audio_hash": "0x5a9123c141aa9535"
     },
     "higan_undisbeliever_inidisp_hdma_21ff_2100_0f_glitch": {
       "frames": 120,
-      "frame_hash": "0xaf7f252c53939c69",
+      "frame_hash": "0x196f5654f649255f",
       "state_hash": "0xf0548c13878655f1",
       "audio_hash": "0x5a9123c141aa9535"
     },
     "higan_undisbeliever_inidisp_hdma_21ff_2100_glitch": {
       "frames": 120,
-      "frame_hash": "0xa3b2a129d8514908",
+      "frame_hash": "0x7f00aee4b1c773ae",
       "state_hash": "0xf0548c13878655f1",
       "audio_hash": "0x5a9123c141aa9535"
     },
     "higan_undisbeliever_inidisp_hdma_21ff_glitch": {
       "frames": 120,
-      "frame_hash": "0xaf7f252c53939c69",
+      "frame_hash": "0x196f5654f649255f",
       "state_hash": "0xf375b89ad37a9414",
       "audio_hash": "0x5a9123c141aa9535"
     },
@@ -111,13 +111,13 @@
     },
     "higan_undisbeliever_inidisp_inidisp_d7_glitch_test": {
       "frames": 120,
-      "frame_hash": "0xaf7f252c53939c69",
+      "frame_hash": "0x196f5654f649255f",
       "state_hash": "0xa547de6529036271",
       "audio_hash": "0x5a9123c141aa9535"
     },
     "higan_undisbeliever_inidisp_inidisp_enable_display_mid_frame": {
       "frames": 120,
-      "frame_hash": "0xb239d966dad6f57c",
+      "frame_hash": "0x5b667708625ed506",
       "state_hash": "0x23df15337c624e7d",
       "audio_hash": "0x5a9123c141aa9535"
     },
@@ -129,37 +129,37 @@
     },
     "higan_undisbeliever_inidisp_inidisp_hammer_0f": {
       "frames": 120,
-      "frame_hash": "0xaf7f252c53939c69",
+      "frame_hash": "0x196f5654f649255f",
       "state_hash": "0xbc8e6da7c88a8af4",
       "audio_hash": "0x5a9123c141aa9535"
     },
     "higan_undisbeliever_inidisp_inidisp_hammer_0f00": {
       "frames": 120,
-      "frame_hash": "0xaf7f252c53939c69",
+      "frame_hash": "0x196f5654f649255f",
       "state_hash": "0x2c80c7ba06021cd7",
       "audio_hash": "0x5a9123c141aa9535"
     },
     "higan_undisbeliever_inidisp_inidisp_hammer_0f0f": {
       "frames": 120,
-      "frame_hash": "0xaf7f252c53939c69",
+      "frame_hash": "0x196f5654f649255f",
       "state_hash": "0x46c5e92be9a4b7fe",
       "audio_hash": "0x5a9123c141aa9535"
     },
     "higan_undisbeliever_inidisp_inidisp_hammer_0f8f": {
       "frames": 120,
-      "frame_hash": "0xaf7f252c53939c69",
+      "frame_hash": "0x196f5654f649255f",
       "state_hash": "0xf6bccb720f923f28",
       "audio_hash": "0x5a9123c141aa9535"
     },
     "higan_undisbeliever_inidisp_inidisp_hammer_0f8f_fast": {
       "frames": 120,
-      "frame_hash": "0xaf7f252c53939c69",
+      "frame_hash": "0x196f5654f649255f",
       "state_hash": "0xadd42011647b347e",
       "audio_hash": "0x5a9123c141aa9535"
     },
     "higan_undisbeliever_inidisp_inidisp_hammer_0f_long": {
       "frames": 120,
-      "frame_hash": "0xaf7f252c53939c69",
+      "frame_hash": "0x196f5654f649255f",
       "state_hash": "0x48e2caef892ce489",
       "audio_hash": "0x5a9123c141aa9535"
     },
@@ -567,32 +567,32 @@
     },
     "peterlemon_ppu_hdma_hicolor128pertilerow_hicolor128pertilerow": {
       "frames": 120,
-      "frame_hash": "0x3bc222d4c6dd3216",
-      "state_hash": "0xb8b1b8beb6843853",
+      "frame_hash": "0xa621274543f08fcb",
+      "state_hash": "0xdda70ec9033bec01",
       "audio_hash": "0xb051896b18fd6a25"
     },
     "peterlemon_ppu_hdma_hicolor128pertilerow_test_dq128pertilerow": {
       "frames": 120,
-      "frame_hash": "0x7f324e6a1263196e",
-      "state_hash": "0x8f84124d9d5a41f1",
+      "frame_hash": "0x790b76bdf92108b7",
+      "state_hash": "0xaf369459c4b91ecf",
       "audio_hash": "0xb051896b18fd6a25"
     },
     "peterlemon_ppu_hdma_hicolor128pertilerow_test_lenna128pertilerow": {
       "frames": 120,
-      "frame_hash": "0x2e5754ab56fef381",
-      "state_hash": "0xf19eaa5f76f75bc4",
+      "frame_hash": "0x57db3c2ded75c81c",
+      "state_hash": "0x45e81243aa1b4066",
       "audio_hash": "0xb051896b18fd6a25"
     },
     "peterlemon_ppu_hdma_hicolor128pertilerow_test_mandrill128pertilerow": {
       "frames": 120,
-      "frame_hash": "0x053583e0c2b953a0",
-      "state_hash": "0x56a99a50536b058c",
+      "frame_hash": "0x1d4d8aff76467e07",
+      "state_hash": "0x391b05ce2fca44ce",
       "audio_hash": "0xb051896b18fd6a25"
     },
     "peterlemon_ppu_hdma_hicolor128pertilerow_test_rgb_24bits_palette_color_test_chart128pertilerow": {
       "frames": 120,
-      "frame_hash": "0x3bc222d4c6dd3216",
-      "state_hash": "0xb8b1b8beb6843853",
+      "frame_hash": "0xa621274543f08fcb",
+      "state_hash": "0xdda70ec9033bec01",
       "audio_hash": "0xb051896b18fd6a25"
     },
     "peterlemon_ppu_hdma_hicolor64pertilerow_hicolor64pertilerow": {
@@ -699,8 +699,8 @@
     },
     "peterlemon_ppu_interlace_interlacerpg_interlacerpg": {
       "frames": 120,
-      "frame_hash": "0x8edea2ff8a72d15b",
-      "state_hash": "0x3162fb7e077087f5",
+      "frame_hash": "0x6a8751e1ba498601",
+      "state_hash": "0x409c8c7645d56b1b",
       "audio_hash": "0xdccc973a9e636e65"
     },
     "peterlemon_ppu_interlace_interlacescroll_interlacescroll": {
@@ -729,8 +729,8 @@
     },
     "peterlemon_ppu_mode7_starwars_starwars": {
       "frames": 600,
-      "frame_hash": "0x0ab3b7c4f10199b3",
-      "state_hash": "0xb1feb532f9c3f127",
+      "frame_hash": "0x120061c238a5dc68",
+      "state_hash": "0xf581904801644669",
       "audio_hash": "0x63c5a65819b53315"
     },
     "peterlemon_ppu_mosaic_mode3_mosaicmode3": {

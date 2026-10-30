@@ -141,9 +141,9 @@ fn e04_10_wrio_falling_edge() {
 #[test]
 fn e04_10_hash() {
     let mut p = Ppu::new(Region::Ntsc);
-    // Stay on line 1: with the default (all zero) OAM, sprite evaluation from line 2 on
+    // Stay on line 0: with the default (all zero) OAM, sprite evaluation from line 2 on
     // would already set range_over (E05-16 evaluates sprites in step_dot).
-    at(&mut p, 1, 10);
+    at(&mut p, 0, 10);
     let mut h1 = Fnv64::default();
     p.hash_into(&mut h1);
     let hash_before = h1.finish();
@@ -154,7 +154,7 @@ fn e04_10_hash() {
     assert_ne!(hash_before, h2.finish());
 
     let mut p2 = Ppu::new(Region::Ntsc);
-    at(&mut p2, 1, 10);
+    at(&mut p2, 0, 10);
     p2.read(0x37, 0, true);
     let mut h3 = Fnv64::default();
     p2.hash_into(&mut h3);

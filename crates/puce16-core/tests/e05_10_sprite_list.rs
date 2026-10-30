@@ -108,11 +108,11 @@ fn e05_10_decode_x_range() {
 }
 
 #[test]
-fn e05_10_row_visibility_y255() {
+fn e05_10_row_visibility_y0() {
     let mut p = Ppu::new(Region::Ntsc);
     let mut img = [0u8; 544];
     hide_all(&mut img);
-    spr(&mut img, 0, 10, 255, 0, 0, false); // 8x8 at y=255 -> visible on rows 0..7
+    spr(&mut img, 0, 10, 0, 0, 0, false); // 8x8 at y=0 -> visible on rows 0..7
     load_oam(&mut p, &img);
 
     let (list0, _) = p.sprite_list(0);
@@ -126,11 +126,11 @@ fn e05_10_row_visibility_y255() {
 }
 
 #[test]
-fn e05_10_row_visibility_y0() {
+fn e05_10_row_visibility_y1() {
     let mut p = Ppu::new(Region::Ntsc);
     let mut img = [0u8; 544];
     hide_all(&mut img);
-    spr(&mut img, 0, 10, 0, 0, 0, false); // y=0 -> visible on rows 1..8
+    spr(&mut img, 0, 10, 1, 0, 0, false); // y=1 -> visible on rows 1..8
     load_oam(&mut p, &img);
 
     let (list0, _) = p.sprite_list(0);
@@ -144,10 +144,10 @@ fn e05_10_row_visibility_y0() {
     let (list9, _) = p.sprite_list(9);
     assert!(!list9.contains(&0));
 
-    // Second sprite at y=10 -> visible on rows 11..18
+    // Second sprite at y=11 -> visible on rows 11..18
     let mut img2 = [0u8; 544];
     hide_all(&mut img2);
-    spr(&mut img2, 0, 10, 10, 0, 0, false);
+    spr(&mut img2, 0, 10, 11, 0, 0, false);
     load_oam(&mut p, &img2);
 
     for r in 0..11 {
@@ -168,7 +168,7 @@ fn e05_10_large_height() {
 
     let mut img = [0u8; 544];
     hide_all(&mut img);
-    spr(&mut img, 0, 10, 255, 0, 0, true); // large -> 16x16 at y=255
+    spr(&mut img, 0, 10, 0, 0, 0, true); // large -> 16x16 at y=0
     load_oam(&mut p, &img);
 
     for r in 0..=15 {
@@ -189,7 +189,7 @@ fn e05_10_x_range_small() {
     for (idx, x) in positions.iter().enumerate() {
         let mut img = [0u8; 544];
         hide_all(&mut img);
-        spr(&mut img, idx, *x, 0, 0, 0, false); // y=0 -> visible on row 1
+        spr(&mut img, idx, *x, 1, 0, 0, false); // y=1 -> visible on row 1
         load_oam(&mut p, &img);
 
         let (list, _) = p.sprite_list(1);
@@ -210,7 +210,7 @@ fn e05_10_x_range_large() {
     for (idx, x) in [-15i16, -16].iter().enumerate() {
         let mut img = [0u8; 544];
         hide_all(&mut img);
-        spr(&mut img, idx, *x, 0, 0, 0, true); // large -> 16x16 at y=0
+        spr(&mut img, idx, *x, 1, 0, 0, true); // large -> 16x16 at y=1
         load_oam(&mut p, &img);
 
         let (list, _) = p.sprite_list(1);
@@ -228,11 +228,11 @@ fn e05_10_limit_32() {
     // obj_size 0 -> small=8x8
     p.write(0x01, 0x00);
 
-    // 33 sprites all on row 1 (y=0)
+    // 33 sprites all on row 1 (y=1)
     let mut img = [0u8; 544];
     hide_all(&mut img);
     for i in 0..=32 {
-        spr(&mut img, i, 10 + i as i16, 0, 0, 0, false);
+        spr(&mut img, i, 10 + i as i16, 1, 0, 0, false);
     }
     load_oam(&mut p, &img);
 
@@ -248,7 +248,7 @@ fn e05_10_limit_32() {
     let mut img2 = [0u8; 544];
     hide_all(&mut img2);
     for i in 0..=31 {
-        spr(&mut img2, i, 10 + i as i16, 0, 0, 0, false);
+        spr(&mut img2, i, 10 + i as i16, 1, 0, 0, false);
     }
     load_oam(&mut p, &img2);
 
@@ -263,12 +263,12 @@ fn e05_10_invisible_do_not_count() {
     // obj_size 0 -> small=8x8
     p.write(0x01, 0x00);
 
-    // 40 sprites: even indices on row 1 (y=0), odd indices at y=100 (not visible)
+    // 40 sprites: even indices on row 1 (y=1), odd indices at y=100 (not visible)
     let mut img = [0u8; 544];
     hide_all(&mut img);
     for i in 0..40 {
         if i % 2 == 0 {
-            spr(&mut img, i, 10 + i as i16, 0, 0, 0, false); // visible on row 1
+            spr(&mut img, i, 10 + i as i16, 1, 0, 0, false); // visible on row 1
         } else {
             spr(&mut img, i, 10 + i as i16, 100, 0, 0, false); // not visible
         }
@@ -294,11 +294,11 @@ fn e05_10_rotation_first_sprite() {
     // obj_size 0 -> small=8x8
     p.write(0x01, 0x00);
 
-    // Sprites 0 and 5 visible on row 1 (y=0), others hidden
+    // Sprites 0 and 5 visible on row 1 (y=1), others hidden
     let mut img = [0u8; 544];
     hide_all(&mut img);
-    spr(&mut img, 0, 10, 0, 0, 0, false);
-    spr(&mut img, 5, 20, 0, 0, 0, false);
+    spr(&mut img, 0, 10, 1, 0, 0, false);
+    spr(&mut img, 5, 20, 1, 0, 0, false);
     load_oam(&mut p, &img);
 
     // Without rotation: evaluation starts at sprite 0 -> [0, 5]

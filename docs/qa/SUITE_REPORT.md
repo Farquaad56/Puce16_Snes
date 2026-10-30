@@ -174,3 +174,15 @@ None.
 Les 5 ROM `peterlemon_ppu_hdma_hicolor128pertilerow_*` (hicolor128pertilerow, dq, rgb chart, lenna, mandrill) sont figees EN L'ETAT dans la baseline: image correcte mais fins artefacts horizontaux (lignes de tearing HDMA visibles sur dq, lenna, mandrill). Pas de tache de tuning creee; a reprendre si on veut un rendu exact (timing HDMA par ligne). Un changement de timing HDMA fera donc echouer ces 5 baselines et obligera a les re-figer.
 
 Pistes si reprise (SPC700): fournir la table/CRC attendus ou une sortie Mesen/bsnes/Snes9x de la ROM, puis regler ligne par ligne (adresse des acces fantomes pour les cycles `.`, instant du tick timer/DSP dans `apu/io.rs`).
+## E09-00: sprites decales d'une ligne (formule `row = (r - y) & 0xFF`)
+
+Correction de la formule de rangee des sprites (SMW cache ses sprites a Y=240; avec l'ancienne formule la rangee 15 d'un 16x16 retombait sur la ligne 0). Seule la couche OBJ et les drapeaux range/time over dependent de cette formule. Comparaison image a image ancienne/nouvelle formule sur les 139 ROM: 25 images changent (les 3 jeux `game_*` n'ont pas de hash fige), toutes par decalage d'une ligne des sprites.
+
+ROM re-figees dans `tests/baseline.json` (22):
+- `higan_lidnariq_ppu_bus_activity_ppubusact`
+- `higan_undisbeliever_inidisp_hdma_2100_glitch`, `..._hdma_2100_glitch_2ch_0a`, `..._hdma_2100_glitch_2ch_81`, `..._hdma_21ff_2100_0f_glitch`, `..._hdma_21ff_2100_glitch`, `..._hdma_21ff_glitch`
+- `higan_undisbeliever_inidisp_inidisp_d7_glitch_test`, `..._inidisp_enable_display_mid_frame`, `..._inidisp_hammer_0f`, `..._hammer_0f00`, `..._hammer_0f0f`, `..._hammer_0f8f`, `..._hammer_0f8f_fast`, `..._hammer_0f_long`
+- `peterlemon_ppu_hdma_hicolor128pertilerow_{hicolor128pertilerow,test_dq128pertilerow,test_rgb_24bits_palette_color_test_chart128pertilerow,test_lenna128pertilerow,test_mandrill128pertilerow}` (OAM par defaut: sprites parasites decales d'une ligne; la derogation E05 ci-dessus reste valable pour les artefacts HDMA)
+- `peterlemon_ppu_interlace_interlacerpg_interlacerpg`, `peterlemon_ppu_mode7_starwars_starwars`
+
+Les tests de rendu de reference ont ete alignes: `docs/tools/ppu_ref.py` (formule + autotest) et `ppu_scenes.expected` regeneres (23 scenes, moteur et reference independante d'accord), `e04_10_hash` (reste sur la ligne 0 pour eviter un range_over precoce avec l'OAM a zero), `e05_16_compose` (Y decales d'une unite).

@@ -79,12 +79,13 @@ first = if obj_priority_rotation { (internal_oamadd >> 2) & 0x7F } else { 0 }
 list = []
 for k in 0..128:
     i = (first + k) & 0x7F
-    row = (r - y - 1) & 0xFF            // le sprite apparait une rangee plus bas que Y: Y = 255 -> premiere rangee visible
+    row = (r - y) & 0xFF            // le sprite apparait sur la ligne Y; Y=0 -> premiere rangee visible, Y=255 -> rangee 1 du sprite sur la ligne 0
     if row >= h: continue
     if !(x == -256 || x > -(w as i32)): continue    // bug materiel: x = -256 compte dans la limite
     if list.len() == 32 { range_over = true; break }
     list.push(i)
 ```
+Historique E09-00: formule corrigee de `(r - y - 1)` a `(r - y)`. SMW cache ses sprites inutilises en Y=240 (OAM $F0, taille petite); avec l'ancienne formule un sprite 16x16 a Y=240 couvrait r=241..256 et la rangee 15 revenait se dessiner sur r=0 (artefact de debris colores). Avec `(r - y)` le sprite ne couvre que r=240..255, hors ecran.
 (`obj_interlace`: ignore en v1: traiter comme 0. `UNKNOWN - to confirm`.)
 
 ### 6.3 Recuperation des tranches (slivers, 34 max) et tampon de ligne
@@ -237,7 +238,7 @@ R01 tables BPP/priorites/couche activee; R02 couleur (palette, direct, convert 5
 ## 15. Tests (prefixe = id de tache; aucune ROM)
 - `decode_row`: octets plans -> indices (cas 2/4/8 bpp avec motifs connus ex. plan0=0xAA, plan1=0xCC).
 - `map_entry_addr`: 4 tailles de carte, wrap, 16x16 avec flips (tableau de cas calcules a la main).
-- Sprites: sprite 8x8 en Y=255 visible a la rangee 0; Y=0 non visible a la rangee 0; x=-256 compte dans la limite 32; 33 sprites alignes -> `range_over`; 35 tranches -> `time_over`; priorite d'index (le plus bas gagne); flip H/V; erratum 16x32 flip V.
+- Sprites: sprite 8x8 en Y=0 visible a la rangee 0; Y=1 non visible a la rangee 0; x=-256 compte dans la limite 32; 33 sprites alignes -> `range_over`; 35 tranches -> `time_over`; priorite d'index (le plus bas gagne); flip H/V; erratum 16x32 flip V.
 - Mode 7: matrice identite (a=d=0x0100, b=c=0): `px = x + hofs...` (cas calcules a la main); rotation 90 degres; hors-ecran: repetition / transparent / tuile 0.
 - Fenetres: gauche > droite; inversion; logiques OR/AND/XOR/XNOR avec les 4 combinaisons de (w1, w2).
 - Color math: add, sub, half, clamp; fond de sous-ecran = couleur fixe; pas de half si addend sous-ecran = backdrop; OBJ palettes 0-3 sans math; region noire/prevent selon fenetre couleur.

@@ -47,7 +47,7 @@ fn e05_11_basic_pixel() {
     // OBJSEL 0 (default): small=8x8, large=16x16
     let mut img = [0u8; 544];
     hide_all(&mut img);
-    spr(&mut img, 0, 10, 255, 0, 0, false); // x=10, y=255, tile 0, attr 0, small
+    spr(&mut img, 0, 10, 0, 0, 0, false); // x=10, y=0, tile 0, attr 0, small
     load_oam(&mut p, &img);
 
     put_vram(&mut p, 0, 0x0080); // row 0, index 1 at pixel 0
@@ -64,7 +64,7 @@ fn e05_11_row_selects_data() {
     let mut p = Ppu::new(Region::Ntsc);
     let mut img = [0u8; 544];
     hide_all(&mut img);
-    spr(&mut img, 0, 10, 255, 0, 0, false);
+    spr(&mut img, 0, 10, 0, 0, 0, false);
     load_oam(&mut p, &img);
 
     put_vram(&mut p, 0, 0x0080); // row 0: index 1
@@ -84,7 +84,7 @@ fn e05_11_hflip_8x8() {
     let mut p = Ppu::new(Region::Ntsc);
     let mut img = [0u8; 544];
     hide_all(&mut img);
-    spr(&mut img, 0, 10, 255, 0, 0x40, false); // H flip
+    spr(&mut img, 0, 10, 0, 0, 0x40, false); // H flip
     load_oam(&mut p, &img);
 
     put_vram(&mut p, 0, 0x0080); // row 0, index 1 at pixel 0 (left edge)
@@ -101,7 +101,7 @@ fn e05_11_palette_and_priority() {
     let mut p = Ppu::new(Region::Ntsc);
     let mut img = [0u8; 544];
     hide_all(&mut img);
-    spr(&mut img, 0, 10, 255, 0, 0x28, false); // prio=2, palette=4
+    spr(&mut img, 0, 10, 0, 0, 0x28, false); // prio=2, palette=4
     load_oam(&mut p, &img);
 
     put_vram(&mut p, 0, 0x0080);
@@ -116,8 +116,8 @@ fn e05_11_lowest_index_wins() {
     let mut p = Ppu::new(Region::Ntsc);
     let mut img = [0u8; 544];
     hide_all(&mut img);
-    spr(&mut img, 0, 10, 255, 0, 0, false); // sprite 0, palette 0
-    spr(&mut img, 1, 10, 255, 0, 0x02, false); // sprite 1, palette 1 (higher index)
+    spr(&mut img, 0, 10, 0, 0, 0, false); // sprite 0, palette 0
+    spr(&mut img, 1, 10, 0, 0, 0x02, false); // sprite 1, palette 1 (higher index)
     load_oam(&mut p, &img);
 
     put_vram(&mut p, 0, 0x0080);
@@ -134,7 +134,7 @@ fn e05_11_vflip_8x8() {
     let mut p = Ppu::new(Region::Ntsc);
     let mut img = [0u8; 544];
     hide_all(&mut img);
-    spr(&mut img, 0, 10, 255, 0, 0x80, false); // V flip
+    spr(&mut img, 0, 10, 0, 0, 0x80, false); // V flip
     load_oam(&mut p, &img);
 
     put_vram(&mut p, 0, 0x0080); // row 0 has data
@@ -156,7 +156,7 @@ fn e05_11_large_two_tiles() {
     // OBJSEL 0: large=16x16
     let mut img = [0u8; 544];
     hide_all(&mut img);
-    spr(&mut img, 0, 20, 255, 0x01, 0, true); // large sprite, tile 0x01
+    spr(&mut img, 0, 20, 0, 0x01, 0, true); // large sprite, tile 0x01
     load_oam(&mut p, &img);
 
     put_vram(&mut p, 16, 0x0080);   // tile 1 row 0 index 1 (left column)
@@ -179,7 +179,7 @@ fn e05_11_large_hflip() {
     let mut p = Ppu::new(Region::Ntsc);
     let mut img = [0u8; 544];
     hide_all(&mut img);
-    spr(&mut img, 0, 20, 255, 0x01, 0x40, true); // large sprite with H flip
+    spr(&mut img, 0, 20, 0, 0x01, 0x40, true); // large sprite with H flip
     load_oam(&mut p, &img);
 
     put_vram(&mut p, 16, 0x0080);   // tile 1 row 0 index 1
@@ -201,7 +201,7 @@ fn e05_11_name_table_bit() {
 
     let mut img = [0u8; 544];
     hide_all(&mut img);
-    spr(&mut img, 0, 10, 255, 0, 1, false); // tbit=1 (attr bit 0)
+    spr(&mut img, 0, 10, 0, 0, 1, false); // tbit=1 (attr bit 0)
     load_oam(&mut p, &img);
 
     put_vram(&mut p, 0x1000, 0x0080); // obj_name_gap = 0x1000 with OBJSEL 0
@@ -215,7 +215,7 @@ fn e05_11_name_table_bit() {
     p2.write(0x01, 0x02); // obj_base = 2 << 13 = 0x4000
     let mut img2 = [0u8; 544];
     hide_all(&mut img2);
-    spr(&mut img2, 0, 10, 255, 0, 0, false); // tbit=0
+    spr(&mut img2, 0, 10, 0, 0, 0, false); // tbit=0
     load_oam(&mut p2, &img2);
 
     put_vram(&mut p2, 0x4000, 0x0080);
@@ -230,7 +230,7 @@ fn e05_11_clipping_left_right() {
     let mut p = Ppu::new(Region::Ntsc);
     let mut img = [0u8; 544];
     hide_all(&mut img);
-    spr(&mut img, 0, -4, 255, 0, 0, false); // x=-4
+    spr(&mut img, 0, -4, 0, 0, 0, false); // x=-4
     load_oam(&mut p, &img);
 
     put_vram(&mut p, 0, 0x0001); // pixel at data position 7 (rightmost)
@@ -245,7 +245,7 @@ fn e05_11_clipping_left_right() {
     let mut p2 = Ppu::new(Region::Ntsc);
     let mut img2 = [0u8; 544];
     hide_all(&mut img2);
-    spr(&mut img2, 0, 250, 255, 0, 0, false);
+    spr(&mut img2, 0, 250, 0, 0, 0, false);
     load_oam(&mut p2, &img2);
 
     put_vram(&mut p2, 0, 0x0001);
@@ -264,12 +264,12 @@ fn e05_11_time_over_35_slivers() {
     hide_all(&mut img);
     // 4 large sprites (64x64) at x=0,64,128,192 -> 32 slivers
     for i in 0..4 {
-        spr(&mut img, i, (i * 64) as i16, 255, 0, 0, true);
+        spr(&mut img, i, (i * 64) as i16, 0, 0, 0, true);
     }
     // 3 small sprites at x=100,110,120 -> 3 slivers = total 35
-    spr(&mut img, 4, 100, 255, 7, 0, false);
-    spr(&mut img, 5, 110, 255, 7, 0, false);
-    spr(&mut img, 6, 120, 255, 7, 0, false);
+    spr(&mut img, 4, 100, 0, 7, 0, false);
+    spr(&mut img, 5, 110, 0, 7, 0, false);
+    spr(&mut img, 6, 120, 0, 7, 0, false);
     load_oam(&mut p, &img);
 
     put_vram(&mut p, 0, 0x0080);   // tile 0 row 0 index 1
@@ -290,11 +290,11 @@ fn e05_11_no_time_over_34() {
     let mut img = [0u8; 544];
     hide_all(&mut img);
     for i in 0..4 {
-        spr(&mut img, i, (i * 64) as i16, 255, 0, 0, true);
+        spr(&mut img, i, (i * 64) as i16, 0, 0, 0, true);
     }
     // Only 2 small sprites -> 34 slivers total
-    spr(&mut img, 4, 100, 255, 7, 0, false);
-    spr(&mut img, 5, 110, 255, 7, 0, false);
+    spr(&mut img, 4, 100, 0, 7, 0, false);
+    spr(&mut img, 5, 110, 0, 7, 0, false);
     load_oam(&mut p, &img);
 
     put_vram(&mut p, 0, 0x0080);
@@ -315,7 +315,7 @@ fn e05_11_x_minus_256_counts_slivers() {
     hide_all(&mut img);
     // 5 large sprites at x=-256 -> all count as on-screen (hardware bug)
     for i in 0..5 {
-        spr(&mut img, i, -256, 255, 0, 0, true);
+        spr(&mut img, i, -256, 0, 0, 0, true);
     }
     load_oam(&mut p, &img);
 
@@ -337,7 +337,7 @@ fn e05_11_range_over_flag() {
     hide_all(&mut img);
     // 33 visible sprites -> overflow
     for i in 0..33 {
-        spr(&mut img, i, (i * 2) as i16, 255, 0, 0, false);
+        spr(&mut img, i, (i * 2) as i16, 0, 0, 0, false);
     }
     load_oam(&mut p, &img);
 
@@ -362,7 +362,7 @@ fn e05_11_erratum_tall_vflip() {
 
     let mut img = [0u8; 544];
     hide_all(&mut img);
-    spr(&mut img, 0, 10, 255, 0, 0x80, false); // V flip on 16x32 sprite
+    spr(&mut img, 0, 10, 0, 0, 0x80, false); // V flip on 16x32 sprite
     load_oam(&mut p, &img);
 
     put_vram(&mut p, 263, 0x0080);   // tile 16 row 7 index 1 (top half)
@@ -385,7 +385,7 @@ fn e05_11_square_vflip_full() {
     // OBJSEL 0: large=16x16 (square)
     let mut img = [0u8; 544];
     hide_all(&mut img);
-    spr(&mut img, 0, 10, 255, 0x01, 0x80, true); // V flip on 16x16 sprite
+    spr(&mut img, 0, 10, 0, 0x01, 0x80, true); // V flip on 16x16 sprite
     load_oam(&mut p, &img);
 
     put_vram(&mut p, 279, 0x0080); // tile 17 (=1+16) row 7 index 1

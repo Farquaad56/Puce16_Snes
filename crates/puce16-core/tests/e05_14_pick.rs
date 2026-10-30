@@ -411,8 +411,8 @@ fn e05_14_pick_screen_obj_over_bg() {
     put_cgram(&mut p, 18, 0x2345);
     put_cgram(&mut p, 0, 0x7C00); // backdrop blue
 
-    // Sprite: x=0, y=255 (first visible row), tile 0, prio 3, pal 0
-    spr(&mut p, 0, 0, 255, 0, 0x30);
+    // Sprite: x=0, y=0 (first visible row), tile 0, prio 3, pal 0
+    spr(&mut p, 0, 0, 0, 0, 0x30);
 
     // Tile 0 data: index 1 at pixel 0
     put_vram(&mut p, 0, 0x0080);
