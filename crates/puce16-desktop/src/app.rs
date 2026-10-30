@@ -531,13 +531,14 @@ impl App {
                     } else {
                         egui::Color32::from_rgb(220, 50, 50)
                     };
-                    (format!("audio {} ms", ms), color)
+                    (format!("audio {:>4} ms", ms), color)
                 }
-                Err(_) => ("audio error".to_string(), egui::Color32::from_rgb(220, 50, 50)),
+                Err(_) => (format!("{:<13}", "audio error"), egui::Color32::from_rgb(220, 50, 50)),
             },
-            None => ("audio off".to_string(), egui::Color32::GRAY),
+            None => (format!("{:<13}", "audio off"), egui::Color32::GRAY),
         };
-        let fps_text = if stopped { "pause".to_string() } else { format!("{:.0} FPS", self.fps) };
+        // Fixed-width (monospace, padded) texts so the items to the right never shift.
+        let fps_text = if stopped { format!("{:<7}", "pause") } else { format!("{:>3.0} FPS", self.fps) };
         let title = if self.rom_title.is_empty() { "Aucune ROM" } else { self.rom_title.as_str() };
         let region = if self.region == Region::Pal { "PAL" } else { "NTSC" };
         let control = if self.poller.connected()[0] { "Pad" } else { "Clavier" };
@@ -553,13 +554,13 @@ impl App {
             ui.separator();
             ui.label(control);
             ui.separator();
-            ui.label(fps_text);
+            ui.label(egui::RichText::new(fps_text).monospace());
             ui.separator();
             ui.label(format!("x{}", self.scale));
             ui.separator();
             ui.label(format!("slot {}", self.slot));
             ui.separator();
-            ui.colored_label(audio_color, audio_text);
+            ui.label(egui::RichText::new(audio_text).monospace().color(audio_color));
             if let Some(m) = message {
                 ui.separator();
                 ui.label(m);
