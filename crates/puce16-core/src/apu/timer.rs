@@ -47,6 +47,7 @@ impl Timer {
         r
     }
 
+    pub fn target(&self) -> u8 { self.target }
     pub fn out(&self) -> u8 { self.out }
     pub fn stage1(&self) -> u8 { self.stage1 }
     pub fn stage0(&self) -> u16 { self.stage0 }

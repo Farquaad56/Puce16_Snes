@@ -1,10 +1,28 @@
 {
   "version": 1,
   "roms": {
+    "blargg_spc_spc_dsp6": {
+      "frames": 300,
+      "frame_hash": "0x8d2000d1edf8ea42",
+      "state_hash": "0x54bdc4ac55fd5cea",
+      "audio_hash": "0x81d16ec40d51bc35"
+    },
+    "blargg_spc_spc_mem_access_times": {
+      "frames": 1200,
+      "frame_hash": "0x55bec318abc05c9c",
+      "state_hash": "0xf4de451a40e17728",
+      "audio_hash": "0x35c7fed6218788d5"
+    },
+    "blargg_spc_spc_smp": {
+      "frames": 1200,
+      "frame_hash": "0x55bec318abc05c9c",
+      "state_hash": "0x60edf1048d053616",
+      "audio_hash": "0x35c7fed6218788d5"
+    },
     "blargg_spc_spc_timer": {
       "frames": 300,
       "frame_hash": "0xf8d7e6681149bbb2",
-      "state_hash": "0x0de1925ef0a42817",
+      "state_hash": "0x9ee26f731b32c270",
       "audio_hash": "0x81d16ec40d51bc35"
     },
     "gilyon_cputest_cputest_basic": {
@@ -22,7 +40,7 @@
     "gilyon_spctest_spctest": {
       "frames": 300,
       "frame_hash": "0xc63ddd7d28754a27",
-      "state_hash": "0xaf475345c38f3990",
+      "state_hash": "0x8b64a04b437e59e2",
       "audio_hash": "0x81d16ec40d51bc35"
     },
     "higan_93143_hblank_dma_vram_hvdma": {
@@ -45,8 +63,8 @@
     },
     "higan_lidnariq_smp_clock_speed_measurement_smpspeed": {
       "frames": 120,
-      "frame_hash": "0xc616495f95472267",
-      "state_hash": "0x210049de50a0b5e7",
+      "frame_hash": "0x1dd4430a97d60a52",
+      "state_hash": "0x0b2dc283ee389584",
       "audio_hash": "0xb051896b18fd6a25"
     },
     "higan_tepples_tellinglys_tellinglys": {
@@ -406,43 +424,43 @@
     "peterlemon_cputest_spc700_adc_spc700adc": {
       "frames": 120,
       "frame_hash": "0xf59903f94d43c99e",
-      "state_hash": "0x0d2c06efb45284b2",
+      "state_hash": "0x3544facafffc1226",
       "audio_hash": "0xdd4641cfae2b245c"
     },
     "peterlemon_cputest_spc700_and_spc700and": {
       "frames": 120,
       "frame_hash": "0x0fc2b84214ffc25a",
-      "state_hash": "0x674eaa675b3414b8",
+      "state_hash": "0x104c430b04862bef",
       "audio_hash": "0xdd4641cfae2b245c"
     },
     "peterlemon_cputest_spc700_dec_spc700dec": {
       "frames": 120,
       "frame_hash": "0xb84deb77e3013292",
-      "state_hash": "0x1ba07e2d3f2c9083",
-      "audio_hash": "0x495705b6dc053724"
+      "state_hash": "0xc0be85742bff2dad",
+      "audio_hash": "0x44049f2a177b8b0b"
     },
     "peterlemon_cputest_spc700_eor_spc700eor": {
       "frames": 120,
       "frame_hash": "0x8833b369af6ca94e",
-      "state_hash": "0xd58b5d6a5b98f3e8",
+      "state_hash": "0x3cc9151c8a02d057",
       "audio_hash": "0xdd4641cfae2b245c"
     },
     "peterlemon_cputest_spc700_inc_spc700inc": {
       "frames": 120,
       "frame_hash": "0x5bb93178fde702ec",
-      "state_hash": "0xb1991c2efa070765",
-      "audio_hash": "0x495705b6dc053724"
+      "state_hash": "0x50955da13e7740fb",
+      "audio_hash": "0x44049f2a177b8b0b"
     },
     "peterlemon_cputest_spc700_ora_spc700ora": {
       "frames": 120,
       "frame_hash": "0x981c32f8910df800",
-      "state_hash": "0x7b59a5f0e0ef128c",
+      "state_hash": "0x983bfd2a0d3bb54a",
       "audio_hash": "0xdd4641cfae2b245c"
     },
     "peterlemon_cputest_spc700_sbc_spc700sbc": {
       "frames": 120,
       "frame_hash": "0xe7847bb6e0e9f79e",
-      "state_hash": "0x4ae94f523f1fe01e",
+      "state_hash": "0x1f5e90c0759dd5e2",
       "audio_hash": "0xdd4641cfae2b245c"
     },
     "peterlemon_games_monsterfarmjump_monsterfarmjump": {
@@ -766,38 +784,38 @@
     "peterlemon_spc700_axel_f_axel_f": {
       "frames": 300,
       "frame_hash": "0xb3d415c7c3801d4a",
-      "state_hash": "0xb769e3c688f6b411",
-      "audio_hash": "0x773f07e3395b7097"
+      "state_hash": "0x5b15875b3dff0d20",
+      "audio_hash": "0x448a271210c34484"
     },
     "peterlemon_spc700_ffviiprelude_ffviiprelude": {
       "frames": 300,
       "frame_hash": "0xb3d415c7c3801d4a",
-      "state_hash": "0x95aaff7e78b9f326",
-      "audio_hash": "0x3eb5a90e3c96ff48"
+      "state_hash": "0xc0147131ec53c7b1",
+      "audio_hash": "0x4ce79cc179d80c84"
     },
     "peterlemon_spc700_italotest_italotest": {
       "frames": 300,
       "frame_hash": "0xb3d415c7c3801d4a",
-      "state_hash": "0x84ab5f04bc27e5aa",
-      "audio_hash": "0x373d4cd79a09388f"
+      "state_hash": "0x24ee6495852b6dd1",
+      "audio_hash": "0xd10d985cdd9f4fb7"
     },
     "peterlemon_spc700_pitchmod_pitchmod": {
       "frames": 300,
       "frame_hash": "0xb3d415c7c3801d4a",
-      "state_hash": "0x8409ca613f079209",
-      "audio_hash": "0xe22eb43f03b66192"
+      "state_hash": "0x7708cc974dda03c6",
+      "audio_hash": "0x38b7c23a3d617ab9"
     },
     "peterlemon_spc700_playbrrsample_playbrrsample": {
       "frames": 300,
       "frame_hash": "0xb3d415c7c3801d4a",
-      "state_hash": "0xb6bce7e7ccee09e2",
-      "audio_hash": "0x1daf49ca26c9ff7a"
+      "state_hash": "0x281771c69dc6c836",
+      "audio_hash": "0xfd9f71d1ceaef4d5"
     },
     "peterlemon_spc700_playnoise_playnoise": {
       "frames": 300,
       "frame_hash": "0xb3d415c7c3801d4a",
-      "state_hash": "0x8b9db17fa7c34dd9",
-      "audio_hash": "0x2b6c44efbcbc4395"
+      "state_hash": "0x231916e1207e37f5",
+      "audio_hash": "0x204cdc77cf60a855"
     },
     "peterlemon_spc700_playtwosong_playtwosong": {
       "frames": 300,
@@ -808,14 +826,14 @@
     "peterlemon_spc700_speechsynth_speechsynth": {
       "frames": 300,
       "frame_hash": "0xb3d415c7c3801d4a",
-      "state_hash": "0x6ed2f2e783fb9655",
+      "state_hash": "0x30294fe408d12776",
       "audio_hash": "0x2eea808a7e8c9b3d"
     },
     "peterlemon_spc700_twinkle_twinkle": {
       "frames": 300,
       "frame_hash": "0xb3d415c7c3801d4a",
-      "state_hash": "0x5d8dcb914945b43e",
-      "audio_hash": "0xd85135a241c22ae2"
+      "state_hash": "0x9b64ba608399b376",
+      "audio_hash": "0x551c4d4e7ec7d9d7"
     }
   }
 }

@@ -138,6 +138,10 @@ impl Dsp {
         self.regs[addr as usize & 0x7F]
     }
 
+    pub fn read_peek(&self, addr: u8) -> u8 {
+        self.regs[addr as usize & 0x7F]
+    }
+
     pub fn write(&mut self, addr: u8, v: u8) {
         let a = addr as usize & 0x7F;
         self.regs[a] = v;

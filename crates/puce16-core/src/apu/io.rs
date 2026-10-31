@@ -16,6 +16,25 @@ pub struct ApuIo {
     pub control: u8,
     pub dspaddr: u8,
     dsp_div: u8,
+    /// Debug only (not saved, not hashed): SMP cycle counter and DSP register write trace.
+    pub ticks: u64,
+    pub trace_on: bool,
+    pub trace: Vec<(u64, u8, u8)>,
+    pub ram_trace: Vec<(u64, u16, u8)>,
+    pub port_trace: Vec<(u64, u8, u8)>,
+    /// SMP time in "resonator units" (same frame as master_clock * APU_RESONATOR_HZ).
+    /// Recomputed at each `Apu::step_to`, advanced by `unit` per SMP bus cycle.
+    pub smp_time: i128,
+    /// Resonator units per SMP cycle (24 * master_hz).
+    pub unit: i128,
+    /// CPU port writes not yet visible to the SMP: (time in resonator units, port, value).
+    pub pending: Vec<(i128, u8, u8)>,
+    /// Value of each SMP output port before its latest write, and the time of that write.
+    pub out_prev: [u8; 4],
+    pub out_time: [i128; 4],
+    /// Sampling phase inside an SMP bus cycle, in 1/16 cycle (reads of ports / writes of ports).
+    pub read_phase16: i128,
+    pub write_phase16: i128,
 }
 
 impl ApuIo {
@@ -34,6 +53,34 @@ impl ApuIo {
             control: 0xB0,
             dspaddr: 0,
             dsp_div: 0,
+            ticks: 0,
+            trace_on: false,
+            trace: Vec::new(),
+            ram_trace: Vec::new(),
+            port_trace: Vec::new(),
+            smp_time: 0,
+            unit: 24 * crate::consts::MASTER_HZ_NTSC as i128,
+            pending: Vec::new(),
+            out_prev: [0; 4],
+            out_time: [i128::MIN; 4],
+            read_phase16: 8,
+            write_phase16: 8,
+        }
+    }
+
+    /// Make the pending CPU port writes whose time is <= `t` visible to the SMP.
+    pub fn apply_pending(&mut self, t: i128) {
+        if self.pending.is_empty() {
+            return;
+        }
+        let mut n = 0;
+        while n < self.pending.len() && self.pending[n].0 <= t {
+            let (_, p, v) = self.pending[n];
+            self.port_in[p as usize] = v;
+            n += 1;
+        }
+        if n > 0 {
+            self.pending.drain(..n);
         }
     }
 
@@ -52,6 +99,8 @@ impl ApuIo {
     }
 
     fn tick(&mut self) {
+        self.ticks += 1;
+        self.smp_time += self.unit;
         for t in &mut self.timers {
             t.tick();
         }
@@ -129,7 +178,11 @@ impl SmpBus for ApuIo {
             0xF1 => 0,
             0xF2 => self.dspaddr & 0x7F,
             0xF3 => self.dsp.read(self.dspaddr & 0x7F),
-            0xF4..=0xF7 => self.port_in[(addr - 0xF4) as usize],
+            0xF4..=0xF7 => {
+                let t = self.smp_time + self.unit * self.read_phase16 / 16;
+                self.apply_pending(t);
+                self.port_in[(addr - 0xF4) as usize]
+            }
             0xF8 | 0xF9 => self.ram[addr as usize],
             0xFA..=0xFC => 0,
             0xFD..=0xFF => self.timers[(addr - 0xFD) as usize].read_out(),
@@ -163,11 +216,17 @@ impl SmpBus for ApuIo {
             }
             0xF3 => {
                 if (self.dspaddr & 0x80) == 0 {
+                    if self.trace_on {
+                        self.trace.push((self.ticks, self.dspaddr & 0x7F, v));
+                    }
                     self.dsp.write(self.dspaddr, v);
                 }
             }
             0xF4..=0xF7 => {
-                self.port_out[(addr - 0xF4) as usize] = v;
+                let i = (addr - 0xF4) as usize;
+                self.out_prev[i] = self.port_out[i];
+                self.out_time[i] = self.smp_time + self.unit * self.write_phase16 / 16;
+                self.port_out[i] = v;
             }
             0xF8 | 0xF9 => {
                 self.ram[addr as usize] = v;
@@ -177,6 +236,9 @@ impl SmpBus for ApuIo {
             }
             0xFD..=0xFF => {} // ignore
             _ => {
+                if self.trace_on {
+                    self.ram_trace.push((self.ticks, addr, v));
+                }
                 self.ram[addr as usize] = v;
             }
         }

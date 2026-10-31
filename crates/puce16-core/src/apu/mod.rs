@@ -17,6 +17,8 @@ pub struct Apu {
     acc: i64,
     last_master: u64,
     master_hz: u64,
+    /// Debug only: (ticks, pc, a, x, y, sp, psw) before each SMP instruction while tracing.
+    instr_trace: Vec<(u64, u16, u8, u8, u8, u8, u8)>,
 }
 
 impl Apu {
@@ -28,6 +30,7 @@ impl Apu {
             acc: 0,
             last_master: 0,
             master_hz: MASTER_HZ_NTSC,
+            instr_trace: Vec::new(),
         };
         // Set PC to IPL reset vector: (IPL_ROM[63] << 8) | IPL_ROM[62]
         apu.spc.pc = ((self::ipl::IPL_ROM[63] as u16) << 8) | (self::ipl::IPL_ROM[62] as u16);
@@ -47,16 +50,40 @@ impl Apu {
     /// Set region timing (NTSC or PAL).
     pub fn set_region(&mut self, r: Region) {
         self.master_hz = r.master_hz();
+        self.io.unit = 24 * self.master_hz as i128;
     }
 
-    /// Read from port $2140-$2143 (mirrored every 4). Returns byte written by SPC700.
+    /// Read from port $2140-$2143 (mirrored every 4). Returns byte written by SPC700,
+    /// as it was at the current master time (the SPC700 may have run slightly ahead).
     pub fn port_read(&self, i: usize) -> u8 {
-        self.io.port_out[i & 3]
+        let i = i & 3;
+        let now = self.last_master as i128 * APU_RESONATOR_HZ as i128;
+        if self.io.out_time[i] > now {
+            self.io.out_prev[i]
+        } else {
+            self.io.port_out[i]
+        }
+    }
+
+    /// Announce a CPU write to a port that will land at master time `m`. Called BEFORE the APU is
+    /// caught up to `m`, so SPC700 reads that happen after `m` inside the instruction that
+    /// straddles it see the new value, and reads before it see the old one.
+    pub fn queue_port_write(&mut self, m: u64, i: usize, v: u8) {
+        let t = m as i128 * APU_RESONATOR_HZ as i128;
+        self.io.pending.push((t, (i & 3) as u8, v));
     }
 
     /// Write to port $2140-$2143 (mirrored every 4). Sends byte to SPC700.
+    /// If the write was announced with `queue_port_write`, everything queued is made visible.
     pub fn port_write(&mut self, i: usize, v: u8) {
-        self.io.port_in[i & 3] = v;
+        if self.io.trace_on {
+            self.io.port_trace.push((self.io.ticks, (i & 3) as u8, v));
+        }
+        if self.io.pending.is_empty() {
+            self.io.port_in[i & 3] = v;
+        } else {
+            self.io.apply_pending(i128::MAX);
+        }
     }
 
     /// Advance APU clock to catch up with master clock (spec 07d section 4).
@@ -66,7 +93,11 @@ impl Apu {
         }
         self.acc += (master - self.last_master) as i64 * APU_RESONATOR_HZ as i64;
         self.last_master = master;
+        self.io.smp_time = master as i128 * APU_RESONATOR_HZ as i128 - self.acc as i128;
         while self.acc > 0 {
+            if self.io.trace_on {
+                self.instr_trace.push((self.io.ticks, self.spc.pc, self.spc.a, self.spc.x, self.spc.y, self.spc.sp, self.spc.psw));
+            }
             let c = self.spc.step(&mut self.io);
             self.acc -= c as i64 * 24 * self.master_hz as i64;
         }
@@ -123,6 +154,53 @@ impl Apu {
     /// SMP register snapshot for debugger: (a, x, y, sp, pc, psw).
     pub fn smp_regs(&self) -> (u8, u8, u8, u8, u16, u8) {
         (self.spc.a, self.spc.x, self.spc.y, self.spc.sp, self.spc.pc, self.spc.psw)
+    }
+
+    /// Debug: start/stop recording DSP register writes (time = SMP cycle count since power-on).
+    pub fn debug_trace_set(&mut self, on: bool) {
+        self.io.trace_on = on;
+        self.io.trace.clear();
+        self.io.ram_trace.clear();
+        self.io.port_trace.clear();
+        self.instr_trace.clear();
+    }
+
+    /// Debug: recorded SMP instruction starts (ticks, pc, a, x, y, sp, psw).
+    pub fn debug_instr_trace_take(&mut self) -> Vec<(u64, u16, u8, u8, u8, u8, u8)> {
+        std::mem::take(&mut self.instr_trace)
+    }
+
+    /// Debug: recorded CPU writes to the APU ports (time, port, value).
+    pub fn debug_port_trace_take(&mut self) -> Vec<(u64, u8, u8)> {
+        std::mem::take(&mut self.io.port_trace)
+    }
+
+    /// Debug: recorded writes (time, reg, value) and the current SMP cycle count.
+    pub fn debug_trace_take(&mut self) -> (u64, Vec<(u64, u8, u8)>) {
+        (self.io.ticks, std::mem::take(&mut self.io.trace))
+    }
+
+    /// Debug: recorded SMP RAM writes (time, address, value).
+    pub fn debug_ram_trace_take(&mut self) -> Vec<(u64, u16, u8)> {
+        std::mem::take(&mut self.io.ram_trace)
+    }
+
+    /// Debug: the $F0-$FF register block as an SPC file stores it (control, DSP address,
+    /// ports as seen by the SPC700, timer targets).
+    pub fn debug_io_regs(&self) -> [u8; 16] {
+        let mut r = [0u8; 16];
+        r[1] = self.io.control;
+        r[2] = self.io.dspaddr;
+        r[3] = self.io.dsp.read_peek(self.io.dspaddr & 0x7F);
+        for i in 0..4 {
+            r[4 + i] = self.io.port_in[i];
+        }
+        r[8] = self.io.ram[0xF8];
+        r[9] = self.io.ram[0xF9];
+        for i in 0..3 {
+            r[0xA + i] = self.io.timers[i].target();
+        }
+        r
     }
 
     /// Hash APU state into the given hasher.

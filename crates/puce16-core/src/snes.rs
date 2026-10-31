@@ -404,6 +404,53 @@ impl Snes {
         }
     }
 
+    /// Debug: enable/disable the DSP write trace.
+    pub fn debug_apu_trace_set(&mut self, on: bool) {
+        if let Inner::Real { sys, .. } = &mut self.inner {
+            sys.apu.debug_trace_set(on);
+        }
+    }
+
+    /// Debug: (current SMP cycle count, recorded DSP writes).
+    pub fn debug_apu_trace_take(&mut self) -> (u64, Vec<(u64, u8, u8)>) {
+        match &mut self.inner {
+            Inner::Real { sys, .. } => sys.apu.debug_trace_take(),
+            _ => (0, Vec::new()),
+        }
+    }
+
+    /// Debug: recorded SMP instruction starts (ticks, pc, a, x, y, sp, psw).
+    pub fn debug_apu_instr_trace_take(&mut self) -> Vec<(u64, u16, u8, u8, u8, u8, u8)> {
+        match &mut self.inner {
+            Inner::Real { sys, .. } => sys.apu.debug_instr_trace_take(),
+            _ => Vec::new(),
+        }
+    }
+
+    /// Debug: recorded CPU writes to the APU ports (time, port, value).
+    pub fn debug_apu_port_trace_take(&mut self) -> Vec<(u64, u8, u8)> {
+        match &mut self.inner {
+            Inner::Real { sys, .. } => sys.apu.debug_port_trace_take(),
+            _ => Vec::new(),
+        }
+    }
+
+    /// Debug: recorded SMP RAM writes (time, address, value).
+    pub fn debug_apu_ram_trace_take(&mut self) -> Vec<(u64, u16, u8)> {
+        match &mut self.inner {
+            Inner::Real { sys, .. } => sys.apu.debug_ram_trace_take(),
+            _ => Vec::new(),
+        }
+    }
+
+    /// Debug: $F0-$FF block + SPC700 registers (a, x, y, sp, pc, psw), for SPC export.
+    pub fn debug_apu_smp(&mut self) -> Option<([u8; 16], (u8, u8, u8, u8, u16, u8))> {
+        match &mut self.inner {
+            Inner::Pattern { .. } => None,
+            Inner::Real { sys, .. } => Some((sys.apu.debug_io_regs(), sys.apu.smp_regs())),
+        }
+    }
+
     /// DMA channel snapshots for debugger. None for test pattern variant.
     pub fn debug_dma(&self) -> Option<[DmaChanSnapshot; 8]> {
         match &self.inner {

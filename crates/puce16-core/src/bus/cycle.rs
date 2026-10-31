@@ -82,7 +82,12 @@ impl Bus for SysBus {
     fn write(&mut self, addr: u32, v: u8) {
         let addr = addr & 0xFF_FFFF;
         self.begin_cycle();
-        self.advance(access_clocks(addr, self.memsel));
+        let clocks = access_clocks(addr, self.memsel);
+        if (addr >> 16) as u8 & 0x7F <= 0x3F && (0x2140..=0x217F).contains(&(addr & 0xFFFF)) {
+            // Announce the APU port write before the APU catches up, so the SPC700 sees it at the right cycle.
+            self.apu.queue_port_write(self.master + clocks as u64, (addr & 3) as usize, v);
+        }
+        self.advance(clocks);
         self.mdr = v;
         self.write_inner(addr, v);
         self.end_cycle();
