@@ -265,13 +265,21 @@
   "E09-09": "done",
   "E09-10": "done",
   "E09-11": "done",
-  "E09-12": "todo",
+  "E09-12": "approved",
   "E09-13": "todo",
   "E09-14": "todo",
   "E09-15": "todo",
   "E09-16": "todo",
   "E09-17": "todo",
-  "E09-18": "todo"
+  "E09-18": "todo",
+  "E10-01": "todo",
+  "E10-02": "todo",
+  "E10-03": "todo",
+  "E10-04": "todo",
+  "E10-05": "todo",
+  "E10-06": "todo",
+  "E10-07": "todo",
+  "E10-08": "todo"
  },
  "version": 1
 }

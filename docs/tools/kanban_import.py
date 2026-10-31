@@ -132,7 +132,15 @@ def main():
         args = [exe, "kanban", "--board", a.board, "create", t["title"], "--body", small_body(t, a.max_body)]
         if t["role"] not in ("user", "claude", "none") and not t["gate"]:
             args += ["--assignee", a.assignee]
-        for p in t["parents"]:
+        byid = {x["id"]: x for x in tasks}
+
+        def real_parent(p):
+            # un parent differe (non cree dans Kanban) est remplace par son propre parent
+            while p in byid and byid[p]["role"] == "none" and p not in idmap and not a.include_deferred and byid[p]["parents"]:
+                p = byid[p]["parents"][0]
+            return p
+
+        for p in [real_parent(q) for q in t["parents"]]:
             pk = idmap.get(p)
             if pk is None and not a.dry_run:
                 die("parent %s of %s is not in id_map.json: import the earlier tasks first (or omit --only/--from)" % (p, tid))

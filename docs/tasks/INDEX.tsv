@@ -271,3 +271,11 @@ E09-15	Coprocesseur SA-1 (Super Mario RPG, Kirby Super Star)	E09	E09-14	0	doc	0	
 E09-16	Decompresseur SPC7110 (Far East of Eden Zero, Momotaro Dentetsu Happy)	E09	E09-15	0	doc	0	none
 E09-17	Coprocesseur Cx4 (Mega Man X2, X3)	E09	E09-16	0	doc	0	none
 E09-18	Autres puces: OBC1, S-RTC, ST010/ST011/ST018, MSU-1, BS-X	E09	E09-17	0	doc	0	none
+E10-01	Triches: module cheat et analyse d'un code PAR (parse_par)	E10	E09-18	0	code	90	hermes
+E10-02	Triches: fichier .cht (lecture, ecriture, erreurs avec numero de ligne)	E10	E10-01	0	code	120	hermes
+E10-03	Triches: application sur la console (Snes::set_cheats, ecriture silencieuse a chaque image)	E10	E10-02	0	code	110	hermes
+E10-04	Triches: options CLI --cheat et --cheat-code	E10	E10-03	0	code	90	hermes
+E10-05	Triches: fichiers .cht du desktop et commande SetCheats de la console	E10	E10-04	0	code	110	hermes
+E10-06	Triches: modele de la fenetre de triches et menu Triches	E10	E10-05	0	code	140	hermes
+E10-07	GATE Triches: Pro Action Replay valide par l'utilisateur avec de vrais codes	E10	E10-06	1	gate	0	user
+E10-08	Game Genie (placeholder, hors perimetre)	E10	E10-07	0	doc	0	none
