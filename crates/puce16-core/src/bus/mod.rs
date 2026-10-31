@@ -211,6 +211,17 @@ impl DmaBus for SysBus {
     fn master(&self) -> u64 {
         self.master
     }
+
+    fn take_hdma_pending(&mut self) -> Option<(bool, bool, u8)> {
+        if self.pending_hdma_init || self.pending_hdma_run {
+            let r = (self.pending_hdma_init, self.pending_hdma_run, self.mmio.hdmaen);
+            self.pending_hdma_init = false;
+            self.pending_hdma_run = false;
+            Some(r)
+        } else {
+            None
+        }
+    }
 }
 
 impl crate::savestate::State for SysBus {

@@ -127,6 +127,11 @@ pub trait DmaBus {
     fn b_write(&mut self, reg: u8, v: u8);
     fn elapse(&mut self, clocks: u32);
     fn master(&self) -> u64;
+    /// HDMA triggers raised while time elapsed during a general DMA: (init, run_line, hdmaen).
+    /// Taking them clears them. Buses without a timing source never have any.
+    fn take_hdma_pending(&mut self) -> Option<(bool, bool, u8)> {
+        None
+    }
 }
 
 pub fn pattern_offsets(p: u8) -> &'static [u8] {
@@ -167,6 +172,20 @@ pub fn step_a(a1t: u16, step: i32) -> u16 {
 }
 
 impl Dma {
+    /// Run the HDMA init / line transfer that became due while a general DMA was running.
+    /// On hardware HDMA preempts the general DMA at the start of each line; without this the
+    /// lines crossed during a long DMA would lose their HDMA transfer (only one flag was kept).
+    fn service_hdma<B: DmaBus>(&mut self, bus: &mut B) {
+        if let Some((init, run, mask)) = bus.take_hdma_pending() {
+            if init {
+                self.hdma_init(bus, mask);
+            }
+            if run {
+                self.hdma_run_line(bus, mask);
+            }
+        }
+    }
+
     pub fn run_general<B: DmaBus>(&mut self, bus: &mut B, mask: u8) {
         // Align to next multiple of 8 clocks
         let align = ((8 - bus.master() % 8) % 8) as u32;
@@ -175,22 +194,25 @@ impl Dma {
         }
         // Startup overhead
         bus.elapse(8);
+        self.service_hdma(bus);
 
         for n in 0..8 {
             if (mask & (1 << n)) == 0 {
                 continue;
             }
-            let ch = &mut self.ch[n];
             // Channel overhead
             bus.elapse(8);
+            self.service_hdma(bus);
 
-            let count = if ch.das == 0 { 65536 } else { ch.das as u32 };
-            let offs = pattern_offsets(ch.dmap & 7);
-            let step = a_step(ch.dmap);
+            let count = if self.ch[n].das == 0 { 65536 } else { self.ch[n].das as u32 };
+            let offs = pattern_offsets(self.ch[n].dmap & 7);
+            let step = a_step(self.ch[n].dmap);
             let mut i: u32 = 0;
 
             for _ in 0..count {
                 bus.elapse(8);
+                self.service_hdma(bus);
+                let ch = &mut self.ch[n];
                 let addr_a = ((ch.a1b as u32) << 16) | (ch.a1t as u32);
                 let idx = i as usize % offs.len();
                 let reg_b = ch.bbad.wrapping_add(offs[idx]);
@@ -219,11 +241,10 @@ impl Dma {
             }
 
             // After channel: das = 0
-            ch.das = 0;
+            self.ch[n].das = 0;
         }
     }
 }
-
 impl State for Dma {
     fn save(&self, w: &mut StateWriter) {
         for ch in &self.ch {
