@@ -8,6 +8,7 @@ use puce16_core::joypad::filter_opposites;
 use puce16_core::Region;
 
 use crate::audio::{AudioOut, SharedRing};
+use crate::cheat_panel::CheatPanel;
 use crate::config::{self, Config};
 use crate::debugger::DebuggerUi;
 use crate::emu_thread::{Command, EmuHandle, Event, FrameData};
@@ -69,6 +70,8 @@ pub struct App {
     last_joypad_1: u16,
     /// Debugger UI state.
     debugger: DebuggerUi,
+    /// Cheat panel model.
+    cheats: CheatPanel,
     /// Emulated frames per second, measured over ~0.5 s windows.
     fps: f32,
     fps_last_frame: u64,
@@ -113,6 +116,7 @@ impl App {
             poller: PadPoller::new(),
             last_joypad_1: 0,
             debugger: DebuggerUi::new(),
+            cheats: CheatPanel::new(Vec::new()),
             fps: 0.0,
             fps_last_frame: 0,
             fps_last_time: std::time::Instant::now(),
@@ -171,6 +175,20 @@ impl App {
                     self.cfg.last_dir = dir.to_string_lossy().to_string();
                 }
                 self.touch_cfg();
+
+                // Load cheat entries from .cht file.
+                let cheat_file_path = files::cheat_path(path);
+                match files::load_cheat_entries(&cheat_file_path) {
+                    Ok(entries) => {
+                        self.cheats = CheatPanel::new(entries);
+                        self.send(Command::SetCheats(self.cheats.active_codes()));
+                    }
+                    Err(e) => {
+                        self.status = format!("ERROR: cheat file: {}", e);
+                        self.cheats = CheatPanel::new(Vec::new());
+                    }
+                }
+
                 self.send(Command::LoadRom(bytes, name));
             }
             Err(e) => {
@@ -481,6 +499,21 @@ impl App {
                     changed = true;
                 }
             });
+            let has_rom = self.rom_path.is_some();
+            let mut cheats_changed = false;
+            let cheats = &mut self.cheats;
+            // The menu stays open on a click, so several cheats can be toggled in a row.
+            egui::containers::menu::MenuButton::new("Triches")
+                .config(
+                    egui::containers::menu::MenuConfig::new()
+                        .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside),
+                )
+                .ui(ui, |ui| {
+                    cheats_changed |= cheats.menu_ui(ui, has_rom);
+                });
+            if cheats_changed {
+                self.apply_cheats();
+            }
         });
         if changed {
             self.touch_cfg();
@@ -490,6 +523,17 @@ impl App {
         }
         if let Some(rom) = to_open {
             self.open_path(std::path::Path::new(&rom));
+        }
+    }
+
+    /// Send the active cheat codes to the console and rewrite the `.cht` file.
+    fn apply_cheats(&mut self) {
+        self.send(Command::SetCheats(self.cheats.active_codes()));
+        if let Some(rom_path) = &self.rom_path {
+            let cheat_file_path = files::cheat_path(rom_path);
+            if let Err(e) = files::save_cheat_entries(&cheat_file_path, self.cheats.entries()) {
+                self.status = format!("ERROR: save cheats: {}", e);
+            }
         }
     }
 
@@ -687,6 +731,11 @@ impl eframe::App for App {
         if let Some(p) = self.debugger.pause_request.take() {
             self.paused = p;
             self.send(Command::Pause(p));
+        }
+
+        // Add-cheat window.
+        if self.cheats.add_window(ui.ctx()) {
+            self.apply_cheats();
         }
 
         egui::CentralPanel::default().show(ui, |panel_ui| {

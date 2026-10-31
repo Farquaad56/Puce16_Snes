@@ -276,6 +276,6 @@ E10-02	Triches: fichier .cht (lecture, ecriture, erreurs avec numero de ligne)	E
 E10-03	Triches: application sur la console (Snes::set_cheats, ecriture silencieuse a chaque image)	E10	E10-02	0	code	110	hermes
 E10-04	Triches: options CLI --cheat et --cheat-code	E10	E10-03	0	code	90	hermes
 E10-05	Triches: fichiers .cht du desktop et commande SetCheats de la console	E10	E10-04	0	code	110	hermes
-E10-06	Triches: modele de la fenetre de triches et menu Triches	E10	E10-05	0	code	140	hermes
+E10-06	Triches: modele CheatPanel, menu Triches a cases a cocher et fenetre d'ajout	E10	E10-05	0	code	140	hermes
 E10-07	GATE Triches: Pro Action Replay valide par l'utilisateur avec de vrais codes	E10	E10-06	1	gate	0	user
 E10-08	Game Genie (placeholder, hors perimetre)	E10	E10-07	0	doc	0	none

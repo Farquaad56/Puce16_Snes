@@ -4,6 +4,7 @@
 //! preserves the E01-06 API; the real variant loads a cartridge and runs CPU/bus.
 
 use crate::cart::{Cart, CartError, MapMode};
+use crate::cheat::ParCode;
 use crate::cpu::Cpu;
 use crate::hash::Fnv64;
 use crate::ppu::output::{make_view, FrameBuf, FrameView};
@@ -56,6 +57,7 @@ pub struct Snes {
     frame: u64,
     joy: [u16; 2],
     inner: Inner,
+    cheats: Vec<ParCode>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -96,6 +98,7 @@ impl Snes {
             frame: 0,
             joy: [0; 2],
             inner: Inner::Pattern { compact: fb.compact(), fb },
+            cheats: Vec::new(),
         }
     }
 
@@ -120,6 +123,7 @@ impl Snes {
             frame: 0,
             joy: [0; 2],
             inner: Inner::Real { cpu, sys },
+            cheats: Vec::new(),
         })
     }
 
@@ -173,6 +177,10 @@ impl Snes {
                     }
                 }
                 self.frame = sys.vblank_count();
+                // Apply cheats once per frame, after vblank detection
+                for c in &self.cheats {
+                    sys.cheat_write(c.addr, c.value);
+                }
             }
         }
     }
@@ -316,6 +324,16 @@ impl Snes {
                 sys.cart.load_sram(data);
             }
         }
+    }
+
+    /// Set the active cheat codes. Applied once per frame at end of run_frame.
+    pub fn set_cheats(&mut self, codes: &[ParCode]) {
+        self.cheats = codes.to_vec();
+    }
+
+    /// Get the current list of active cheat codes.
+    pub fn cheats(&self) -> &[ParCode] {
+        &self.cheats
     }
 
     /// Debug snapshot of CPU and system state.

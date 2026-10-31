@@ -11,6 +11,7 @@ use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
+use puce16_core::cheat::ParCode;
 use puce16_core::{Region, Snes};
 
 /// Debug data sent to the UI when debugging is active.
@@ -65,6 +66,8 @@ pub enum Command {
     StepInstruction,
     /// Run until PC reaches address (pb << 16) | pc; only when paused.
     RunToPc(u32),
+    /// Set the active cheat codes for the console.
+    SetCheats(Vec<ParCode>),
 }
 
 /// One published frame: compact XRGB8888 pixels plus metadata.
@@ -215,6 +218,8 @@ fn emu_loop(
     let mut debug_active = false;
     let mut wram_page = 0u16;
     let mut rom_loaded = false;
+    // Cheat codes to apply (persist across reset and console reload).
+    let mut cheats: Vec<ParCode> = Vec::new();
 
     loop {
         // Drain every pending command before doing any work.
@@ -246,7 +251,7 @@ fn emu_loop(
                 Command::LoadState(slot) => {
                     let result = handle_load_state(
                         &mut snes, slot, &rom_path, rom_hash, active_region,
-                        &rom_bytes, &joy, &mut frame_no, &mut sync, &tx_event);
+                        &rom_bytes, &joy, &cheats, &mut frame_no, &mut sync, &tx_event);
                     if let Some(new_snes) = result {
                         snes = new_snes;
                     }
@@ -314,6 +319,9 @@ fn emu_loop(
                             if let Some(ref path) = rom_path {
                                 load_sram(&mut snes, &path, &mut sync, &tx_event);
                             }
+
+                            // Clear cheats on new ROM (spec: list is cleared).
+                            cheats.clear();
                         }
                         Err(puce16_core::snes::LoadError::Cart(e)) => {
                             let msg = match e {
@@ -331,8 +339,16 @@ fn emu_loop(
                 Command::Reset => {
                     snes.reset();
                     frame_no = 0;
+                    // Re-apply cheats after reset (spec: list persists across reset).
+                    if !cheats.is_empty() {
+                        snes.set_cheats(&cheats);
+                    }
                 }
                 Command::SetFastForward(on) => { fast_forward = on; next = None; }
+                Command::SetCheats(codes) => {
+                    cheats = codes.clone();
+                    snes.set_cheats(&cheats);
+                }
                 Command::Quit => {
                     save_sram(&snes, &rom_path, &mut sync, &tx_event);
                     return;
@@ -578,6 +594,7 @@ fn handle_load_state(
     region: Region,
     rom_bytes: &[u8],
     joy: &[u16; 2],
+    cheats: &[ParCode],
     frame_no: &mut u64,
     sync: &mut SramSync,
     tx_event: &Sender<Event>,
@@ -631,7 +648,7 @@ fn handle_load_state(
             let _ = tx_event.send(Event::Error(format!(
                 "cannot load state: {}", e)));
             // Reload console from ROM bytes + SRAM.
-            reload_console(rom_path, rom_bytes, joy, frame_no, sync, tx_event)
+            reload_console(rom_path, rom_bytes, joy, &cheats, frame_no, sync, tx_event)
         }
     }
 }
@@ -642,6 +659,7 @@ fn reload_console(
     rom_path: &Option<PathBuf>,
     rom_bytes: &[u8],
     joy: &[u16; 2],
+    cheats: &[ParCode],
     frame_no: &mut u64,
     sync: &mut SramSync,
     tx_event: &Sender<Event>,
@@ -650,6 +668,10 @@ fn reload_console(
         Ok(mut new_snes) => {
             for (port, buttons) in joy.iter().enumerate() {
                 new_snes.set_joypad(port, *buttons);
+            }
+            // Re-apply cheats after console reload.
+            if !cheats.is_empty() {
+                new_snes.set_cheats(cheats);
             }
             *frame_no = 0;
             if let Some(path) = rom_path {

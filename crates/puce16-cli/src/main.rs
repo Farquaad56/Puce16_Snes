@@ -11,6 +11,7 @@ use puce16_core::hash::Fnv64;
 use puce16_core::cart::MapMode;
 use puce16_core::{Region, Snes};
 
+mod cheats;
 mod cpu_test;
 mod ppm;
 mod run_cmd;
@@ -123,6 +124,14 @@ struct RunArgs {
     /// Load emulator state from this file before running frames.
     #[arg(long)]
     load_state: Option<PathBuf>,
+
+    /// Cheat file (.cht) to load enabled cheats from.
+    #[arg(long)]
+    cheat: Option<PathBuf>,
+
+    /// Individual PAR cheat code (repeatable). Applied after file cheats.
+    #[arg(long = "cheat-code")]
+    cheat_codes: Vec<String>,
 }
 
 /// Parse `--input` into (first, last, buttons) ranges; unknown button names are an error.
@@ -254,6 +263,27 @@ fn run_command(args: &RunArgs) -> ExitCode {
         };
         if let Err(e) = snes.load_state(&data) {
             eprintln!("error: cannot load state: {}", e);
+            return ExitCode::from(2);
+        }
+    }
+
+    // Collect and apply cheats before running frames.
+    let file_text = match &args.cheat {
+        Some(path) => {
+            match std::fs::read_to_string(path) {
+                Ok(t) => Some(t),
+                Err(err) => {
+                    eprintln!("error: cannot read {}: {}", path.display(), err);
+                    return ExitCode::from(2);
+                }
+            }
+        }
+        None => None,
+    };
+    match cheats::collect_cheats(file_text.as_deref(), &args.cheat_codes) {
+        Ok(codes) => snes.set_cheats(&codes),
+        Err(e) => {
+            eprintln!("erreur cheat: {}", e);
             return ExitCode::from(2);
         }
     }

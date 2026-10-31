@@ -50,6 +50,29 @@ impl SysBus {
         }
     }
 
+    /// Cheat write: silent write routed like a CPU write but without side effects.
+    /// No master clock advance, no mdr update, no MMIO/PPU/APU/DMA writes.
+    pub fn cheat_write(&mut self, addr: u32, v: u8) {
+        let bank = (addr >> 16) as u8;
+        let a = (addr & 0xFFFF) as u16;
+
+        if bank & 0x7F <= 0x3F {
+            // Banks 00-3F and 80-BF: system area
+            match a {
+                0x0000..=0x1FFF => self.wram.write(a as u32, v),
+                0x6000..=0xFFFF => { let _ = self.cart.write(bank, a, v); }
+                _ => {} // ignored (MMIO/PPU/APU/DMA not written by cheats)
+            }
+        } else if bank == 0x7E || bank == 0x7F {
+            // WRAM mirror banks
+            let idx = (((bank & 1) as u32) << 16) | (a as u32);
+            self.wram.write(idx, v);
+        } else {
+            // Cart ROM/SRAM area (banks 40-7D, C0-FF)
+            let _ = self.cart.write(bank, a, v);
+        }
+    }
+
     /// Route a CPU write to the appropriate component.
     /// Does NOT advance master clock or update mdr (that is done by Bus::write).
     pub fn write_inner(&mut self, addr: u32, v: u8) {

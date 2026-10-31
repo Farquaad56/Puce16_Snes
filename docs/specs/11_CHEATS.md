@@ -78,7 +78,9 @@ Tous ces types derivent `Clone, Debug, PartialEq, Eq`.
 
 - Fichier de triches d'une ROM: meme dossier et meme nom que la ROM avec l'extension `.cht` (comme `.srm`).
 - Au chargement d'une ROM: lecture du `.cht` (absent = liste vide), envoi des codes actifs a la console par `Command::SetCheats(Vec<ParCode>)`. La console garde la liste apres un `Reset` et un rechargement de la console.
-- Menu `Triches` > `Gerer les triches...`: fenetre avec la liste (case a cocher, nom, codes, bouton supprimer), un champ nom, un champ codes, un bouton Ajouter. Chaque modification renvoie les codes actifs et reecrit le `.cht` (ecriture atomique).
+- Menu `Triches` (grise sans ROM), sans fenetre de gestion: en haut, une case a cocher par triche (son nom; un survol affiche ses codes); cocher/decocher agit tout de suite et le menu RESTE ouvert (on peut activer plusieurs triches de suite). Sous un separateur: `Ajouter une triche...`, un sous-menu `Supprimer` (une entree par triche) et `Tout desactiver`. Sans triche, le menu affiche une ligne grisee `Aucune triche pour ce jeu`.
+- `Ajouter une triche...` ouvre une petite fenetre avec UN champ principal `Code(s)` (multiligne: on peut coller plusieurs codes separes par espaces, virgules ou retours a la ligne) et un champ facultatif `Nom` (vide = le premier code sert de nom). L'erreur s'affiche en direct sous le champ (code fautif nomme) et le bouton `Ajouter` est grise tant que le texte est invalide. La touche Entree valide, Echap ferme. A la validation la triche est ajoutee ACTIVE, la fenetre se ferme.
+- Chaque modification (case, ajout, suppression, tout desactiver) renvoie les codes actifs a la console et reecrit le `.cht` (ecriture atomique).
 
 ## 8. Plan de test
 

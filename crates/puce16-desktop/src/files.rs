@@ -2,6 +2,7 @@ use std::fs;
 use std::io::{Cursor, Read};
 use std::path::{Path, PathBuf};
 
+use puce16_core::cheat::{parse_cheat_file, format_cheat_file, CheatEntry};
 use puce16_core::hash::Fnv64;
 
 /// Check if a filename has a ROM extension (case-insensitive).
@@ -63,6 +64,33 @@ pub fn srm_path(rom: &Path) -> PathBuf {
         p.set_file_name("game.srm");
     }
     p
+}
+
+/// Cheat file path: same directory as ROM, stem + ".cht".
+pub fn cheat_path(rom: &Path) -> PathBuf {
+    let mut p = rom.to_path_buf();
+    if let Some(stem) = p.file_stem() {
+        p.set_file_name(format!("{}.cht", stem.to_string_lossy()));
+    } else {
+        p.set_file_name("game.cht");
+    }
+    p
+}
+
+/// Load cheat entries from a .cht file. Missing file returns Ok(vec![]).
+pub fn load_cheat_entries(path: &Path) -> Result<Vec<CheatEntry>, String> {
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+    let text = fs::read_to_string(path)
+        .map_err(|e| format!("cannot read {}: {}", path.display(), e))?;
+    parse_cheat_file(&text).map_err(|e| format!("{}", e))
+}
+
+/// Save cheat entries to a .cht file (atomic write).
+pub fn save_cheat_entries(path: &Path, entries: &[CheatEntry]) -> Result<(), String> {
+    let text = format_cheat_file(entries);
+    write_atomic(path, text.as_bytes())
 }
 
 /// Save state path: "<stem>.<slot>.p16s" (slot 0..=9, otherwise slot % 10).

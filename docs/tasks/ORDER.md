@@ -299,6 +299,6 @@ D-020: UNE seule tache a la fois, dans cet ordre. Une tache n'est prete que quan
 275. E10-03 Triches: application sur la console (Snes::set_cheats, ecriture silencieuse a chaque image)
 276. E10-04 Triches: options CLI --cheat et --cheat-code
 277. E10-05 Triches: fichiers .cht du desktop et commande SetCheats de la console
-278. E10-06 Triches: modele de la fenetre de triches et menu Triches
+278. E10-06 Triches: modele CheatPanel, menu Triches a cases a cocher et fenetre d'ajout
 279. E10-07 GATE Triches: Pro Action Replay valide par l'utilisateur avec de vrais codes  [GATE]
 280. E10-08 Game Genie (placeholder, hors perimetre)
