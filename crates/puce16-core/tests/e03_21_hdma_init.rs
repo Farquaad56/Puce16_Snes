@@ -168,9 +168,12 @@ fn e03_21_mask_selects() {
     assert!(!dma.hdma_state(0).3, "channel 0 not done");
     assert!(!dma.hdma_state(2).3, "channel 2 not done");
 
-    // Channel 1 unchanged (still done)
+    // Channel 1 is not enabled: it is not initialised (no table read, A2A untouched), but the
+    // frame-start reset (hardware hdmaReset) clears the completed flag of EVERY channel and
+    // the setup sets every channel's transfer flag (E09-12).
     let ch1_state_after = dma.hdma_state(1);
-    assert_eq!(ch1_state_after.3, true, "channel 1 still done after init");
+    assert_eq!(ch1_state_after.0, 0xFFFF, "channel 1 A2A untouched");
+    assert_eq!(ch1_state_after.3, false, "channel 1 done flag cleared by the frame-start reset");
 
     // Timing: 18 + 8*2 channels = 34 clocks
     assert_eq!(bus.master, 34);

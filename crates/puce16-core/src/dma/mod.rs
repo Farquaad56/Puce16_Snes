@@ -18,7 +18,6 @@ pub struct Channel {
     pub unused: u8,
     pub(crate) do_transfer: bool,
     pub(crate) done: bool,
-    pub(crate) line_counter: u8,
 }
 
 #[derive(Default, Clone)]
@@ -41,7 +40,6 @@ impl Dma {
             ch.unused = 0xFF;
             ch.do_transfer = false;
             ch.done = true;
-            ch.line_counter = 0;
         }
         d
     }
@@ -115,7 +113,9 @@ impl Dma {
             } else {
                 h.write_u8(0);
             }
-            h.write_u8(ch.line_counter);
+            // Slot of the former separate line counter (($43xA is the counter now): constant, kept so
+            // that state hashes of ROMs without HDMA stay unchanged.
+            h.write_u8(0);
         }
     }
 }
@@ -259,7 +259,8 @@ impl State for Dma {
             w.u8(ch.unused);
             w.bool(ch.do_transfer);
             w.bool(ch.done);
-            w.u8(ch.line_counter);
+            // Slot of the former separate line counter ( is the counter now); keeps the layout.
+            w.u8(ch.nltr);
         }
     }
 
@@ -276,7 +277,7 @@ impl State for Dma {
             ch.unused = r.u8()?;
             ch.do_transfer = r.bool()?;
             ch.done = r.bool()?;
-            ch.line_counter = r.u8()?;
+            let _legacy_line_counter = r.u8()?;
         }
         Ok(())
     }
@@ -302,7 +303,6 @@ mod tests {
             ch.unused = 0x90 + n as u8;
             ch.do_transfer = n % 2 == 0;
             ch.done = n % 3 != 0;
-            ch.line_counter = (n * 5) as u8;
         }
         d
     }
@@ -334,7 +334,6 @@ mod tests {
             assert_eq!(original.ch[n].unused, restored.ch[n].unused);
             assert_eq!(original.ch[n].do_transfer, restored.ch[n].do_transfer);
             assert_eq!(original.ch[n].done, restored.ch[n].done);
-            assert_eq!(original.ch[n].line_counter, restored.ch[n].line_counter);
         }
 
         // Verify hash is identical after roundtrip
@@ -377,7 +376,6 @@ mod tests {
             assert_eq!(modified.ch[n].unused, 0xFF);
             assert!(!modified.ch[n].do_transfer);
             assert!(modified.ch[n].done);
-            assert_eq!(modified.ch[n].line_counter, 0);
         }
     }
 
@@ -401,6 +399,7 @@ mod tests {
     struct TestBus {
         mem: std::collections::BTreeMap<u32, u8>,
         master: u64,
+        writes: Vec<(u8, u8)>,
     }
 
     impl TestBus {
@@ -408,6 +407,7 @@ mod tests {
             TestBus {
                 mem: std::collections::BTreeMap::new(),
                 master: 0,
+                writes: Vec::new(),
             }
         }
 
@@ -430,7 +430,9 @@ mod tests {
             0
         }
 
-        fn b_write(&mut self, _reg: u8, _v: u8) {}
+        fn b_write(&mut self, reg: u8, v: u8) {
+            self.writes.push((reg, v));
+        }
 
         fn elapse(&mut self, clocks: u32) {
             self.master += clocks as u64;
@@ -474,5 +476,69 @@ mod tests {
         let state_after = restored.hdma_state(0);
 
         assert_eq!(state_before, state_after, "HDMA state must be preserved through save/load");
+    }
+
+    #[test]
+    fn e09_12_frame_start_reset_clears_every_channel() {
+        // Hardware hdmaReset: at V=0 the completed flag of ALL channels is cleared, enabled or not.
+        let mut dma = Dma::new();
+        assert!(dma.hdma_state(3).3, "power-on: done");
+        let mut bus = TestBus::new();
+        dma.hdma_init(&mut bus, 0);
+        for n in 0..8 {
+            let s = dma.hdma_state(n);
+            assert!(!s.3, "channel {n}: done cleared by the frame-start reset");
+            assert!(!s.2, "channel {n}: no transfer pending (no setup ran)");
+        }
+        assert_eq!(bus.master, 0, "nothing enabled: no HDMA time");
+    }
+
+    #[test]
+    fn e09_12_cpu_programmed_channel_runs_after_mid_frame_enable() {
+        // SFA2 pattern: channels are enabled on line 21 (after the V=0 init) and the game has
+        // programmed A2A ($43x8/9) and the line counter ($43xA) itself.
+        let mut dma = Dma::new();
+        dma.write(0x4330, 0x00); // direct, pattern 0
+        dma.write(0x4331, 0x26); // B bus $2126
+        dma.write(0x4334, 0x7E); // A1B
+        dma.write(0x4338, 0x00); // A2A = $2000
+        dma.write(0x4339, 0x20);
+        dma.write(0x433A, 0x01); // line counter = 1: the next entry is loaded after one line
+        let mut bus = TestBus::new();
+        bus.poke(0x7E2000, 0x02); // entry: 2 lines, no repeat
+        bus.poke(0x7E2001, 0xAA);
+        bus.poke(0x7E2002, 0x00); // terminator
+
+        dma.hdma_init(&mut bus, 0); // V=0, nothing enabled yet
+        // Line 21: HDMAEN = channel 3 (mask 0x08), then one run per line.
+        dma.hdma_run_line(&mut bus, 0x08); // counter 1 -> 0: entry loaded, nothing transferred yet
+        assert!(bus.writes.is_empty());
+        assert_eq!(dma.ch[3].nltr, 0x02);
+        dma.hdma_run_line(&mut bus, 0x08); // first line of the entry: transfer
+        assert_eq!(bus.writes, vec![(0x26, 0xAA)]);
+        dma.hdma_run_line(&mut bus, 0x08); // second line: wait
+        dma.hdma_run_line(&mut bus, 0x08); // terminator read: channel done
+        assert!(dma.hdma_state(3).3);
+        assert_eq!(bus.writes.len(), 1);
+    }
+
+    #[test]
+    fn e09_12_ntrl_register_is_the_line_counter() {
+        // $43xA reads back the live counter, which counts down while the channel runs.
+        let mut dma = Dma::new();
+        dma.write(0x4300, 0x00);
+        dma.write(0x4301, 0x26);
+        dma.write(0x4304, 0x7E);
+        dma.write(0x4302, 0x00);
+        dma.write(0x4303, 0x20);
+        let mut bus = TestBus::new();
+        bus.poke(0x7E2000, 0x03);
+        bus.poke(0x7E2001, 0x11);
+        dma.hdma_init(&mut bus, 0x01);
+        assert_eq!(dma.read(0x430A), Some(3));
+        dma.hdma_run_line(&mut bus, 0x01);
+        assert_eq!(dma.read(0x430A), Some(2));
+        dma.hdma_run_line(&mut bus, 0x01);
+        assert_eq!(dma.read(0x430A), Some(1));
     }
 }

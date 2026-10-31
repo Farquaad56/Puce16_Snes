@@ -391,6 +391,19 @@ impl Snes {
         }
     }
 
+    /// Debugger: copy of the 128 S-DSP registers and the 64 KiB SPC700 RAM. None for the pattern variant.
+    pub fn debug_apu_dump(&mut self) -> Option<([u8; 128], Vec<u8>)> {
+        match &mut self.inner {
+            Inner::Pattern { .. } => None,
+            Inner::Real { sys, .. } => {
+                let mut regs = [0u8; 128];
+                for i in 0..128u8 { regs[i as usize] = sys.apu.debug_dsp_read(i); }
+                let ram: Vec<u8> = (0..65536u32).map(|a| sys.apu.debug_peek(a as u16)).collect();
+                Some((regs, ram))
+            }
+        }
+    }
+
     /// DMA channel snapshots for debugger. None for test pattern variant.
     pub fn debug_dma(&self) -> Option<[DmaChanSnapshot; 8]> {
         match &self.inner {

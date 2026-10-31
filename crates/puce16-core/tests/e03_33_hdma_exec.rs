@@ -41,7 +41,8 @@ fn e03_33_init_after_dot3() {
     // at dot 3 during catch_up, but not executed yet.
     bus.advance(20);
     let state = bus.dma.hdma_state(0);
-    assert_eq!(state, (0xFFFF, 0, false, true), "HDMA not executed before begin_cycle");
+    // $43xA is the line counter (power-on value $FF -> derived count 127), untouched.
+    assert_eq!(state, (0xFFFF, 127, false, true), "HDMA not executed before begin_cycle");
 
     // Now execute a CPU cycle - HDMA init runs in begin_cycle
     Bus::idle(&mut bus);

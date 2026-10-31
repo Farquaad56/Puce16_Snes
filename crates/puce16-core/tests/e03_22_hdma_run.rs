@@ -299,9 +299,9 @@ fn e03_22_mask_excludes() {
 
     dma.hdma_init(&mut bus, 0x01);
 
-    // Run with mask that doesn't include channel 0
+    // Run with a mask that doesn't include channel 0 (nor any other channel)
     bus.ev.clear();
-    dma.hdma_run_line(&mut bus, 0x02);
+    dma.hdma_run_line(&mut bus, 0x00);
     assert!(bus.ev.is_empty(), "channel not in mask should produce no events");
 
     // Now mark channel as done and try again

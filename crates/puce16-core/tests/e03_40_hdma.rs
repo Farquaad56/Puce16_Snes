@@ -29,6 +29,10 @@ fn build_hdma_prog(t_hi: u8, en: u8) -> Vec<u8> {
         0xA9, t_hi, 0x8D, 0x13, 0x43,
         // A1B1 = 0 (bank)
         0x9C, 0x14, 0x43,
+        // Wait for VBlank (LDA $4212 / BPL): a channel enabled in mid-frame without a frame-start
+        // init would run from its power-on registers on real hardware (E09-12), so enable HDMA
+        // only once the next frame start is ahead.
+        0xAD, 0x12, 0x42, 0x10, 0xFB,
         // HDMAEN = EN (enable HDMA channel 1)
         0xA9, en, 0x8D, 0x0C, 0x42,
         // Loop forever

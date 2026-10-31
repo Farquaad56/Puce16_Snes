@@ -186,3 +186,15 @@ ROM re-figees dans `tests/baseline.json` (22):
 - `peterlemon_ppu_interlace_interlacerpg_interlacerpg`, `peterlemon_ppu_mode7_starwars_starwars`
 
 Les tests de rendu de reference ont ete alignes: `docs/tools/ppu_ref.py` (formule + autotest) et `ppu_scenes.expected` regeneres (23 scenes, moteur et reference independante d'accord), `e04_10_hash` (reste sur la ligne 0 pour eviter un range_over precoce avec l'OAM a zero), `e05_16_compose` (Y decales d'une unite).
+
+## E09-12: HDMA sur l'etat materiel ($43xA = compteur de lignes, remise a zero au debut d'image)
+
+Symptome (SFA2, en combat): une image sur trois, le HUD du bas s'affichait au milieu de l'ecran, des bandes du decor etaient decalees. Cause: SFA2 programme lui-meme ses canaux HDMA 3-5 ($4308/$4309 = A2A, $430A = compteur de lignes) et les active par $420C a la ligne 21, apres l'init de la ligne 0. Sur la console, $43xA EST le compteur de lignes et le drapeau « termine » de TOUS les canaux est remis a zero a chaque debut d'image (`hdmaReset`, reference ares); Puce16 gardait un compteur interne distinct de $43xA et ne remettait a zero que les canaux actives a V=0.
+
+Correction (`dma/hdma.rs`, `dma/mod.rs`, `timing/mod.rs`, `bus/cycle.rs`): `nltr` ($43xA) est le compteur (decremente a chaque ligne, bit 7 = repetition, rechargement quand les 7 bits tombent a 0); remise a zero de `done`/`do_transfer` de tous les canaux a (V=0, dot 3) meme si HDMAEN = 0; `do_transfer` mis a vrai pour tous les canaux quand au moins un est actif a l'init (`hdmaSetup`). `hdma_state` renvoie toujours un compte « logique » (1..128) derive de $43xA. Le format de sauvegarde est inchange (l'ancien emplacement du compteur contient maintenant $43xA).
+
+Verification: le save state de SFA2 de l'utilisateur rejoue 12 images propres (avant: 1 sur 3 cassee); la ROM de test materiel `hdmaen_latch_test` (undisbeliever) passe d'un ecran blanc a un motif de 8 blocs de lignes rouges (frame_hash change, `_2` idem). Les 137 autres ROM gardent leur frame_hash; leurs state_hash changent (drapeau `done` des canaux inutilises) et sont re-figes: 138 empreintes dans `tests/baseline.json`.
+
+Tests: `e09_12_*` (3, dans `dma/mod.rs`); `e03_21_mask_selects`, `e03_22_mask_excludes`, `e03_33_init_after_dot3` ajustes; `e03_40_*` n'active plus HDMAEN en milieu d'image (un canal active sans init tournerait depuis ses registres de mise sous tension, comme sur la console).
+
+Aussi verifie ici: le decompresseur S-DD1 de Puce16 est identique octet pour octet a la reference bsnes/ares sur 52 flux reels SFA2 (combat) et 9 flux Star Ocean; ce n'etait donc pas la cause. Outils: `examples/trace_lines.rs`, `examples/sdd1_dump.rs`, `examples/dump_apu.rs`.

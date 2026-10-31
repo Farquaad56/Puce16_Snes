@@ -26,6 +26,8 @@ pub const HDMA_RUN_DOT: u16 = 276;
 #[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
 pub struct TimingOut {
     pub hdma_init: bool,
+    /// Frame-start HDMA reset (V=0), raised whether or not any channel is enabled.
+    pub hdma_reset: bool,
     pub hdma_run: bool,
     pub vblank_start: bool,
     pub frame_end: bool,
@@ -119,7 +121,11 @@ impl Timing {
             }
         }
 
-        // 6. HDMA triggers: init at (0, HDMA_INIT_DOT), run per visible line.
+        // 6. HDMA triggers: frame-start reset at (0, HDMA_INIT_DOT) always (hardware resets the
+        //    completed flags of every channel), init only if a channel is enabled, run per line.
+        if v == 0 && dot == HDMA_INIT_DOT {
+            out.hdma_reset = true;
+        }
         if mmio.hdmaen != 0 {
             if v == 0 && dot == HDMA_INIT_DOT {
                 out.hdma_init = true;

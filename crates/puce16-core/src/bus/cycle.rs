@@ -18,7 +18,7 @@ impl SysBus {
             self.ppu.step_dot();
             self.ppu_t += c;
             let out = self.timing.on_dot(&mut self.mmio, &mut self.joy, &self.ppu, self.ppu_t);
-            if out.hdma_init { self.pending_hdma_init = true; }
+            if out.hdma_init || out.hdma_reset { self.pending_hdma_init = true; }
             if out.hdma_run { self.pending_hdma_run = true; }
             if out.vblank_start {
                 self.vblank_flag = true;
