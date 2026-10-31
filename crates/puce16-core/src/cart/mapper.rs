@@ -83,7 +83,7 @@ pub fn sdd1_sram_offset(bank: u8, addr: u16, sram_len: usize) -> Option<usize> {
         return None;
     }
     // Banks 00-3F/80-BF offsets $6000-$7FFF
-    if (bank <= 0x3F || bank >= 0x80) && addr >= 0x6000 && addr <= 0x7FFF {
+    if (bank <= 0x3F || (0x80..=0xBF).contains(&bank)) && addr >= 0x6000 && addr <= 0x7FFF {
         return Some((addr & 0x1FFF) as usize % sram_len);
     }
     // Banks 70-73 offsets $0000-$FFFF (mirror from ares cart)

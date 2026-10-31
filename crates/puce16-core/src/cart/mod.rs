@@ -163,7 +163,7 @@ impl Cart {
         // S-DD1 ROM mapping when present
         if let Some(ref s) = self.sdd1 {
             // LoROM window: banks 00-3F/80-BF, offsets $8000-$FFFF
-            if (bank <= 0x3F || bank >= 0x80) && addr >= 0x8000 {
+            if (bank <= 0x3F || (0x80..=0xBF).contains(&bank)) && addr >= 0x8000 {
                 let offset = s.lorom_offset(addr24);
                 return Some(self.rom[offset & self.rom_mask]);
             }
@@ -202,7 +202,7 @@ impl Cart {
         // S-DD1 ROM mapping when present
         if let Some(ref mut s) = self.sdd1 {
             // LoROM window: banks 00-3F/80-BF, offsets $8000-$FFFF
-            if (bank <= 0x3F || bank >= 0x80) && addr >= 0x8000 {
+            if (bank <= 0x3F || (0x80..=0xBF).contains(&bank)) && addr >= 0x8000 {
                 let offset = s.lorom_offset(addr24);
                 return Some(self.rom[offset & self.rom_mask]);
             }

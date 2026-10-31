@@ -240,6 +240,8 @@ Place commercial ROMs in `tests/roms/games/` with these exact names:
 - `smw.sfc` - Super Mario World
 - `alttp.sfc` - The Legend of Zelda: A Link to the Past
 - `smb_allstars.sfc` - Super Mario All-Stars
+- `sfa2.sfc` - Street Fighter Alpha 2 (S-DD1)
+- `starocean.sfc` - Star Ocean (S-DD1)
 
 These are never committed to git.
 

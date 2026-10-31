@@ -1276,3 +1276,21 @@ optional = true
 epic = "E07"
 check = "none"
 
+[[rom]]
+name = "game_sfa2"
+path = "tests/roms/games/sfa2.sfc"
+region = "auto"
+frames = 600
+optional = true
+epic = "E09"
+check = "none"
+
+[[rom]]
+name = "game_starocean"
+path = "tests/roms/games/starocean.sfc"
+region = "auto"
+frames = 600
+optional = true
+epic = "E09"
+check = "none"
+
